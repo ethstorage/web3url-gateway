@@ -3,5 +3,5 @@
     -setChain 3334,w3q-g,https://galileo.web3q.io:8545  \
     -setNSChain w3q,3334 \
     -setNSChain eth,5 \
-    -cacheDurationInMinutes 10 \
+    -cacheDurationMinutes 10 \
     "$@"
