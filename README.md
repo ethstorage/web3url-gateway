@@ -1,5 +1,5 @@
-# Web3 URL Gateway
-A gateway implementation of the web3 access protocol (web3://) that can serve HTTP-style Web3 URL for blockchain resource access.
+# Web3:// Gateway
+A gateway implementation of the web3 access protocol (web3://) that can serve HTTP-style web3 URL for blockchain resource access.
 
 ## Feature list
 * Implements EIP-4804: Web3 URL to EVM Call Message Translation
