@@ -511,3 +511,49 @@ func TestW3urls(t *testing.T) {
 		})
 	}
 }
+
+var mimeTypeUrls = []struct {
+	chainId    string
+	domain     string
+	path       string
+	mt         string
+	statusCode int
+}{
+	// content-type is detected by http.DetectContentType()
+	{"1", "cyberbrokers-meta.w3eth.io", "/renderBroker/5", "text/xml; charset=utf-8", http.StatusOK},
+	// use mime if specified
+	{"1", "cyberbrokers-meta.w3eth.io", "/renderBroker/5?mime.content=image%2Fsvg%2Bxml", "image/svg+xml", http.StatusOK},
+	{"1", "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.type=svg", "image/svg+xml", http.StatusOK},
+	// mime.type overrides mime.content
+	{"1", "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.content=image/svg%2Bxml&mime.type=htm", "text/html; charset=utf-8", http.StatusOK},
+	// returns overrides mime
+	{"1", "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenByIndex/1?returns=(uint256)&mime.type=xml", "application/json", http.StatusOK},
+	// use extention of last param if no mime specified
+	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg", "image/svg+xml", http.StatusOK},
+	// mime overrides extention
+	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
+	// mime.type is ignored if cannot find the corresponding content type
+	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=xlsx", "image/svg+xml", http.StatusOK},
+	// use mime.content if mime.type cannot find the corresponding content type
+	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.content=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", http.StatusOK},
+}
+
+func TestMimeTypes(t *testing.T) {
+	for _, test := range mimeTypeUrls {
+		config.DefaultChain = test.chainId
+		config.NSDefaultChains["eth"] = "1"
+		t.Run(test.domain+test.path, func(t *testing.T) {
+			req := httptest.NewRequest("GET", test.path, nil)
+			req.Host = test.domain
+			w := httptest.NewRecorder()
+			handle(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+			if test.statusCode == http.StatusOK {
+				assert.Equal(t, test.mt, res.Header.Get("Content-Type"))
+			} else {
+				assert.Equal(t, test.statusCode, res.StatusCode)
+			}
+		})
+	}
+}
