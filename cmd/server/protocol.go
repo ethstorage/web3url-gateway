@@ -134,19 +134,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			respondWithErrorPage(w, err)
 			return
 		}
-		if w3url.ReturnType != "" {
-			w.Header().Set("Content-Type", "application/json")
-			err := json.NewEncoder(w).Encode(res)
-			if err != nil {
-				respondWithErrorPage(w, Web3Error{http.StatusBadRequest, err.Error()})
-				return
-			}
-			return
-		}
-		if mimeType != "" {
-			w.Header().Set("Content-Type", mimeType)
-		}
-		_, e := w.Write(res[0].([]byte))
+		e := render(w, req, w3url.ReturnType, mimeType, res)
 		if e != nil {
 			respondWithErrorPage(w, Web3Error{http.StatusBadRequest, e.Error()})
 			return
@@ -156,6 +144,37 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	if len(*dbToken) > 0 {
 		stats(len(bs), req.RemoteAddr, w3url.TargetChain, w3url.NSType, path, h)
 	}
+}
+
+func render(w http.ResponseWriter, req *http.Request, returnType, mimeType string, content []interface{}) error {
+	// returns > mime.type > mime.content > .ext
+	if returnType != "" {
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(content)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	var mmc string
+	mmt := req.URL.Query().Get("mime.type")
+	if mmt != "" {
+		mmc = mime.TypeByExtension("." + mmt)
+	}
+	if mmc == "" {
+		mmc = req.URL.Query().Get("mime.content")
+	}
+	if mmc != "" {
+		mimeType = mmc
+	}
+	if mimeType != "" {
+		w.Header().Set("Content-Type", mimeType)
+	}
+	_, e := w.Write(content[0].([]byte))
+	if e != nil {
+		return e
+	}
+	return nil
 }
 
 // process request with contract info in subdomain:
