@@ -147,7 +147,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func render(w http.ResponseWriter, req *http.Request, returnType, mimeType string, content []interface{}) error {
-	// returns > .ext > mime.type > mime.content
+	// returns > mime.type > mime.content > .ext
 	if returnType != "" {
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(content)
