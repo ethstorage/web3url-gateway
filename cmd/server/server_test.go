@@ -225,7 +225,7 @@ var testURLs = []struct {
 	expect     string
 	statusCode int
 }{
-	{"localhost", "/0x6587e67F1FBEAabDEe8b70EFb396E750e216283B:w3q-g/request/asdf/1234?foo=bar", "application/json", "{\"resource\":[\"asdf\",\"1234\"], \"params\":[{\"key\":\"foo\", \"value\": \"bar\"}}", http.StatusOK},
+	{"localhost", "/0x6587e67F1FBEAabDEe8b70EFb396E750e216283B:w3q-g/asdf/1234?foo=bar", "application/json", "{\"resource\":[\"asdf\",\"1234\"], \"params\":[{\"key\":\"foo\", \"value\": \"bar\"}}", http.StatusOK},
 	{"localhost", "/quark.w3q/index.txt", "text/plain; charset=utf-8", "hello, world", http.StatusOK},
 	{"localhost", "/concat.w3q->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "application/json", "[\"abc\"]\n", http.StatusOK},
 	{"localhost", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returnTypes=(string)", "application/json", "[\"abc\"]\n", http.StatusOK},
@@ -533,7 +533,7 @@ var mimeTypeUrls = []struct {
 	// mime overrides extention
 	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
 	// mime.type is ignored if cannot find the corresponding content type
-	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=xlsx", "image/svg+xml", http.StatusOK},
+	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=foo", "image/svg+xml", http.StatusOK},
 	// use mime.content if mime.type cannot find the corresponding content type
 	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.content=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", http.StatusOK},
 }
