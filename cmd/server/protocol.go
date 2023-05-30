@@ -57,10 +57,6 @@ var nsTypeMapping = map[string]NameServiceType{
 func handle(w http.ResponseWriter, req *http.Request) {
 	h := req.Host
 	path := req.URL.Path
-	// ban ico request
-	if path == "/favicon.ico" {
-		return
-	}
 	w.Header().Set("Access-Control-Allow-Origin", config.CORS)
 	if strings.HasPrefix(h, "ordinals.btc.") {
 		handleOrdinals(w, req, path)
