@@ -105,7 +105,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 	var bs []byte
 	if resolveMode == ResolveModeResourceRequests {
-		path := strings.Split(p, "/request")[1]
+		spliterIdx := strings.Index(p[1:], "/")
+		path := p[spliterIdx+1:]
 		if len(req.URL.RawQuery) > 0 {
 			path += "?" + req.URL.RawQuery
 		}

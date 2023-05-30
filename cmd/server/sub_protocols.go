@@ -91,29 +91,28 @@ func handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path s
 	addWeb3Header(w, "Calldata", "0x"+hex.EncodeToString(calldata))
 	bs, werr := callContract(contract, chain, calldata)
 	if werr.HasError() {
-		respondWithErrorPage(w, werr)
-		return nil, err
+		return nil, fmt.Errorf("call contract err %v", werr.Error())
 	}
 	uint_16, _ := abi.NewType("uint16", "", nil)
 	string_, _ := abi.NewType("string", "", nil)
 	returnArgs := abi.Arguments{
-		abi.Argument{Type: uint_16},
+		{Type: uint_16},
 		{Type: string_},
 		{Type: kvs},
 	}
-	res, e := returnArgs.UnpackValues(bs)
-	if e != nil {
+	res, err := returnArgs.UnpackValues(bs)
+	if err != nil {
 		return nil, err
 	}
 	statusCode, ok := res[0].(uint16)
 	if !ok {
-		log.Errorln("invalid statusCode(uint16)", res[0])
+		err := fmt.Errorf("invalid statusCode(uint16) %v", res[0])
 		return nil, err
 	}
 	log.Info("statusCode ", statusCode)
 	body, ok := res[1].(string)
 	if !ok {
-		log.Errorln("invalid body(string)", res[1])
+		err := fmt.Errorf("invalid body(string) %v", res[1])
 		return nil, err
 	}
 	log.Debug("body ", body)
@@ -122,15 +121,15 @@ func handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path s
 		Value string `json:"value"`
 	})
 	if !ok {
-		log.Errorln("invalid headers", res[2])
+		err := fmt.Errorf("invalid headers %v", res[2])
 		return nil, err
 	}
 	for _, h := range headers {
 		log.Info("header ", h)
 		w.Header().Set(h.Key, h.Value)
 	}
-	_, e = w.Write([]byte(body))
-	if e != nil {
+	_, err = w.Write([]byte(body))
+	if err != nil {
 		return nil, err
 	}
 	w.WriteHeader(int(statusCode))

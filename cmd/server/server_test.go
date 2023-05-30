@@ -225,7 +225,7 @@ var testURLs = []struct {
 	expect     string
 	statusCode int
 }{
-	{"localhost", "/0x6587e67F1FBEAabDEe8b70EFb396E750e216283B:w3q-g/request/asdf/1234?foo=bar", "application/json", "{\"resource\":[\"asdf\",\"1234\"], \"params\":[{\"key\":\"foo\", \"value\": \"bar\"}}", http.StatusOK},
+	{"localhost", "/0x6587e67F1FBEAabDEe8b70EFb396E750e216283B:w3q-g/asdf/1234?foo=bar", "application/json", "{\"resource\":[\"asdf\",\"1234\"], \"params\":[{\"key\":\"foo\", \"value\": \"bar\"}}", http.StatusOK},
 	{"localhost", "/quark.w3q/index.txt", "text/plain; charset=utf-8", "hello, world", http.StatusOK},
 	{"localhost", "/concat.w3q->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "application/json", "[\"abc\"]\n", http.StatusOK},
 	{"localhost", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returnTypes=(string)", "application/json", "[\"abc\"]\n", http.StatusOK},
