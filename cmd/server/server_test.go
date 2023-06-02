@@ -12,6 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -553,6 +554,57 @@ func TestMimeTypes(t *testing.T) {
 				assert.Equal(t, test.mt, res.Header.Get("Content-Type"))
 			} else {
 				assert.Equal(t, test.statusCode, res.StatusCode)
+			}
+		})
+	}
+}
+
+var (
+	composecalldata = "0x85609b1c0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000b706f6472c3a1732e737667000000000000000000000000000000000000000000"
+	the5219calldata = "0x1374c460000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000006612462632b640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000002c3a10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002616100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000162000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003e5b8810000000000000000000000000000000000000000000000000000000000"
+)
+var decodingTestLinks = []struct {
+	domain              string
+	path                string
+	mode                string
+	returns             string
+	calldata            string
+	expectCalldataEqual bool
+}{
+	// remain encoded for manual mode to pass calldata
+	{"quark.w3q.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
+	// not same calldata as decoded one
+	{"quark.w3q.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/yöu@here.txt")), false},
+
+	// decoded for auto mode, so encoded has same return type and calldata as unencoded
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "(string)", "0x95d89b41", true},
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=%28string%29", "auto", "(string)", "0x95d89b41", true},
+	{"w3link.io", "/test.w3q:w3q-g->(bytes[][])/getA", "auto", "(bytes[][])", "0xd46300fd", true},
+	{"w3link.io", "/test.w3q-%3E(bytes%5B%5D%5B%5D)/getA", "auto", "(bytes[][])", "0xd46300fd", true},
+	{"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!podrás.svg", "auto", "(bytes)", composecalldata, true},
+	{"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string%21podr%c3%a1s.svg", "auto", "(bytes)", composecalldata, true},
+
+	// decoded for 5219 mode so encoded has same calldata as unencoded
+	{"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a$bc+d?á=aa&b=币", "5219", "(bytes)", the5219calldata, true},
+	{"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a%24bc%2bd?%c3%a1=aa&b=%e5%b8%81", "5219", "(bytes)", the5219calldata, true},
+}
+
+func TestCalldata(t *testing.T) {
+	config.DefaultChain = ""
+	for _, test := range decodingTestLinks {
+		t.Run(test.domain+test.path, func(t *testing.T) {
+			req := httptest.NewRequest("GET", test.path, nil)
+			req.Host = test.domain
+			w := httptest.NewRecorder()
+			handle(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+			assert.Equal(t, test.mode, res.Header.Get("Web3-Resolve-Mode"))
+			assert.Equal(t, test.returns, res.Header.Get("Web3-Return-Type"))
+			if test.expectCalldataEqual {
+				assert.Equal(t, test.calldata, res.Header.Get("Web3-Calldata"))
+			} else {
+				assert.NotEqual(t, test.calldata, res.Header.Get("Web3-Calldata"))
 			}
 		})
 	}

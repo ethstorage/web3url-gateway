@@ -114,6 +114,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	} else {
 		var mimeType string
 		if resolveMode == ResolveModeManual {
+			undecoded := req.RequestURI
+			w3url.RawPath = undecoded[strings.Index(undecoded[1:], "/")+1:]
 			bs, mimeType, err = handleManualMode(w, w3url)
 		} else {
 			bs, mimeType, err = handleAutoMode(w, w3url)
