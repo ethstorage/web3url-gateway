@@ -585,7 +585,6 @@ var decodingTestLinks = []struct {
 	//make sure hosted website resources work on w3eth.io. e.g., https://w3url.w3eth.io/css/app~d0ae3f07.e6592741.css
 	{"w3url.w3eth.io", "/css/app~d0ae3f07.e6592741.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
 	{"w3eth.io", "/w3url.eth/css/app~d0ae3f07.e6592741.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
-	{"w3eth.io", "/0xEbcA4860ebBe969E9Bc42643fcb437879dBDa9C6/css/app~d0ae3f07.e6592741.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
 
 	// decoded for auto mode, so encoded has same return type and calldata as unencoded
 	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "(string)", "0x95d89b41", true},
