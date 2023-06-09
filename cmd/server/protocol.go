@@ -62,7 +62,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		handleOrdinals(w, req, path)
 		return
 	}
-	p, er := handleSubdomain(h, path)
+	p, useSubdomain, er := handleSubdomain(h, path)
 	if er != nil {
 		respondWithErrorPage(w, Web3Error{http.StatusBadRequest, er.Error()})
 		return
@@ -115,7 +115,12 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		var mimeType string
 		if resolveMode == ResolveModeManual {
 			undecoded := req.RequestURI
-			w3url.RawPath = undecoded[strings.Index(undecoded[1:], "/")+1:]
+			if useSubdomain {
+				w3url.RawPath = undecoded
+			} else {
+				w3url.RawPath = undecoded[strings.Index(undecoded[1:], "/")+1:]
+			}
+			log.Printf("w3url.RawPath = %s", w3url.RawPath)
 			bs, mimeType, err = handleManualMode(w, w3url)
 		} else {
 			bs, mimeType, err = handleAutoMode(w, w3url)
@@ -180,21 +185,22 @@ func render(w http.ResponseWriter, req *http.Request, returnType, mimeType strin
 // e.g.,
 // 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io
 // quark.w3q.w3q-g.w3link.io
-func handleSubdomain(host string, path string) (string, error) {
+func handleSubdomain(host string, path string) (string, bool, error) {
 	log.Info(host + path)
 	if strings.Index(host, ":") > 0 {
 		host = host[0:strings.Index(host, ":")]
 	}
 	if net.ParseIP(host) != nil {
 		// ban ip addresses
-		return "", fmt.Errorf("invalid subdomain")
+		return "", false, fmt.Errorf("invalid subdomain")
 	}
 	pieces := strings.Split(host, ".")
 	l := len(pieces)
 	if l > 5 {
 		log.Info("subdomain too long")
-		return "", fmt.Errorf("invalid subdomain")
+		return "", false, fmt.Errorf("invalid subdomain")
 	}
+	var useSubdomain bool
 	p := path
 	if l <= 2 {
 		// back compatible with hosted dweb files
@@ -204,7 +210,7 @@ func handleSubdomain(host string, path string) (string, error) {
 	}
 	if l == 3 {
 		if len(config.DefaultChain) == 0 {
-			return "", fmt.Errorf("default chain is not specified")
+			return "", false, fmt.Errorf("default chain is not specified")
 		}
 		if common.IsHexAddress(pieces[0]) {
 			//e.g. 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io/name?returns=(string)
@@ -214,7 +220,7 @@ func handleSubdomain(host string, path string) (string, error) {
 			suffix, err := getDefaultNSSuffix()
 			if err != nil {
 				log.Info(err.Error())
-				return "", fmt.Errorf("invalid subdomain")
+				return "", false, fmt.Errorf("invalid subdomain")
 			}
 			name := pieces[0] + "." + suffix
 			// back compatible with hosted dweb files
@@ -222,12 +228,13 @@ func handleSubdomain(host string, path string) (string, error) {
 				p = "/" + name + path
 			}
 		}
+		useSubdomain = true
 	}
 	// e.g. 0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io
 	if l == 4 {
 		if !common.IsHexAddress(pieces[0]) {
 			log.Info("invalid contract address")
-			return "", fmt.Errorf("invalid subdomain")
+			return "", false, fmt.Errorf("invalid subdomain")
 		}
 		full := strings.Join(pieces[0:2], ":")
 		pp := strings.Split(path, "/")
@@ -236,12 +243,13 @@ func handleSubdomain(host string, path string) (string, error) {
 		} else {
 			p = "/" + full + path
 		}
+		useSubdomain = true
 	}
-	//e.g.quark.w3q.w3q-g.w3link.io
+	//e.g. quark.w3q.w3q-g.w3link.io
 	if l == 5 {
 		if len(config.DefaultChain) > 0 {
 			log.Info("no tld should be provided when default chain is specified")
-			return "", fmt.Errorf("invalid subdomain")
+			return "", false, fmt.Errorf("invalid subdomain")
 		}
 		name := strings.Join(pieces[0:2], ".")
 		full := name + ":" + pieces[2]
@@ -251,9 +259,10 @@ func handleSubdomain(host string, path string) (string, error) {
 		} else if !strings.Contains(path, "/"+name+"/") {
 			p = "/" + full + path
 		}
+		useSubdomain = true
 	}
 	log.Info("=>", p)
-	return p, nil
+	return p, useSubdomain, nil
 }
 
 // parseWeb3URL parse input path into Web3URL struct
