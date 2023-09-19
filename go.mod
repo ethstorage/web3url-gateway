@@ -1,4 +1,4 @@
-module github.com/QuarkChain/web3q-server
+module github.com/ethstorage/web3url-gateway
 
 go 1.17
 
@@ -12,7 +12,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deepmap/oapi-codegen v1.8.2 // indirect
 	github.com/influxdata/influxdb-client-go v1.4.0 // indirect
-	github.com/influxdata/influxdb-client-go/v2 v2.12.1 // indirect
+	github.com/influxdata/influxdb-client-go/v2 v2.12.1
 	github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 // indirect
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

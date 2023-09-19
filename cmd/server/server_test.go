@@ -9,11 +9,16 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"os"
+	"bufio"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/naoina/toml"
+
+	"github.com/ethstorage/web3url-gateway/pkg/web3protocol"
 )
 
 func init() {
@@ -24,6 +29,66 @@ func init() {
 	config.NSDefaultChains["eth"] = "5"
 	config.NSDefaultChains["w3q"] = "3334"
 	config.DefaultChain = "3334"
+}
+
+type TestMethodArg struct {
+	Type string
+}
+
+type Test struct {
+	Name string
+	Url string
+	Mode string
+	ContractCallMode string
+	Calldata string
+	MethodArgs []TestMethodArg
+	MethodArgValues []interface{}
+}
+
+type TestGroup struct {
+	Name string
+	Tests []Test
+}
+
+type TestGroups struct {
+	Name      string
+	Groups map[string]TestGroup
+	// Name2Chain      map[string]string
+	// ChainConfigs    map[string]ChainConfig
+}
+
+func TestSuite(t *testing.T) {
+	file := "../../tests/mode-auto.toml"
+	f, err := os.Open(file)
+	if err != nil {
+		panic(err)
+	}
+	defer func(f *os.File) {
+		err = f.Close()
+	}(f)
+
+	testGroups := TestGroups{}
+	err = toml.NewDecoder(bufio.NewReader(f)).Decode(&testGroups)
+	if _, ok := err.(*toml.LineError); ok {
+		err = fmt.Errorf(file + ", " + err.Error())
+		panic(err)
+	}
+// fmt.Printf("%+v\n\n", testGroups)
+
+	for _, testGroup := range testGroups.Groups {
+		for _, test := range testGroup.Tests {
+			testName := fmt.Sprintf("%v/%v/%v/%v", testGroups.Name, testGroup.Name, test.Name, test.Url)
+			t.Run(testName, func(t *testing.T) {
+				// Remove "web3:/" from the URLs
+				urlWithoutProtocol := test.Url[6:]
+
+				// parsedUrl, e := parseWeb3URL(urlWithoutProtocol)
+				parsedUrl, e := parseUrl(urlWithoutProtocol)
+fmt.Printf("%+v\n", parsedUrl)
+				assert.Equal(t, e.code, 0)
+			})
+		}
+	}
 }
 
 func TestParseWeb3URL(t *testing.T) {
