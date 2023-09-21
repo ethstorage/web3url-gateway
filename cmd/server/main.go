@@ -11,6 +11,8 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
+
+	"github.com/ethstorage/web3url-gateway/pkg/web3protocol"
 )
 
 var (
@@ -54,7 +56,7 @@ func initConfig() {
 	// read from config file
 	config = Web3Config{}
 	config.NSDefaultChains = make(map[string]string)
-	config.ChainConfigs = make(map[string]ChainConfig)
+	config.ChainConfigs = make(map[string]web3protocol.ChainConfig)
 	config.Name2Chain = make(map[string]string)
 	config.Verbosity = *verbosity
 	err := loadConfig(*configurationFile, &config)
@@ -86,10 +88,10 @@ func initConfig() {
 			log.Fatalf("Expect 3 fields in chainInfo but got %v\n", len(ss))
 			return
 		}
-		config.ChainConfigs[ss[0]] = ChainConfig{
+		config.ChainConfigs[ss[0]] = web3protocol.ChainConfig{
 			ChainID:  ss[0],
 			RPC:      ss[2],
-			NSConfig: make(map[string]NameServiceInfo),
+			NSConfig: make(map[string]web3protocol.NameServiceInfo),
 		}
 		config.Name2Chain[ss[1]] = ss[0]
 	}
@@ -107,8 +109,8 @@ func initConfig() {
 			log.Fatalf("Unsupport chainID %v\n", ss[0])
 			return
 		}
-		config.ChainConfigs[ss[0]].NSConfig[ss[1]] = NameServiceInfo{
-			NSType: nsTypeMapping[ss[2]],
+		config.ChainConfigs[ss[0]].NSConfig[ss[1]] = web3protocol.NameServiceInfo{
+			NSType: web3protocol.NsTypeMapping[ss[2]],
 			NSAddr: ss[3],
 		}
 	}

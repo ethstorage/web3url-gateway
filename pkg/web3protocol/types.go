@@ -26,20 +26,26 @@ const (
 	EthereumNameService
 )
 
-var nsTypeMapping = map[string]NameServiceType{
+var NsTypeMapping = map[string]NameServiceType{
 	"W3NS": Web3QNameService,
 	"ENS":  EthereumNameService,
 	"SNS":  SimpleNameService,
 }
 
+type ResolveMode string
+
+const (
+	ResolveModeAuto = "auto"
+	ResolveModeManual = "manual"
+	ResolveModeResourceRequests = "5219"
+)
+
 
 type Web3Error struct {
-	code int
+	HttpCode int
 	err  string
 }
 
 func (e *Web3Error) Error() string {
 	return e.err
 }
-
-func (e *Web3Error) HasError() bool { return e.code != 0 }

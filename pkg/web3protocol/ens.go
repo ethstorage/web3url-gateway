@@ -104,7 +104,7 @@ func (client *Client) getAddressFromNameService(nameServiceChain string, nameWit
         nameHash, _ := NameHash(nameWithSuffix)
         node := common.BytesToHash(nameHash[:]).Hex()
         log.Debug("node: ", node)
-        resolver, e := getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
+        resolver, e := client.getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
         if e != nil {
             return common.Address{}, "", e
         }
@@ -137,7 +137,7 @@ func (client *Client) getAddressFromNameServiceWebHandler(nameServiceChain strin
         nameHash, _ := NameHash(nameWithSuffix)
         node := common.BytesToHash(nameHash[:]).Hex()
         log.Debug("node: ", node)
-        resolver, e := getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
+        resolver, e := client.getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
         if e != nil {
             return common.Address{}, "", e
         }
@@ -150,7 +150,7 @@ func (client *Client) getAddressFromNameServiceWebHandler(nameServiceChain strin
             args = []string{"text", "bytes32!" + node, "string!contentcontract"}
             returnTp = "(string)"
         }
-        msg, _, e := parseArguments(nameServiceChain, resolver, args)
+        msg, _, e := client.parseArguments(nameServiceChain, resolver, args)
         if e != nil {
             return common.Address{}, "", e
         }
@@ -173,7 +173,7 @@ func (client *Client) getAddressFromNameServiceWebHandler(nameServiceChain strin
 }
 
 func (client *Client) resolve(ethClient *ethclient.Client, nameServiceChain string, resolver common.Address, args []string) (common.Address, string, error) {
-    msg, _, e := parseArguments(nameServiceChain, resolver, args)
+    msg, _, e := client.parseArguments(nameServiceChain, resolver, args)
     if e != nil {
         return common.Address{}, "", e
     }
@@ -189,8 +189,8 @@ func (client *Client) resolve(ethClient *ethclient.Client, nameServiceChain stri
     return client.parseChainSpecificAddress(res[0].(string))
 }
 
-func getResolver(ethClient *ethclient.Client, nsAddr common.Address, node, nameServiceChain, nameWithSuffix string) (common.Address, error) {
-    msg, _, e := parseArguments(nameServiceChain, nsAddr,
+func (client *Client) getResolver(ethClient *ethclient.Client, nsAddr common.Address, node, nameServiceChain, nameWithSuffix string) (common.Address, error) {
+    msg, _, e := client.parseArguments(nameServiceChain, nsAddr,
         []string{"resolver", "bytes32!" + node})
     if e != nil {
         return common.Address{}, e

@@ -1,39 +1,25 @@
 package web3protocol
 
 import (
-	"bufio"
+	// "bufio"
 	"context"
 	"encoding/hex"
 	"fmt"
-	"net"
+	// "net"
 	"net/http"
-	"os"
+	// "os"
 	"reflect"
 	"strings"
-	"time"
+	// "time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
-	"github.com/naoina/toml"
+	// influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	// "github.com/naoina/toml"
 	log "github.com/sirupsen/logrus"
 )
-
-
-
-const (
-	ResolveModeAuto = iota
-	ResolveModeManual
-	ResolveModeResourceRequests
-)
-
-var ResolveText = map[int]string{
-	ResolveModeAuto:             "auto",
-	ResolveModeManual:           "manual",
-	ResolveModeResourceRequests: "5219",
-}
 
 
 
@@ -119,7 +105,7 @@ func toJSON(arg abi.Type, value interface{}) interface{} {
 	}
 }
 
-func callContract(contract common.Address, chain string, calldata []byte, config Config) ([]byte, error) {
+func (client *Client) callContract(contract common.Address, chain string, calldata []byte) ([]byte, error) {
 	msg := ethereum.CallMsg{
 		From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		To:        &contract,
@@ -130,13 +116,13 @@ func callContract(contract common.Address, chain string, calldata []byte, config
 		Data:      calldata,
 		Value:     nil,
 	}
-	client, linkErr := ethclient.Dial(config.ChainConfigs[chain].RPC)
+	ethClient, linkErr := ethclient.Dial(client.Config.ChainConfigs[chain].RPC)
 	if linkErr != nil {
 		log.Info("Dial failed: ", linkErr.Error())
 		return nil, &Web3Error{http.StatusNotFound, linkErr.Error()}
 	}
-	defer client.Close()
-	bs, err := handleCallContract(*client, msg)
+	defer ethClient.Close()
+	bs, err := handleCallContract(*ethClient, msg)
 	if err != nil {
 		return nil, err
 	}

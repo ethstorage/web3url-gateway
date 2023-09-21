@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
+	// "io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,7 +22,7 @@ type KeyValue struct {
 // https://eips.ethereum.org/assets/eip-5219/IDecentralizedApp.sol
 // path e.g., /request/asdf/1234?abc=567&foo=bar
 
-func handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path string) ([]byte, error) {
+func (client *Client) handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path string) ([]byte, error) {
 	strings, _ := abi.NewType("string[]", "", nil)
 	kvs, _ := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
 		{Name: "key", Type: "string"},
@@ -44,8 +44,8 @@ func handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path s
 	//sig of request(string[], KeyValue[])
 	calldata := append(common.Hex2Bytes("1374c460"), dataField...)
 	addWeb3Header(w, "Calldata", "0x"+hex.EncodeToString(calldata))
-	bs, werr := callContract(contract, chain, calldata)
-	if werr.HasError() {
+	bs, werr := client.callContract(contract, chain, calldata)
+	if werr != nil {
 		return nil, fmt.Errorf("call contract err %v", werr.Error())
 	}
 	uint_16, _ := abi.NewType("uint16", "", nil)

@@ -35,14 +35,23 @@ type TestMethodArg struct {
 	Type string
 }
 
+type TestError struct {
+	Label string
+	HttpCode int
+}
+
 type Test struct {
 	Name string
 	Url string
-	Mode string
-	ContractCallMode string
+	ContractAddress common.Address
+	ResolveMode web3protocol.ResolveMode
+	ContractCallMode web3protocol.ContractCallMode
 	Calldata string
 	MethodArgs []TestMethodArg
 	MethodArgValues []interface{}
+	ContractReturnProcessing web3protocol.ContractReturnProcessing
+	FirstValueAsBytesMimeType string
+	Error TestError
 }
 
 type TestGroup struct {
@@ -58,7 +67,8 @@ type TestGroups struct {
 }
 
 func TestSuite(t *testing.T) {
-	file := "../../tests/mode-auto.toml"
+	// file := "../../tests/mode-manual.toml"
+	file := "../../tests/base.toml"
 	f, err := os.Open(file)
 	if err != nil {
 		panic(err)
@@ -79,13 +89,63 @@ func TestSuite(t *testing.T) {
 		for _, test := range testGroup.Tests {
 			testName := fmt.Sprintf("%v/%v/%v/%v", testGroups.Name, testGroup.Name, test.Name, test.Url)
 			t.Run(testName, func(t *testing.T) {
-				// Remove "web3:/" from the URLs
-				urlWithoutProtocol := test.Url[6:]
 
-				// parsedUrl, e := parseWeb3URL(urlWithoutProtocol)
-				parsedUrl, e := parseUrl(urlWithoutProtocol)
-fmt.Printf("%+v\n", parsedUrl)
-				assert.Equal(t, e.code, 0)
+				client := web3protocol.NewClient()
+				client.Config.ChainConfigs = config.ChainConfigs
+
+				parsedUrl, err := client.ParseUrl(test.Url)
+
+				if err == nil {
+					// If we were expecting an error, fail
+					if test.Error.Label != "" || test.Error.HttpCode > 0 {
+						assert.Fail(t, "An error was expected")
+					}
+
+					if len(test.ContractAddress) > 0 {
+						assert.Equal(t, parsedUrl.ContractAddress, test.ContractAddress)
+					}
+					if test.ResolveMode != "" {
+						assert.Equal(t, parsedUrl.ResolveMode, test.ResolveMode)
+					}
+					if test.ContractCallMode != "" {
+						assert.Equal(t, parsedUrl.ContractCallMode, test.ContractCallMode)
+					}
+					if test.Calldata != "" {
+						testCalldata, err := hexutil.Decode(test.Calldata)
+						if err != nil {
+							panic(err)
+						}
+						assert.Equal(t, parsedUrl.Calldata, testCalldata)
+					}
+					if test.ContractReturnProcessing != "" {
+						assert.Equal(t, parsedUrl.ContractReturnProcessing, test.ContractReturnProcessing)
+					}
+					if test.FirstValueAsBytesMimeType != "" {
+						assert.Equal(t, parsedUrl.FirstValueAsBytesMimeType, test.FirstValueAsBytesMimeType)
+					}
+				} else { // err != nil
+					// If no error was expected, fail
+					if test.Error.Label == "" && test.Error.HttpCode == 0 {
+						assert.Fail(t, "Unexpected error", err)
+					}
+
+					if test.Error.Label != "" {
+						assert.Equal(t, err.Error(), test.Error.Label)
+					}
+					if test.Error.HttpCode > 0 {
+						if web3Err, ok := err.(*web3protocol.Web3Error); ok {
+							assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+						} else {
+							assert.Fail(t, "Error is unexpectly not a Web3Error", err)
+						}
+					}
+				}
+
+
+
+fmt.Printf("\nParsedUrl: \n%+v\n\n", parsedUrl)
+
+				
 			})
 		}
 	}

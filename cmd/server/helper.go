@@ -19,6 +19,8 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/naoina/toml"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/ethstorage/web3url-gateway/pkg/web3protocol"
 )
 
 type Web3Config struct {
@@ -31,19 +33,19 @@ type Web3Config struct {
 	CORS            string
 	NSDefaultChains map[string]string
 	Name2Chain      map[string]string
-	ChainConfigs    map[string]ChainConfig
+	ChainConfigs    map[string]web3protocol.ChainConfig
 }
 
-type NameServiceInfo struct {
-	NSType NameServiceType
-	NSAddr string
-}
+// type NameServiceInfo struct {
+// 	NSType NameServiceType
+// 	NSAddr string
+// }
 
-type ChainConfig struct {
-	ChainID  string
-	RPC      string
-	NSConfig map[string]NameServiceInfo
-}
+// type ChainConfig struct {
+// 	ChainID  string
+// 	RPC      string
+// 	NSConfig map[string]NameServiceInfo
+// }
 
 type Web3Error struct {
 	code int

@@ -11,6 +11,8 @@ import (
 	"golang.org/x/net/idna"
 
 	"golang.org/x/crypto/sha3"
+
+	"github.com/ethstorage/web3url-gateway/pkg/web3protocol"
 )
 
 var (
@@ -100,7 +102,7 @@ func getAddressFromNameService(nameServiceChain string, nameWithSuffix string) (
 	}
 	defer client.Close()
 
-	if nsInfo.NSType != SimpleNameService {
+	if nsInfo.NSType != web3protocol.SimpleNameService {
 		nameHash, _ := NameHash(nameWithSuffix)
 		node := common.BytesToHash(nameHash[:]).Hex()
 		log.Debug("node: ", node)
@@ -133,7 +135,7 @@ func getAddressFromNameServiceWebHandler(nameServiceChain string, nameWithSuffix
 	}
 	defer client.Close()
 
-	if nsInfo.NSType != SimpleNameService {
+	if nsInfo.NSType != web3protocol.SimpleNameService {
 		nameHash, _ := NameHash(nameWithSuffix)
 		node := common.BytesToHash(nameHash[:]).Hex()
 		log.Debug("node: ", node)
@@ -143,7 +145,7 @@ func getAddressFromNameServiceWebHandler(nameServiceChain string, nameWithSuffix
 		}
 		var args []string
 		var returnTp string
-		if nsInfo.NSType == Web3QNameService {
+		if nsInfo.NSType == web3protocol.Web3QNameService {
 			args = []string{"webHandler", "bytes32!" + node}
 			returnTp = "(address)"
 		} else {
@@ -206,19 +208,19 @@ func getResolver(client *ethclient.Client, nsAddr common.Address, node, nameServ
 	return common.BytesToAddress(bs), NoWeb3Error
 }
 
-func getConfigs(nameServiceChain, nameWithSuffix string) (NameServiceInfo, string, Web3Error) {
+func getConfigs(nameServiceChain, nameWithSuffix string) (web3protocol.NameServiceInfo, string, Web3Error) {
 	ss := strings.Split(nameWithSuffix, ".")
 	if len(ss) <= 1 {
-		return NameServiceInfo{}, "", Web3Error{http.StatusBadRequest, "invalid domain name: " + nameWithSuffix}
+		return web3protocol.NameServiceInfo{}, "", Web3Error{http.StatusBadRequest, "invalid domain name: " + nameWithSuffix}
 	}
 	suffix := ss[len(ss)-1]
 	chainInfo, ok := config.ChainConfigs[nameServiceChain]
 	if !ok {
-		return NameServiceInfo{}, "", Web3Error{http.StatusBadRequest, "unsupported chain: " + nameServiceChain}
+		return web3protocol.NameServiceInfo{}, "", Web3Error{http.StatusBadRequest, "unsupported chain: " + nameServiceChain}
 	}
 	nsInfo, ok := chainInfo.NSConfig[suffix]
 	if !ok {
-		return NameServiceInfo{}, "", Web3Error{http.StatusBadRequest, "unsupported suffix: " + suffix}
+		return web3protocol.NameServiceInfo{}, "", Web3Error{http.StatusBadRequest, "unsupported suffix: " + suffix}
 	}
 	return nsInfo, chainInfo.RPC, NoWeb3Error
 }
