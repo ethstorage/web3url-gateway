@@ -22,7 +22,7 @@ type KeyValue struct {
 // https://eips.ethereum.org/assets/eip-5219/IDecentralizedApp.sol
 // path e.g., /request/asdf/1234?abc=567&foo=bar
 
-func (client *Client) handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path string) ([]byte, error) {
+func (client *Client) handleEIP5219(w http.ResponseWriter, contract common.Address, chain int, path string) ([]byte, error) {
 	strings, _ := abi.NewType("string[]", "", nil)
 	kvs, _ := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
 		{Name: "key", Type: "string"},

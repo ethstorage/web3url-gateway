@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 
@@ -55,9 +56,9 @@ func initConfig() {
 	flag.Parse()
 	// read from config file
 	config = Web3Config{}
-	config.NSDefaultChains = make(map[string]string)
-	config.ChainConfigs = make(map[string]web3protocol.ChainConfig)
-	config.Name2Chain = make(map[string]string)
+	config.NSDefaultChains = make(map[string]int)
+	config.ChainConfigs = make(map[int]web3protocol.ChainConfig)
+	config.Name2Chain = make(map[string]int)
 	config.Verbosity = *verbosity
 	err := loadConfig(*configurationFile, &config)
 	if err != nil {
@@ -74,7 +75,12 @@ func initConfig() {
 		config.ServerPort = port.value
 	}
 	if defaultChain.set {
-		config.DefaultChain = defaultChain.value
+		defaultChainId, err := strconv.Atoi(defaultChain.value)
+		if err != nil {
+			log.Fatalf("Unable to parse %v as an integer\n", defaultChain.value)
+			return
+		}
+		config.DefaultChain = defaultChainId
 	}
 	if homePage.set {
 		config.HomePage = homePage.value
@@ -88,12 +94,17 @@ func initConfig() {
 			log.Fatalf("Expect 3 fields in chainInfo but got %v\n", len(ss))
 			return
 		}
-		config.ChainConfigs[ss[0]] = web3protocol.ChainConfig{
-			ChainID:  ss[0],
+		chainId, err := strconv.Atoi(ss[0])
+		if err != nil {
+			log.Fatalf("Unable to parse %v as an integer\n", ss[0])
+			return
+		}
+		config.ChainConfigs[chainId] = web3protocol.ChainConfig{
+			ChainID:  chainId,
 			RPC:      ss[2],
 			NSConfig: make(map[string]web3protocol.NameServiceInfo),
 		}
-		config.Name2Chain[ss[1]] = ss[0]
+		config.Name2Chain[ss[1]] = chainId
 	}
 	for _, ns := range nsInfos {
 		ss := strings.Split(ns, ",")
@@ -105,12 +116,17 @@ func initConfig() {
 			log.Fatalf("Unknown nsType %v\n", ss[2])
 			return
 		}
-		if _, ok := config.ChainConfigs[ss[0]]; !ok {
+		chainId, err := strconv.Atoi(ss[0])
+		if err != nil {
+			log.Fatalf("Unable to parse %v as an integer\n", ss[0])
+			return
+		}
+		if _, ok := config.ChainConfigs[chainId]; !ok {
 			log.Fatalf("Unsupport chainID %v\n", ss[0])
 			return
 		}
-		config.ChainConfigs[ss[0]].NSConfig[ss[1]] = web3protocol.NameServiceInfo{
-			NSType: web3protocol.NsTypeMapping[ss[2]],
+		config.ChainConfigs[chainId].NSConfig[ss[1]] = web3protocol.NameServiceInfo{
+			NSType: web3protocol.DomainNameService(ss[2]),
 			NSAddr: ss[3],
 		}
 	}
@@ -119,7 +135,12 @@ func initConfig() {
 		if len(ss) != 2 {
 			log.Fatalf("Expect 2 fields in nsChain but got %v\n", len(ss))
 		}
-		config.NSDefaultChains[ss[0]] = ss[1]
+		chainId, err := strconv.Atoi(ss[1])
+		if err != nil {
+			log.Fatalf("Unable to parse %v as an integer\n", ss[1])
+			return
+		}
+		config.NSDefaultChains[ss[0]] = chainId
 	}
 }
 

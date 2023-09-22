@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -28,12 +29,12 @@ type Web3Config struct {
 	Verbosity       int
 	CertificateFile string
 	KeyFile         string
-	DefaultChain    string
+	DefaultChain    int
 	HomePage        string
 	CORS            string
-	NSDefaultChains map[string]string
-	Name2Chain      map[string]string
-	ChainConfigs    map[string]web3protocol.ChainConfig
+	NSDefaultChains map[string]int
+	Name2Chain      map[string]int
+	ChainConfigs    map[int]web3protocol.ChainConfig
 }
 
 // type NameServiceInfo struct {
@@ -158,7 +159,7 @@ func toJSON(arg abi.Type, value interface{}) interface{} {
 	}
 }
 
-func callContract(contract common.Address, chain string, calldata []byte) ([]byte, Web3Error) {
+func callContract(contract common.Address, chain int, calldata []byte) ([]byte, Web3Error) {
 	msg := ethereum.CallMsg{
 		From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		To:        &contract,
@@ -198,7 +199,7 @@ func handleCallContract(client ethclient.Client, msg ethereum.CallMsg) ([]byte, 
 }
 
 func getDefaultNSSuffix() (string, error) {
-	if len(config.DefaultChain) == 0 {
+	if config.DefaultChain == 0 {
 		return "", fmt.Errorf("default chain is not specified")
 	}
 	chainConfig, ok := config.ChainConfigs[config.DefaultChain]
@@ -212,7 +213,7 @@ func getDefaultNSSuffix() (string, error) {
 	return "", fmt.Errorf("cannot find ns config for default chain %v", config.DefaultChain)
 }
 
-func stats(returnSize int, hostPort, targetChain, nsType, path, host string) {
+func stats(returnSize int, hostPort string, targetChain string, nsType, path, host string) {
 	point := influxdb2.NewPointWithMeasurement("w3stats").
 		AddTag("chain", getChainById(targetChain)).
 		AddTag("type", nsType).
@@ -249,9 +250,12 @@ func stats(returnSize int, hostPort, targetChain, nsType, path, host string) {
 }
 
 func getChainById(chainId string) string {
-	for k, v := range config.Name2Chain {
-		if chainId == v {
-			return k
+	chainIdInt, err := strconv.Atoi(chainId)
+	if err == nil {
+		for k, v := range config.Name2Chain {
+			if chainIdInt == v {
+				return k
+			}
 		}
 	}
 	return chainId

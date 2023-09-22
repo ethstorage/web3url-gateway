@@ -4,6 +4,7 @@ import (
     "context"
     "net/http"
     "strings"
+    "fmt"
 
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
@@ -85,111 +86,99 @@ func nameHashPart(currentHash [32]byte, name string) (hash [32]byte, err error) 
 }
 
 // If the read is failed, the address will be read with the `addr` record
-func (client *Client) getAddressFromNameService(nameServiceChain string, nameWithSuffix string) (common.Address, string, error) {
+func (client *Client) getAddressFromNameService(nameServiceChain int, nameWithSuffix string) (common.Address, int, error) {
     if common.IsHexAddress(nameWithSuffix) {
-        return common.HexToAddress(nameWithSuffix), "", nil
+        return common.HexToAddress(nameWithSuffix), 0, nil
     }
     nsInfo, rpc, we := client.getConfigs(nameServiceChain, nameWithSuffix)
     if we != nil {
-        return common.Address{}, "", we
+        return common.Address{}, 0, we
     }
     ethClient, err := ethclient.Dial(rpc)
     if err != nil {
         log.Debug(err)
-        return common.Address{}, "", &Web3Error{http.StatusInternalServerError, "internal server error"}
+        return common.Address{}, 0, &Web3Error{http.StatusInternalServerError, "internal server error"}
     }
     defer ethClient.Close()
 
-    if nsInfo.NSType != SimpleNameService {
-        nameHash, _ := NameHash(nameWithSuffix)
-        node := common.BytesToHash(nameHash[:]).Hex()
-        log.Debug("node: ", node)
-        resolver, e := client.getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
-        if e != nil {
-            return common.Address{}, "", e
-        }
-        return client.resolve(ethClient, nameServiceChain, resolver, []string{"addr", "bytes32!" + node})
+    nameHash, _ := NameHash(nameWithSuffix)
+    node := common.BytesToHash(nameHash[:]).Hex()
+    log.Debug("node: ", node)
+    resolver, e := client.getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
+    if e != nil {
+        return common.Address{}, 0, e
     }
-
-    // fallback to simple name service
-    args := []string{"pointers", "bytes32!" + common.BytesToHash(common.RightPadBytes([]byte(nameWithSuffix[:len(nameWithSuffix)-4]), 32)).Hex()}
-    return client.resolve(ethClient, nameServiceChain, common.HexToAddress(nsInfo.NSAddr), args)
+    return client.resolve(ethClient, nameServiceChain, resolver, []string{"addr", "bytes32!" + node})
 }
 
 // When webHandler is True, the address will be read with specific webHandler field first;
 // If the read is failed, the address will be read with the `addr` record
-func (client *Client) getAddressFromNameServiceWebHandler(nameServiceChain string, nameWithSuffix string) (common.Address, string, error) {
+func (client *Client) getAddressFromNameServiceWebHandler(nameServiceChain int, nameWithSuffix string) (common.Address, int, error) {
     if common.IsHexAddress(nameWithSuffix) {
-        return common.HexToAddress(nameWithSuffix), "", nil
+        return common.HexToAddress(nameWithSuffix), 0, nil
     }
     nsInfo, rpc, we := client.getConfigs(nameServiceChain, nameWithSuffix)
     if we != nil {
-        return common.Address{}, "", we
+        return common.Address{}, 0, we
     }
     ethClient, err := ethclient.Dial(rpc)
     if err != nil {
         log.Debug(err)
-        return common.Address{}, "", &Web3Error{http.StatusInternalServerError, "internal server error"}
+        return common.Address{}, 0, &Web3Error{http.StatusInternalServerError, "internal server error"}
     }
     defer ethClient.Close()
 
-    if nsInfo.NSType != SimpleNameService {
-        nameHash, _ := NameHash(nameWithSuffix)
-        node := common.BytesToHash(nameHash[:]).Hex()
-        log.Debug("node: ", node)
-        resolver, e := client.getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
-        if e != nil {
-            return common.Address{}, "", e
-        }
-        var args []string
-        var returnTp string
-        if nsInfo.NSType == Web3QNameService {
-            args = []string{"webHandler", "bytes32!" + node}
-            returnTp = "(address)"
-        } else {
-            args = []string{"text", "bytes32!" + node, "string!contentcontract"}
-            returnTp = "(string)"
-        }
-        msg, _, e := client.parseArguments(nameServiceChain, resolver, args)
-        if e != nil {
-            return common.Address{}, "", e
-        }
-        bs, we := handleCallContract(*ethClient, msg)
-        if we != nil {
-            return common.Address{}, "", we
-        }
-        if common.Bytes2Hex(bs) != EmptyString {
-            res, we := parseOutput(bs, returnTp)
-            if we == nil {
-                return client.parseChainSpecificAddress(res[0].(string))
-            }
-        }
-        return client.resolve(ethClient, nameServiceChain, resolver, []string{"addr", "bytes32!" + node})
+    nameHash, _ := NameHash(nameWithSuffix)
+    node := common.BytesToHash(nameHash[:]).Hex()
+    log.Debug("node: ", node)
+    resolver, e := client.getResolver(ethClient, common.HexToAddress(nsInfo.NSAddr), node, nameServiceChain, nameWithSuffix)
+    if e != nil {
+        return common.Address{}, 0, e
     }
-
-    // fallback to simple name service
-    args := []string{"pointers", "bytes32!" + common.BytesToHash(common.RightPadBytes([]byte(nameWithSuffix[:len(nameWithSuffix)-4]), 32)).Hex()}
-    return client.resolve(ethClient, nameServiceChain, common.HexToAddress(nsInfo.NSAddr), args)
-}
-
-func (client *Client) resolve(ethClient *ethclient.Client, nameServiceChain string, resolver common.Address, args []string) (common.Address, string, error) {
+    var args []string
+    var returnTp string
+    if nsInfo.NSType == DomainNameServiceW3NS {
+        args = []string{"webHandler", "bytes32!" + node}
+        returnTp = "(address)"
+    } else if nsInfo.NSType == DomainNameServiceENS {
+        args = []string{"text", "bytes32!" + node, "string!contentcontract"}
+        returnTp = "(string)"
+    }
     msg, _, e := client.parseArguments(nameServiceChain, resolver, args)
     if e != nil {
-        return common.Address{}, "", e
+        return common.Address{}, 0, e
+    }
+    bs, we := handleCallContract(*ethClient, msg)
+    if we != nil {
+        return common.Address{}, 0, we
+    }
+    if common.Bytes2Hex(bs) != EmptyString {
+        res, we := parseOutput(bs, returnTp)
+        if we == nil {
+            return client.parseChainSpecificAddress(res[0].(string))
+        }
+    }
+    return client.resolve(ethClient, nameServiceChain, resolver, []string{"addr", "bytes32!" + node})
+}
+
+func (client *Client) resolve(ethClient *ethclient.Client, nameServiceChain int, resolver common.Address, args []string) (common.Address, int, error) {
+    msg, _, e := client.parseArguments(nameServiceChain, resolver, args)
+    if e != nil {
+        return common.Address{}, 0, e
     }
     bs, err := ethClient.CallContract(context.Background(), msg, nil)
     if err != nil || common.Bytes2Hex(bs) == EmptyAddress {
         log.Infof("Cannot get address: %v\n", err)
-        return common.Address{}, "", &Web3Error{http.StatusNotFound, err.Error()}
+        return common.Address{}, 0, &Web3Error{http.StatusNotFound, err.Error()}
     }
     res, e := parseOutput(bs, "address")
     if e != nil {
-        return common.Address{}, "", e
+        return common.Address{}, 0, e
     }
     return client.parseChainSpecificAddress(res[0].(string))
 }
 
-func (client *Client) getResolver(ethClient *ethclient.Client, nsAddr common.Address, node, nameServiceChain, nameWithSuffix string) (common.Address, error) {
+func (client *Client) getResolver(ethClient *ethclient.Client, nsAddr common.Address, node string, nameServiceChain int, nameWithSuffix string) (common.Address, error) {
     msg, _, e := client.parseArguments(nameServiceChain, nsAddr,
         []string{"resolver", "bytes32!" + node})
     if e != nil {
@@ -200,13 +189,13 @@ func (client *Client) getResolver(ethClient *ethclient.Client, nsAddr common.Add
         return common.Address{}, e
     }
     if common.Bytes2Hex(bs) == EmptyAddress {
-        return common.Address{}, &Web3Error{http.StatusBadRequest, "Cannot get resolver for " + nameWithSuffix}
+        return common.Address{}, &Web3Error{http.StatusBadRequest, "Cannot resolve domain name"}
     }
     log.Debug("resolver: ", common.BytesToAddress(bs).String())
     return common.BytesToAddress(bs), nil
 }
 
-func (client *Client) getConfigs(nameServiceChain, nameWithSuffix string) (NameServiceInfo, string, error) {
+func (client *Client) getConfigs(nameServiceChain int, nameWithSuffix string) (NameServiceInfo, string, error) {
     ss := strings.Split(nameWithSuffix, ".")
     if len(ss) <= 1 {
         return NameServiceInfo{}, "", &Web3Error{http.StatusBadRequest, "invalid domain name: " + nameWithSuffix}
@@ -214,7 +203,7 @@ func (client *Client) getConfigs(nameServiceChain, nameWithSuffix string) (NameS
     suffix := ss[len(ss)-1]
     chainInfo, ok := client.Config.ChainConfigs[nameServiceChain]
     if !ok {
-        return NameServiceInfo{}, "", &Web3Error{http.StatusBadRequest, "unsupported chain: " + nameServiceChain}
+        return NameServiceInfo{}, "", &Web3Error{http.StatusBadRequest, fmt.Sprintf("unsupported chain: %v", nameServiceChain)}
     }
     nsInfo, ok := chainInfo.NSConfig[suffix]
     if !ok {
@@ -224,21 +213,21 @@ func (client *Client) getConfigs(nameServiceChain, nameWithSuffix string) (NameS
 }
 
 // support chainSpecificAddress from EIP-3770
-func (client *Client) parseChainSpecificAddress(addr string) (common.Address, string, error) {
+func (client *Client) parseChainSpecificAddress(addr string) (common.Address, int, error) {
     if common.IsHexAddress(addr) {
-        return common.HexToAddress(addr), "", nil
+        return common.HexToAddress(addr), 0, nil
     }
     ss := strings.Split(addr, ":")
     if len(ss) != 2 {
-        return common.Address{}, "", &Web3Error{http.StatusBadRequest, "invalid contract address from name service: " + addr}
+        return common.Address{}, 0, &Web3Error{http.StatusBadRequest, "invalid contract address from name service: " + addr}
     }
     chainName := ss[0]
     chainId, ok := client.Config.Name2Chain[strings.ToLower(chainName)]
     if !ok {
-        return common.Address{}, "", &Web3Error{http.StatusBadRequest, "unsupported chain short name from name service: " + addr}
+        return common.Address{}, 0, &Web3Error{http.StatusBadRequest, "unsupported chain short name from name service: " + addr}
     }
     if !common.IsHexAddress(ss[1]) {
-        return common.Address{}, "", &Web3Error{http.StatusBadRequest, "invalid contract address from name service: " + addr}
+        return common.Address{}, 0, &Web3Error{http.StatusBadRequest, "invalid contract address from name service: " + addr}
     }
     return common.HexToAddress(ss[1]), chainId, nil
 }

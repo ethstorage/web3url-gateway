@@ -13,7 +13,7 @@ import (
 
 type solvedAddr struct {
     nsChainAndName string
-    targetChain    string
+    targetChain    int
     addr           common.Address
 }
 
@@ -39,11 +39,11 @@ func newLocalCache(lifetime, cleanupInterval time.Duration) *localCache {
     go func() {
         lc.cleanupLoop()
     }()
-    log.Infof("[cache] new lifetime=%v, cleanupInterval=%v", lifetime, cleanupInterval)
+    // log.Infof("[cache] new lifetime=%v, cleanupInterval=%v", lifetime, cleanupInterval)
     return lc
 }
 
-func (lc *localCache) add(nsChainAndName string, addr common.Address, targetChain string) {
+func (lc *localCache) add(nsChainAndName string, addr common.Address, targetChain int) {
     lc.mu.Lock()
     defer lc.mu.Unlock()
     lc.addrs[nsChainAndName] = cachedAddr{
@@ -58,12 +58,12 @@ func (lc *localCache) add(nsChainAndName string, addr common.Address, targetChai
     log.Debugf("[cache] add %s\n", nsChainAndName)
 }
 
-func (lc *localCache) get(nsChainAndName string) (common.Address, string, bool) {
+func (lc *localCache) get(nsChainAndName string) (common.Address, int, bool) {
     lc.mu.Lock()
     defer lc.mu.Unlock()
     ca, ok := lc.addrs[nsChainAndName]
     if !ok {
-        return common.Address{}, "", false
+        return common.Address{}, 0, false
     }
     lc.trace(nsChainAndName, "hit")
     log.Debugf("[cache] hit %s\n", nsChainAndName)

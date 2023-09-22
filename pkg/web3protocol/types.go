@@ -1,35 +1,20 @@
 package web3protocol
 
 type Config struct {
-	NSDefaultChains map[string]string
-	Name2Chain      map[string]string
-	ChainConfigs    map[string]ChainConfig
+	Name2Chain      map[string]int
+	ChainConfigs    map[int]ChainConfig
 	NameAddrCacheDurationInMinutes int
 }
 
 type ChainConfig struct {
-	ChainID  string
+	ChainID  int
 	RPC      string
 	NSConfig map[string]NameServiceInfo
 }
 
 type NameServiceInfo struct {
-	NSType NameServiceType
+	NSType DomainNameService
 	NSAddr string
-}
-
-type NameServiceType int
-
-const (
-	SimpleNameService NameServiceType = iota
-	Web3QNameService
-	EthereumNameService
-)
-
-var NsTypeMapping = map[string]NameServiceType{
-	"W3NS": Web3QNameService,
-	"ENS":  EthereumNameService,
-	"SNS":  SimpleNameService,
 }
 
 type ResolveMode string

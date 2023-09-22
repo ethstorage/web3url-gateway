@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
+	// "encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/big"
+	// "math/big"
 	"mime"
 	"net"
 	"net/http"
 	"strings"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 
@@ -18,16 +19,18 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	"github.com/ethstorage/web3url-gateway/pkg/web3protocol"
 )
 
 type Web3URL struct {
 	Contract    common.Address // actual address
-	NSChain     string         // chain where the name service is running
-	TargetChain string         // chain where the contract is deployed
+	NSChain     int         // chain where the name service is running
+	TargetChain int         // chain where the contract is deployed
 	RawPath     string         // All after contract name
 	Arguments   []string       // arguments to call
 	ReturnType  string         // return type
-	NSType      string
+	NSType      web3protocol.DomainNameService
 }
 
 const (
@@ -62,7 +65,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		handleOrdinals(w, req, path)
 		return
 	}
-	p, useSubdomain, er := handleSubdomain(h, path)
+	p, _, er := handleSubdomain(h, path)
 	if er != nil {
 		respondWithErrorPage(w, Web3Error{http.StatusBadRequest, er.Error()})
 		return
@@ -93,61 +96,61 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		addWeb3Header(w, "Return-Type", w3url.ReturnType)
 	}
 	addWeb3Header(w, "Contract-Address", w3url.Contract.Hex())
-	addWeb3Header(w, "Target-ChainId", w3url.TargetChain)
-	addWeb3Header(w, "NameService-ChainId", w3url.NSChain)
+	addWeb3Header(w, "Target-ChainId", fmt.Sprintf("%v", w3url.TargetChain))
+	addWeb3Header(w, "NameService-ChainId", fmt.Sprintf("%v", w3url.NSChain))
 	resolveMode := checkResolveMode(w3url)
 	addWeb3Header(w, "Resolve-Mode", ResolveText[resolveMode])
 	log.Info("contract: ", w3url.Contract, " resolveMode: ", ResolveText[resolveMode])
 
-	var bs []byte
-	if resolveMode == ResolveModeResourceRequests {
-		spliterIdx := strings.Index(p[1:], "/")
-		path := p[spliterIdx+1:]
-		if len(req.URL.RawQuery) > 0 {
-			path += "?" + req.URL.RawQuery
-		}
-		bs, er = handleEIP5219(w, w3url.Contract, w3url.TargetChain, path)
-		if er != nil {
-			respondWithErrorPage(w, Web3Error{http.StatusBadRequest, er.Error()})
-			return
-		}
-	} else {
-		var mimeType string
-		if resolveMode == ResolveModeManual {
-			undecoded := req.RequestURI
-			if useSubdomain {
-				w3url.RawPath = undecoded
-			} else {
-				w3url.RawPath = undecoded[strings.Index(undecoded[1:], "/")+1:]
-			}
-			log.Printf("w3url.RawPath = %s", w3url.RawPath)
-			bs, mimeType, err = handleManualMode(w, w3url)
-		} else {
-			bs, mimeType, err = handleAutoMode(w, w3url)
-		}
-		if err.HasError() {
-			respondWithErrorPage(w, err)
-			return
-		}
-		if len(bs) == 0 {
-			respondWithErrorPage(w, Web3Error{http.StatusBadRequest, "no such contract or method"})
-			return
-		}
-		res, err := parseOutput(bs, w3url.ReturnType)
-		if err.HasError() {
-			respondWithErrorPage(w, err)
-			return
-		}
-		e := render(w, req, w3url.ReturnType, mimeType, res)
-		if e != nil {
-			respondWithErrorPage(w, Web3Error{http.StatusBadRequest, e.Error()})
-			return
-		}
-	}
+	// var bs []byte
+	// if resolveMode == ResolveModeResourceRequests {
+	// 	spliterIdx := strings.Index(p[1:], "/")
+	// 	path := p[spliterIdx+1:]
+	// 	if len(req.URL.RawQuery) > 0 {
+	// 		path += "?" + req.URL.RawQuery
+	// 	}
+	// 	bs, er = handleEIP5219(w, w3url.Contract, w3url.TargetChain, path)
+	// 	if er != nil {
+	// 		respondWithErrorPage(w, Web3Error{http.StatusBadRequest, er.Error()})
+	// 		return
+	// 	}
+	// } else {
+	// 	var mimeType string
+	// 	if resolveMode == ResolveModeManual {
+	// 		undecoded := req.RequestURI
+	// 		if useSubdomain {
+	// 			w3url.RawPath = undecoded
+	// 		} else {
+	// 			w3url.RawPath = undecoded[strings.Index(undecoded[1:], "/")+1:]
+	// 		}
+	// 		log.Printf("w3url.RawPath = %s", w3url.RawPath)
+	// 		bs, mimeType, err = handleManualMode(w, w3url)
+	// 	} else {
+	// 		bs, mimeType, err = handleAutoMode(w, w3url)
+	// 	}
+	// 	if err.HasError() {
+	// 		respondWithErrorPage(w, err)
+	// 		return
+	// 	}
+	// 	if len(bs) == 0 {
+	// 		respondWithErrorPage(w, Web3Error{http.StatusBadRequest, "no such contract or method"})
+	// 		return
+	// 	}
+	// 	res, err := parseOutput(bs, w3url.ReturnType)
+	// 	if err.HasError() {
+	// 		respondWithErrorPage(w, err)
+	// 		return
+	// 	}
+	// 	e := render(w, req, w3url.ReturnType, mimeType, res)
+	// 	if e != nil {
+	// 		respondWithErrorPage(w, Web3Error{http.StatusBadRequest, e.Error()})
+	// 		return
+	// 	}
+	// }
 
-	if len(*dbToken) > 0 {
-		stats(len(bs), req.RemoteAddr, w3url.TargetChain, w3url.NSType, path, h)
-	}
+	// if len(*dbToken) > 0 {
+	// 	stats(len(bs), req.RemoteAddr, w3url.TargetChain, fmt.Sprintf("%v", w3url.NSType), path, h)
+	// }
 }
 
 func render(w http.ResponseWriter, req *http.Request, returnType, mimeType string, content []interface{}) error {
@@ -209,12 +212,12 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 		}
 	}
 	if l == 3 {
-		if len(config.DefaultChain) == 0 {
+		if config.DefaultChain == 0 {
 			return "", false, fmt.Errorf("default chain is not specified")
 		}
 		if common.IsHexAddress(pieces[0]) {
 			//e.g. 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io/name?returns=(string)
-			p = "/" + pieces[0] + ":" + config.DefaultChain + path
+			p = "/" + pieces[0] + ":" + strconv.Itoa(config.DefaultChain) + path
 		} else {
 			//e.g. quark.w3eth.io
 			suffix, err := getDefaultNSSuffix()
@@ -247,7 +250,7 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 	}
 	//e.g. quark.w3q.w3q-g.w3link.io
 	if l == 5 {
-		if len(config.DefaultChain) > 0 {
+		if config.DefaultChain == 0 {
 			log.Info("no tld should be provided when default chain is specified")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
@@ -268,148 +271,144 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 // parseWeb3URL parse input path into Web3URL struct
 func parseWeb3URL(path string) (Web3URL, Web3Error) {
 	var w Web3URL
-	var contract string
-	ss := strings.Split(path, "/")
-	contract = ss[1]
-	w.RawPath = path[len(ss[1])+1:]
-	// split raw contract part, with "->" (contract return sign)
-	// example /quark.eth:3->(uint256, bool)
-	sr := strings.Split(ss[1], "->")
-	if len(sr) > 2 {
-		return w, Web3Error{http.StatusBadRequest, "web3url can only have one '->'"}
-	} else if len(sr) == 2 {
-		if !strings.HasPrefix(sr[1], "(") || !strings.HasSuffix(sr[1], ")") {
-			return w, Web3Error{http.StatusBadRequest, "invalid return type: " + sr[1]}
-		}
-		contract = sr[0]
-		w.ReturnType = sr[1]
-	}
-	// sr[0] means all part before a potential symbol "->", split it to get chainId
-	st := strings.Split(sr[0], ":")
-	if len(st) > 2 {
-		return w, Web3Error{http.StatusBadRequest, "too many chainID to parse in: " + sr[0]}
-	} else if len(st) == 2 {
-		contract = st[0]
-		w.NSChain = st[1]
-		// check if chainID is valid, against cached config(can stem from a config file)
-		_, ok := config.ChainConfigs[w.NSChain]
-		if !ok {
-			// check if chainName is valid
-			chainId, ok := config.Name2Chain[strings.ToLower(w.NSChain)]
-			if !ok {
-				return w, Web3Error{http.StatusBadRequest, "unsupported chain: " + w.NSChain}
-			}
-			w.NSChain = chainId
-		}
-	}
+	// var contract string
+	// ss := strings.Split(path, "/")
+	// contract = ss[1]
+	// w.RawPath = path[len(ss[1])+1:]
+	// // split raw contract part, with "->" (contract return sign)
+	// // example /quark.eth:3->(uint256, bool)
+	// sr := strings.Split(ss[1], "->")
+	// if len(sr) > 2 {
+	// 	return w, Web3Error{http.StatusBadRequest, "web3url can only have one '->'"}
+	// } else if len(sr) == 2 {
+	// 	if !strings.HasPrefix(sr[1], "(") || !strings.HasSuffix(sr[1], ")") {
+	// 		return w, Web3Error{http.StatusBadRequest, "invalid return type: " + sr[1]}
+	// 	}
+	// 	contract = sr[0]
+	// 	w.ReturnType = sr[1]
+	// }
+	// // sr[0] means all part before a potential symbol "->", split it to get chainId
+	// st := strings.Split(sr[0], ":")
+	// if len(st) > 2 {
+	// 	return w, Web3Error{http.StatusBadRequest, "too many chainID to parse in: " + sr[0]}
+	// } else if len(st) == 2 {
+	// 	contract = st[0]
+	// 	w.NSChain = st[1]
+	// 	// check if chainID is valid, against cached config(can stem from a config file)
+	// 	_, ok := config.ChainConfigs[w.NSChain]
+	// 	if !ok {
+	// 		// check if chainName is valid
+	// 		chainId, ok := config.Name2Chain[strings.ToLower(w.NSChain)]
+	// 		if !ok {
+	// 			return w, Web3Error{http.StatusBadRequest, "unsupported chain: " + w.NSChain}
+	// 		}
+	// 		w.NSChain = chainId
+	// 	}
+	// }
 
-	// after spliting from "->" and ":", var contact shall be a pure name service or a hex address
-	if common.IsHexAddress(contract) {
-		w.Contract = common.HexToAddress(contract)
-		w.TargetChain = w.NSChain
-		w.NSType = "Address"
-	} else {
-		// a meaningful name waiting being processed
-		ss := strings.Split(contract, ".")
-		if len(ss) <= 1 {
-			return w, Web3Error{http.StatusBadRequest, "unsupported contract name: " + contract}
-		}
-		suffix := ss[len(ss)-1]
-		// check whether a suffix we are familar
-		chainId, ok := config.NSDefaultChains[suffix]
-		if !ok {
-			return w, Web3Error{http.StatusBadRequest, "unsupported domain name suffix: " + suffix}
-		}
-		if w.NSChain == "" {
-			w.NSChain = chainId
-		}
-		var addr common.Address
-		var targetChain string
-		var hit bool
-		cacheKey := w.NSChain + ":" + contract
-		if nameAddrCache != nil {
-			addr, targetChain, hit = nameAddrCache.get(cacheKey)
-		}
-		if !hit {
-			var err Web3Error
-			addr, targetChain, err = getAddressFromNameServiceWebHandler(w.NSChain, contract)
-			if err.HasError() {
-				return w, err
-			}
-			if nameAddrCache != nil {
-				nameAddrCache.add(cacheKey, addr, targetChain)
-			}
-		}
-		w.Contract = addr
-		w.TargetChain = targetChain
+	// // after spliting from "->" and ":", var contact shall be a pure name service or a hex address
+	// if common.IsHexAddress(contract) {
+	// 	w.Contract = common.HexToAddress(contract)
+	// 	w.TargetChain = w.NSChain
+	// 	w.NSType = "Address"
+	// } else {
+	// 	// a meaningful name waiting being processed
+	// 	ss := strings.Split(contract, ".")
+	// 	if len(ss) <= 1 {
+	// 		return w, Web3Error{http.StatusBadRequest, "unsupported contract name: " + contract}
+	// 	}
+	// 	suffix := ss[len(ss)-1]
+	// 	// check whether a suffix we are familar
+	// 	chainId, ok := config.NSDefaultChains[suffix]
+	// 	if !ok {
+	// 		return w, Web3Error{http.StatusBadRequest, "unsupported domain name suffix: " + suffix}
+	// 	}
+	// 	if w.NSChain == "" {
+	// 		w.NSChain = chainId
+	// 	}
+	// 	var addr common.Address
+	// 	var targetChain string
+	// 	var hit bool
+	// 	cacheKey := w.NSChain + ":" + contract
+	// 	if nameAddrCache != nil {
+	// 		addr, targetChain, hit = nameAddrCache.get(cacheKey)
+	// 	}
+	// 	if !hit {
+	// 		var err Web3Error
+	// 		addr, targetChain, err = getAddressFromNameServiceWebHandler(w.NSChain, contract)
+	// 		if err.HasError() {
+	// 			return w, err
+	// 		}
+	// 		if nameAddrCache != nil {
+	// 			nameAddrCache.add(cacheKey, addr, targetChain)
+	// 		}
+	// 	}
+	// 	w.Contract = addr
+	// 	w.TargetChain = targetChain
 
-		chainInfo, ok := config.ChainConfigs[w.NSChain]
-		if !ok {
-			return w, Web3Error{http.StatusBadRequest, "unsupported chain: " + w.NSChain}
-		}
-		nsInfo, ok := chainInfo.NSConfig[suffix]
-		if !ok {
-			return w, Web3Error{http.StatusBadRequest, "unsupported suffix: " + suffix}
-		}
-		if nsInfo.NSType == 1 {
-			w.NSType = "W3NS"
-		} else if nsInfo.NSType == 2 {
-			w.NSType = "ENS"
-		} else {
-			w.NSType = "Others"
-		}
-	}
+	// 	chainInfo, ok := config.ChainConfigs[w.NSChain]
+	// 	if !ok {
+	// 		return w, Web3Error{http.StatusBadRequest, "unsupported chain: " + w.NSChain}
+	// 	}
+	// 	nsInfo, ok := chainInfo.NSConfig[suffix]
+	// 	if !ok {
+	// 		return w, Web3Error{http.StatusBadRequest, "unsupported suffix: " + suffix}
+	// 	}
+	// 	w.NSType = nsInfo.NSType
+	// }
 
-	w.Arguments = ss[2:]
+	// w.Arguments = ss[2:]
 
-	if w.NSChain == "" {
-		w.NSChain = config.DefaultChain
-	}
-	if w.TargetChain == "" {
-		w.TargetChain = w.NSChain
-	}
+	// if w.NSChain == "" {
+	// 	w.NSChain = config.DefaultChain
+	// }
+	// if w.TargetChain == "" {
+	// 	w.TargetChain = w.NSChain
+	// }
 	return w, NoWeb3Error
 }
 func handleManualMode(w http.ResponseWriter, w3url Web3URL) ([]byte, string, Web3Error) {
-	var mimeType string
-	ss := strings.Split(w3url.RawPath, ".")
-	if len(ss) > 1 {
-		mimeType = mime.TypeByExtension("." + ss[len(ss)-1])
-		log.Info("type: ", mimeType)
-	}
-	calldata := []byte(w3url.RawPath)
-	log.Info("calldata (manual): ", "0x"+hex.EncodeToString(calldata))
-	addWeb3Header(w, "Calldata", "0x"+hex.EncodeToString(calldata))
-	bs, werr := callContract(w3url.Contract, w3url.TargetChain, calldata)
-	if werr.HasError() {
-		return nil, "", werr
-	}
-	return bs, mimeType, NoWeb3Error
+	// var mimeType string
+	// ss := strings.Split(w3url.RawPath, ".")
+	// if len(ss) > 1 {
+	// 	mimeType = mime.TypeByExtension("." + ss[len(ss)-1])
+	// 	log.Info("type: ", mimeType)
+	// }
+	// calldata := []byte(w3url.RawPath)
+	// log.Info("calldata (manual): ", "0x"+hex.EncodeToString(calldata))
+	// addWeb3Header(w, "Calldata", "0x"+hex.EncodeToString(calldata))
+	// bs, werr := callContract(w3url.Contract, w3url.TargetChain, calldata)
+	// if werr.HasError() {
+	// 	return nil, "", werr
+	// }
+	// return bs, mimeType, NoWeb3Error
+	return []byte{}, "", NoWeb3Error
 }
 
 func handleAutoMode(w http.ResponseWriter, w3url Web3URL) ([]byte, string, Web3Error) {
-	msg, argInfo, err := parseArguments(w3url.TargetChain, w3url.Contract, w3url.Arguments)
-	addWeb3Header(w, "Method-Signature", argInfo.methodSignature)
-	addWeb3Header(w, "Calldata", argInfo.calldata)
-	if err.HasError() {
-		log.Infof("Cannot parse message: %v\n", err)
-		return nil, "", err
-	}
-	client, linkErr := ethclient.Dial(config.ChainConfigs[w3url.TargetChain].RPC)
-	if linkErr != nil {
-		log.Info("Dial failed: ", linkErr.Error())
-		return nil, "", Web3Error{http.StatusNotFound, linkErr.Error()}
-	}
-	defer client.Close()
-	bs, e := client.CallContract(context.Background(), msg, nil)
-	if e != nil {
-		log.Info("Call Contract failed ", e.Error())
-		return nil, "", Web3Error{http.StatusNotFound, e.Error()}
-	}
-	log.Info("return data len: ", len(bs))
-	log.Debug("return data: 0x", hex.EncodeToString(bs))
+	// msg, argInfo, err := parseArguments(w3url.TargetChain, w3url.Contract, w3url.Arguments)
+	// addWeb3Header(w, "Method-Signature", argInfo.methodSignature)
+	// addWeb3Header(w, "Calldata", argInfo.calldata)
+	// if err.HasError() {
+	// 	log.Infof("Cannot parse message: %v\n", err)
+	// 	return nil, "", err
+	// }
+	// client, linkErr := ethclient.Dial(config.ChainConfigs[w3url.TargetChain].RPC)
+	// if linkErr != nil {
+	// 	log.Info("Dial failed: ", linkErr.Error())
+	// 	return nil, "", Web3Error{http.StatusNotFound, linkErr.Error()}
+	// }
+	// defer client.Close()
+	// bs, e := client.CallContract(context.Background(), msg, nil)
+	// if e != nil {
+	// 	log.Info("Call Contract failed ", e.Error())
+	// 	return nil, "", Web3Error{http.StatusNotFound, e.Error()}
+	// }
+	// log.Info("return data len: ", len(bs))
+	// log.Debug("return data: 0x", hex.EncodeToString(bs))
 
-	return bs, argInfo.mimeType, err
+	// return bs, argInfo.mimeType, err
+	return []byte{}, "", NoWeb3Error
 }
 
 func addWeb3Header(w http.ResponseWriter, header string, value string) {
@@ -506,84 +505,85 @@ func parseArguments(nameServiceChain string, addr common.Address, args []string)
 
 // parseArgument parses a [TYPE!]VALUE string into an abi.Type. The type will be auto-detected if TYPE not provided
 func parseArgument(s string, nsChain string) (abi.Type, string, interface{}, Web3Error) {
-	ss := strings.Split(s, "!")
-	if len(ss) > 2 {
-		return abi.Type{}, "", nil, Web3Error{http.StatusBadRequest, "argument wrong format: " + s}
-	}
+	// ss := strings.Split(s, "!")
+	// if len(ss) > 2 {
+	// 	return abi.Type{}, "", nil, Web3Error{http.StatusBadRequest, "argument wrong format: " + s}
+	// }
 
-	var v interface{}
-	if len(ss) == 2 {
-		switch ss[0] {
-		case "uint256":
-			b := new(big.Int)
-			n, ok := b.SetString(ss[1], 0)
-			if !ok {
-				return abi.Type{}, "uint256", nil, Web3Error{http.StatusBadRequest, "argument is not a number: " + s}
-			}
-			v = n
-		case "bytes32":
-			if !has0xPrefix(ss[1]) || !isHex(ss[1][2:]) {
-				return abi.Type{}, "bytes32", nil, Web3Error{http.StatusBadRequest, "argument is not a valid hex string: " + s}
-			}
-			v = common.HexToHash(ss[1])
-		case "address":
-			addr, _, err := getAddressFromNameService(nsChain, ss[1])
-			if err.HasError() {
-				return abi.Type{}, "address", nil, err
-			}
-			v = addr
-		case "bytes":
-			if !has0xPrefix(ss[1]) || !isHex(ss[1][2:]) {
-				return abi.Type{}, "bytes", nil, Web3Error{http.StatusBadRequest, "argument is not a valid hex string: " + s}
-			}
-			v = common.FromHex(ss[1])
-		case "string":
-			v = ss[1]
-		case "bool":
-			{
-				if ss[1] == "0" {
-					v = false
-				}
-				v = true
-			}
-		default:
-			return abi.Type{}, "", nil, Web3Error{http.StatusBadRequest, "unknown type: " + ss[0]}
-		}
-		ty, _ := abi.NewType(ss[0], "", nil)
-		return ty, ss[0], v, NoWeb3Error
-	}
+	// var v interface{}
+	// if len(ss) == 2 {
+	// 	switch ss[0] {
+	// 	case "uint256":
+	// 		b := new(big.Int)
+	// 		n, ok := b.SetString(ss[1], 0)
+	// 		if !ok {
+	// 			return abi.Type{}, "uint256", nil, Web3Error{http.StatusBadRequest, "argument is not a number: " + s}
+	// 		}
+	// 		v = n
+	// 	case "bytes32":
+	// 		if !has0xPrefix(ss[1]) || !isHex(ss[1][2:]) {
+	// 			return abi.Type{}, "bytes32", nil, Web3Error{http.StatusBadRequest, "argument is not a valid hex string: " + s}
+	// 		}
+	// 		v = common.HexToHash(ss[1])
+	// 	case "address":
+	// 		addr, _, err := getAddressFromNameService(nsChain, ss[1])
+	// 		if err.HasError() {
+	// 			return abi.Type{}, "address", nil, err
+	// 		}
+	// 		v = addr
+	// 	case "bytes":
+	// 		if !has0xPrefix(ss[1]) || !isHex(ss[1][2:]) {
+	// 			return abi.Type{}, "bytes", nil, Web3Error{http.StatusBadRequest, "argument is not a valid hex string: " + s}
+	// 		}
+	// 		v = common.FromHex(ss[1])
+	// 	case "string":
+	// 		v = ss[1]
+	// 	case "bool":
+	// 		{
+	// 			if ss[1] == "0" {
+	// 				v = false
+	// 			}
+	// 			v = true
+	// 		}
+	// 	default:
+	// 		return abi.Type{}, "", nil, Web3Error{http.StatusBadRequest, "unknown type: " + ss[0]}
+	// 	}
+	// 	ty, _ := abi.NewType(ss[0], "", nil)
+	// 	return ty, ss[0], v, NoWeb3Error
+	// }
 
-	n := new(big.Int)
-	n, success := n.SetString(ss[0], 10)
-	if success {
-		// treat it as uint256
-		ty, _ := abi.NewType("uint256", "", nil)
-		return ty, "uint256", n, NoWeb3Error
-	}
+	// n := new(big.Int)
+	// n, success := n.SetString(ss[0], 10)
+	// if success {
+	// 	// treat it as uint256
+	// 	ty, _ := abi.NewType("uint256", "", nil)
+	// 	return ty, "uint256", n, NoWeb3Error
+	// }
 
-	if has0xPrefix(ss[0]) && isHex(ss[0][2:]) {
-		if len(ss[0]) == 40+2 {
-			v = common.HexToAddress(ss[0])
-			ty, _ := abi.NewType("address", "", nil)
-			return ty, "address", v, NoWeb3Error
-		} else if len(ss[0]) == 64+2 {
-			v = common.HexToHash(ss[0])
-			ty, _ := abi.NewType("bytes32", "", nil)
-			return ty, "bytes32", v, NoWeb3Error
-		} else {
-			v = common.FromHex(ss[0][2:])
-			ty, _ := abi.NewType("bytes", "", nil)
-			return ty, "bytes", v, NoWeb3Error
-		}
-	}
+	// if has0xPrefix(ss[0]) && isHex(ss[0][2:]) {
+	// 	if len(ss[0]) == 40+2 {
+	// 		v = common.HexToAddress(ss[0])
+	// 		ty, _ := abi.NewType("address", "", nil)
+	// 		return ty, "address", v, NoWeb3Error
+	// 	} else if len(ss[0]) == 64+2 {
+	// 		v = common.HexToHash(ss[0])
+	// 		ty, _ := abi.NewType("bytes32", "", nil)
+	// 		return ty, "bytes32", v, NoWeb3Error
+	// 	} else {
+	// 		v = common.FromHex(ss[0][2:])
+	// 		ty, _ := abi.NewType("bytes", "", nil)
+	// 		return ty, "bytes", v, NoWeb3Error
+	// 	}
+	// }
 
-	// parse as domain name
-	addr, _, err := getAddressFromNameService(nsChain, ss[0])
-	if !err.HasError() {
-		ty, _ := abi.NewType("address", "", nil)
-		return ty, "address", addr, NoWeb3Error
-	}
-	return abi.Type{}, "", nil, err
+	// // parse as domain name
+	// addr, _, err := getAddressFromNameService(nsChain, ss[0])
+	// if !err.HasError() {
+	// 	ty, _ := abi.NewType("address", "", nil)
+	// 	return ty, "address", addr, NoWeb3Error
+	// }
+	// return abi.Type{}, "", nil, err
+	return abi.Type{}, "", nil, NoWeb3Error
 }
 
 func checkReturnType(w http.ResponseWriter, req *http.Request, w3url *Web3URL) Web3Error {

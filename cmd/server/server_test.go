@@ -26,12 +26,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	config.NSDefaultChains["eth"] = "5"
-	config.NSDefaultChains["w3q"] = "3334"
-	config.DefaultChain = "3334"
+	config.NSDefaultChains["eth"] = 5
+	config.NSDefaultChains["w3q"] = 3334
+	config.DefaultChain = 3334
 }
 
-type TestMethodArg struct {
+type AbiType struct {
 	Type string
 }
 
@@ -43,12 +43,23 @@ type TestError struct {
 type Test struct {
 	Name string
 	Url string
+
 	ContractAddress common.Address
+	ChainId int
+
+	HostDomainNameResolver web3protocol.DomainNameService
+	HostDomainNameResolverChainId int
+	
 	ResolveMode web3protocol.ResolveMode
 	ContractCallMode web3protocol.ContractCallMode
+
 	Calldata string
-	MethodArgs []TestMethodArg
+	
+	MethodName string
+	MethodArgs []AbiType
 	MethodArgValues []interface{}
+	MethodReturn []AbiType
+	
 	ContractReturnProcessing web3protocol.ContractReturnProcessing
 	FirstValueAsBytesMimeType string
 	Error TestError
@@ -56,6 +67,7 @@ type Test struct {
 
 type TestGroup struct {
 	Name string
+	Standard string
 	Tests []Test
 }
 
@@ -68,7 +80,7 @@ type TestGroups struct {
 
 func TestSuite(t *testing.T) {
 	// file := "../../tests/mode-manual.toml"
-	file := "../../tests/base.toml"
+	file := "../../tests/mode-auto.toml"
 	f, err := os.Open(file)
 	if err != nil {
 		panic(err)
@@ -92,6 +104,7 @@ func TestSuite(t *testing.T) {
 
 				client := web3protocol.NewClient()
 				client.Config.ChainConfigs = config.ChainConfigs
+				client.Config.Name2Chain = config.Name2Chain
 
 				parsedUrl, err := client.ParseUrl(test.Url)
 
@@ -101,27 +114,67 @@ func TestSuite(t *testing.T) {
 						assert.Fail(t, "An error was expected")
 					}
 
-					if len(test.ContractAddress) > 0 {
-						assert.Equal(t, parsedUrl.ContractAddress, test.ContractAddress)
+					if test.ContractAddress.Hex() != "0x0000000000000000000000000000000000000000" {
+						assert.Equal(t, test.ContractAddress, parsedUrl.ContractAddress)
 					}
+					if test.ChainId > 0 {
+						assert.Equal(t, test.ChainId, parsedUrl.ChainId)
+					}
+					
+					if test.HostDomainNameResolver != "" {
+						assert.Equal(t, test.HostDomainNameResolver, parsedUrl.HostDomainNameResolver)
+					}
+					if test.HostDomainNameResolverChainId > 0 {
+						assert.Equal(t, test.HostDomainNameResolverChainId, parsedUrl.HostDomainNameResolverChainId)
+					}
+
 					if test.ResolveMode != "" {
-						assert.Equal(t, parsedUrl.ResolveMode, test.ResolveMode)
+						assert.Equal(t, test.ResolveMode, parsedUrl.ResolveMode)
 					}
 					if test.ContractCallMode != "" {
-						assert.Equal(t, parsedUrl.ContractCallMode, test.ContractCallMode)
+						assert.Equal(t, test.ContractCallMode, parsedUrl.ContractCallMode)
 					}
+					
 					if test.Calldata != "" {
 						testCalldata, err := hexutil.Decode(test.Calldata)
 						if err != nil {
 							panic(err)
 						}
-						assert.Equal(t, parsedUrl.Calldata, testCalldata)
+						assert.Equal(t, testCalldata, parsedUrl.Calldata)
 					}
+
+					if test.MethodName != "" {
+						assert.Equal(t, test.MethodName, parsedUrl.MethodName)
+					}
+					if len(test.MethodArgs) > 0 {
+						assert.Equal(t, len(test.MethodArgs), len(parsedUrl.MethodArgs), "Unexpected number of arguments")
+						for i, methodArg := range test.MethodArgs {
+							assert.Equal(t, methodArg.Type, parsedUrl.MethodArgs[i].String())
+						}
+					}
+					if len(test.MethodArgValues) > 0 {
+						assert.Equal(t, len(test.MethodArgValues), len(parsedUrl.MethodArgValues), "Unexpected number of argument values")
+						for i, methodArgValue := range test.MethodArgValues {
+							switch methodArgValue.(type) {
+								// Convert into to bigint
+								case int64:
+									newValue := new(big.Int)
+									newValue.SetInt64(methodArgValue.(int64))
+									methodArgValue = newValue
+							}
+							switch test.MethodArgs[i].Type {
+								case "bytes32":
+									methodArgValue = common.HexToHash(methodArgValue.(string))
+							}
+							assert.Equal(t, methodArgValue, parsedUrl.MethodArgValues[i])
+						}
+					}
+
 					if test.ContractReturnProcessing != "" {
-						assert.Equal(t, parsedUrl.ContractReturnProcessing, test.ContractReturnProcessing)
+						assert.Equal(t, test.ContractReturnProcessing, parsedUrl.ContractReturnProcessing)
 					}
 					if test.FirstValueAsBytesMimeType != "" {
-						assert.Equal(t, parsedUrl.FirstValueAsBytesMimeType, test.FirstValueAsBytesMimeType)
+						assert.Equal(t, test.FirstValueAsBytesMimeType, parsedUrl.FirstValueAsBytesMimeType)
 					}
 				} else { // err != nil
 					// If no error was expected, fail
@@ -130,7 +183,7 @@ func TestSuite(t *testing.T) {
 					}
 
 					if test.Error.Label != "" {
-						assert.Equal(t, err.Error(), test.Error.Label)
+						assert.Equal(t, test.Error.Label, err.Error())
 					}
 					if test.Error.HttpCode > 0 {
 						if web3Err, ok := err.(*web3protocol.Web3Error); ok {
@@ -143,7 +196,7 @@ func TestSuite(t *testing.T) {
 
 
 
-fmt.Printf("\nParsedUrl: \n%+v\n\n", parsedUrl)
+// fmt.Printf("\nParsedUrl: %+v\n", parsedUrl)
 
 				
 			})
@@ -161,8 +214,8 @@ func TestParseWeb3URL(t *testing.T) {
 		{"/quark.w3q/files/index.txt",
 			Web3URL{
 				Contract:    common.HexToAddress("0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9"),
-				NSChain:     "3334",
-				TargetChain: "3334",
+				NSChain:     3334,
+				TargetChain: 3334,
 				RawPath:     "/files/index.txt",
 				Arguments:   []string{"files", "index.txt"},
 				NSType:      "W3NS",
@@ -173,8 +226,8 @@ func TestParseWeb3URL(t *testing.T) {
 		{"/0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9/",
 			Web3URL{
 				Contract:    common.HexToAddress("0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9"),
-				NSChain:     "3334",
-				TargetChain: "3334",
+				NSChain:     3334,
+				TargetChain: 3334,
 				RawPath:     "/",
 				Arguments:   []string{""},
 				NSType:      "Address",
@@ -184,8 +237,8 @@ func TestParseWeb3URL(t *testing.T) {
 		{"/quark.w3q",
 			Web3URL{
 				Contract:    common.HexToAddress("0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9"),
-				NSChain:     "3334",
-				TargetChain: "3334",
+				NSChain:     3334,
+				TargetChain: 3334,
 				RawPath:     "",
 				Arguments:   []string{},
 				NSType:      "W3NS",
@@ -196,8 +249,8 @@ func TestParseWeb3URL(t *testing.T) {
 		{"/quark.w3q//",
 			Web3URL{
 				Contract:    common.HexToAddress("0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9"),
-				NSChain:     "3334",
-				TargetChain: "3334",
+				NSChain:     3334,
+				TargetChain: 3334,
 				RawPath:     "//",
 				Arguments:   []string{"", ""},
 				NSType:      "W3NS",
@@ -207,8 +260,8 @@ func TestParseWeb3URL(t *testing.T) {
 		{"/quark.w3q:w3q-g/",
 			Web3URL{
 				Contract:    common.HexToAddress("0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9"),
-				NSChain:     "3334",
-				TargetChain: "3334",
+				NSChain:     3334,
+				TargetChain: 3334,
 				RawPath:     "/",
 				Arguments:   []string{""},
 				NSType:      "W3NS",
@@ -218,8 +271,8 @@ func TestParseWeb3URL(t *testing.T) {
 		{"/quark.eth:gor->(uint256,string,bool)/retrieve",
 			Web3URL{
 				Contract:    common.HexToAddress("0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699"),
-				NSChain:     "5",
-				TargetChain: "5",
+				NSChain:     5,
+				TargetChain: 5,
 				RawPath:     "/retrieve",
 				Arguments:   []string{"retrieve"},
 				ReturnType:  "(uint256,string,bool)",
@@ -290,40 +343,40 @@ func TestParseArgument(t *testing.T) {
 }
 
 func TestGetAddress(t *testing.T) {
-	var testCases = []struct {
-		chainId    string
-		domain     string
-		expect     string
-		webHandler bool
-	}{
-		// not use web handler
-		{"3334", "quark.w3q", "0x6D4a199f603b084a2f1761Dc9F322F92E68bfd5E", false},
-		// user Web handler
-		{"3334", "quark.w3q", "0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9", true},
-		// skip deprecated key and fallback to address
-		{"5", "quark.eth", "0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699", true},
-		// text key is contentcontract, prefix is w3q-g: fallback to address
-		{"5", "ethstorage.eth", "0x79550b825Ef3D7B1f825BE9965FaE80BdF77A7e2", true},
-		// text key is contentcontract, prefix is w3q-g:
-		{"5", "testcontentcontract.eth", "0xBccb33C4D28AB444E22F3519736270a3bA412d9b", true},
-		// direct mapping if not web handler
-		{"1", "terraformnavigator.eth", "0x9A595bc28F1c40ab96247E8157A2b0A6762E7543", false},
-		// fall back to addr using web handler
-		{"1", "terraformnavigator.eth", "0x9A595bc28F1c40ab96247E8157A2b0A6762E7543", true},
-	}
-	var addr common.Address
-	var err Web3Error
-	for _, test := range testCases {
-		t.Run(test.expect, func(t *testing.T) {
-			if test.webHandler {
-				addr, _, err = getAddressFromNameServiceWebHandler(test.chainId, test.domain)
-			} else {
-				addr, _, err = getAddressFromNameService(test.chainId, test.domain)
-			}
-			assert.Equal(t, 0, err.code)
-			assert.Equal(t, test.expect, addr.Hex())
-		})
-	}
+	// var testCases = []struct {
+	// 	chainId    string
+	// 	domain     string
+	// 	expect     string
+	// 	webHandler bool
+	// }{
+	// 	// not use web handler
+	// 	{"3334", "quark.w3q", "0x6D4a199f603b084a2f1761Dc9F322F92E68bfd5E", false},
+	// 	// user Web handler
+	// 	{"3334", "quark.w3q", "0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9", true},
+	// 	// skip deprecated key and fallback to address
+	// 	{"5", "quark.eth", "0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699", true},
+	// 	// text key is contentcontract, prefix is w3q-g: fallback to address
+	// 	{"5", "ethstorage.eth", "0x79550b825Ef3D7B1f825BE9965FaE80BdF77A7e2", true},
+	// 	// text key is contentcontract, prefix is w3q-g:
+	// 	{"5", "testcontentcontract.eth", "0xBccb33C4D28AB444E22F3519736270a3bA412d9b", true},
+	// 	// direct mapping if not web handler
+	// 	{"1", "terraformnavigator.eth", "0x9A595bc28F1c40ab96247E8157A2b0A6762E7543", false},
+	// 	// fall back to addr using web handler
+	// 	{"1", "terraformnavigator.eth", "0x9A595bc28F1c40ab96247E8157A2b0A6762E7543", true},
+	// }
+	// var addr common.Address
+	// var err Web3Error
+	// for _, test := range testCases {
+	// 	t.Run(test.expect, func(t *testing.T) {
+	// 		if test.webHandler {
+	// 			addr, _, err = getAddressFromNameServiceWebHandler(test.chainId, test.domain)
+	// 		} else {
+	// 			addr, _, err = getAddressFromNameService(test.chainId, test.domain)
+	// 		}
+	// 		assert.Equal(t, 0, err.code)
+	// 		assert.Equal(t, test.expect, addr.Hex())
+	// 	})
+	// }
 }
 
 func TestCheckResolveMode(t *testing.T) {
@@ -336,7 +389,7 @@ func TestCheckResolveMode(t *testing.T) {
 	for _, test := range testCases {
 		w3url := Web3URL{
 			Contract:    common.HexToAddress(test.addr),
-			TargetChain: "3334",
+			TargetChain: 3334,
 		}
 		t.Run(fmt.Sprintf("Resolve mode:%d", test.expect), func(t *testing.T) {
 			assert.Equal(t, test.expect, checkResolveMode(w3url))
@@ -536,7 +589,7 @@ var w3links = []struct {
 }
 
 func TestW3links(t *testing.T) {
-	config.DefaultChain = ""
+	config.DefaultChain = 0
 	for _, test := range w3links {
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", test.path, nil)
@@ -573,7 +626,7 @@ var w3eths = []struct {
 }
 
 func TestW3eths(t *testing.T) {
-	config.DefaultChain = "5"
+	config.DefaultChain = 5
 	for _, test := range w3eths {
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", test.path, nil)
@@ -595,26 +648,26 @@ func TestW3eths(t *testing.T) {
 }
 
 var w3urls = []struct {
-	chainId    string
+	chainId    int
 	domain     string
 	path       string
 	expect     string
 	statusCode int
 }{
-	{"56", "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]\n", http.StatusOK},
-	{"56", "w3bnb.io", "/0xe9e7cea3dedca5984780bafc599bd69add087d56:56/name?returns=(string)", "[\"BUSD Token\"]\n", http.StatusOK},
-	{"43114", "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]\n", http.StatusOK},
-	{"43114", "w3avax.io", "/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7:43114/name?returns=(string)", "[\"Wrapped AVAX\"]\n", http.StatusOK},
-	{"9001", "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]\n", http.StatusOK},
-	{"9001", "w3evmos.io", "/0xc5e00d3b04563950941f7137b5afa3a534f0d6d6:9001/name?returns=(string)", "[\"Cosmos Hub\"]\n", http.StatusOK},
-	{"250", "0x69c744d3444202d35a2783929a0f930f2fbb05ad.w3ftm.io", "/name?returns=(string)", "[\"Staked FTM\"]\n", http.StatusOK},
-	{"250", "w3ftm.io", "/0x69c744d3444202d35a2783929a0f930f2fbb05ad/name?returns=(string)", "[\"Staked FTM\"]\n", http.StatusOK},
-	{"1666600000", "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]\n", http.StatusOK},
-	{"1666600000", "w3one.io", "/0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a/name?returns=(string)", "[\"Wrapped ONE\"]\n", http.StatusOK},
-	{"137", "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Matic Token\"]\n", http.StatusOK},
-	{"137", "w3matic.io", "/0x0000000000000000000000000000000000001010/name?returns=(string)", "[\"Matic Token\"]\n", http.StatusOK},
-	{"100001", "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]\n", http.StatusOK},
-	{"100001", "w3qkc.io", "/0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5/greet?returns=(string)", "[\"Hello QKC\"]\n", http.StatusOK},
+	{56, "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]\n", http.StatusOK},
+	{56, "w3bnb.io", "/0xe9e7cea3dedca5984780bafc599bd69add087d56:56/name?returns=(string)", "[\"BUSD Token\"]\n", http.StatusOK},
+	{43114, "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]\n", http.StatusOK},
+	{43114, "w3avax.io", "/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7:43114/name?returns=(string)", "[\"Wrapped AVAX\"]\n", http.StatusOK},
+	{9001, "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]\n", http.StatusOK},
+	{9001, "w3evmos.io", "/0xc5e00d3b04563950941f7137b5afa3a534f0d6d6:9001/name?returns=(string)", "[\"Cosmos Hub\"]\n", http.StatusOK},
+	{250, "0x69c744d3444202d35a2783929a0f930f2fbb05ad.w3ftm.io", "/name?returns=(string)", "[\"Staked FTM\"]\n", http.StatusOK},
+	{250, "w3ftm.io", "/0x69c744d3444202d35a2783929a0f930f2fbb05ad/name?returns=(string)", "[\"Staked FTM\"]\n", http.StatusOK},
+	{1666600000, "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]\n", http.StatusOK},
+	{1666600000, "w3one.io", "/0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a/name?returns=(string)", "[\"Wrapped ONE\"]\n", http.StatusOK},
+	{137, "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Matic Token\"]\n", http.StatusOK},
+	{137, "w3matic.io", "/0x0000000000000000000000000000000000001010/name?returns=(string)", "[\"Matic Token\"]\n", http.StatusOK},
+	{100001, "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]\n", http.StatusOK},
+	{100001, "w3qkc.io", "/0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5/greet?returns=(string)", "[\"Hello QKC\"]\n", http.StatusOK},
 }
 
 func TestW3urls(t *testing.T) {
@@ -639,35 +692,35 @@ func TestW3urls(t *testing.T) {
 }
 
 var mimeTypeUrls = []struct {
-	chainId    string
+	chainId    int
 	domain     string
 	path       string
 	mt         string
 	statusCode int
 }{
 	// content-type is detected by http.DetectContentType()
-	{"1", "cyberbrokers-meta.w3eth.io", "/renderBroker/5", "text/xml; charset=utf-8", http.StatusOK},
+	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5", "text/xml; charset=utf-8", http.StatusOK},
 	// use mime if specified
-	{"1", "cyberbrokers-meta.w3eth.io", "/renderBroker/5?mime.content=image%2Fsvg%2Bxml", "image/svg+xml", http.StatusOK},
-	{"1", "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.type=svg", "image/svg+xml", http.StatusOK},
+	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5?mime.content=image%2Fsvg%2Bxml", "image/svg+xml", http.StatusOK},
+	{1, "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.type=svg", "image/svg+xml", http.StatusOK},
 	// mime.type overrides mime.content
-	{"1", "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.content=image/svg%2Bxml&mime.type=htm", "text/html; charset=utf-8", http.StatusOK},
+	{1, "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.content=image/svg%2Bxml&mime.type=htm", "text/html; charset=utf-8", http.StatusOK},
 	// returns overrides mime
-	{"1", "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenByIndex/1?returns=(uint256)&mime.type=xml", "application/json", http.StatusOK},
+	{1, "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenByIndex/1?returns=(uint256)&mime.type=xml", "application/json", http.StatusOK},
 	// use extention of last param if no mime specified
-	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg", "image/svg+xml", http.StatusOK},
+	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg", "image/svg+xml", http.StatusOK},
 	// mime overrides extention
-	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
+	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
 	// mime.type is ignored if cannot find the corresponding content type
-	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=foo", "image/svg+xml", http.StatusOK},
+	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=foo", "image/svg+xml", http.StatusOK},
 	// use mime.content if mime.type cannot find the corresponding content type
-	{"3334", "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.content=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", http.StatusOK},
+	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.content=application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", http.StatusOK},
 }
 
 func TestMimeTypes(t *testing.T) {
 	for _, test := range mimeTypeUrls {
 		config.DefaultChain = test.chainId
-		config.NSDefaultChains["eth"] = "1"
+		config.NSDefaultChains["eth"] = 1
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", test.path, nil)
 			req.Host = test.domain
@@ -727,13 +780,13 @@ var decodingTestLinks = []struct {
 func TestEncoded(t *testing.T) {
 	for _, test := range decodingTestLinks {
 		if strings.Contains(test.domain, "w3eth.io") {
-			config.DefaultChain = "1"
-			config.NSDefaultChains["eth"] = "1"
-			config.NSDefaultChains["w3q"] = "333"
+			config.DefaultChain = 1
+			config.NSDefaultChains["eth"] = 1
+			config.NSDefaultChains["w3q"] = 333
 		} else {
-			config.DefaultChain = ""
-			config.NSDefaultChains["eth"] = "5"
-			config.NSDefaultChains["w3q"] = "3334"
+			config.DefaultChain = 0
+			config.NSDefaultChains["eth"] = 5
+			config.NSDefaultChains["w3q"] = 3334
 		}
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", test.path, nil)

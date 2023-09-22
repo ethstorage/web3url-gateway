@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/hex"
+	// "encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	// "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	log "github.com/sirupsen/logrus"
+	// log "github.com/sirupsen/logrus"
 )
 
 // https://ordinals.btc.w3link.io/txid/83997e2cfad159dd6f1fde263d0dbca88879e747c6ccf2b7fcfc0f5638c17511i0
@@ -68,72 +68,73 @@ type KeyValue struct {
 // path e.g., /request/asdf/1234?abc=567&foo=bar
 
 func handleEIP5219(w http.ResponseWriter, contract common.Address, chain, path string) ([]byte, error) {
-	strings, _ := abi.NewType("string[]", "", nil)
-	kvs, _ := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
-		{Name: "key", Type: "string"},
-		{Name: "value", Type: "string"},
-	})
-	args := abi.Arguments{
-		{Type: strings},
-		{Type: kvs},
-	}
-	resource, params, err := extractUrl(path)
-	if err != nil {
-		return nil, err
-	}
-	values := []interface{}{resource, params}
-	dataField, err := args.Pack(values...)
-	if err != nil {
-		return nil, err
-	}
-	//sig of request(string[], KeyValue[])
-	calldata := append(common.Hex2Bytes("1374c460"), dataField...)
-	addWeb3Header(w, "Calldata", "0x"+hex.EncodeToString(calldata))
-	bs, werr := callContract(contract, chain, calldata)
-	if werr.HasError() {
-		return nil, fmt.Errorf("call contract err %v", werr.Error())
-	}
-	uint_16, _ := abi.NewType("uint16", "", nil)
-	string_, _ := abi.NewType("string", "", nil)
-	returnArgs := abi.Arguments{
-		{Type: uint_16},
-		{Type: string_},
-		{Type: kvs},
-	}
-	res, err := returnArgs.UnpackValues(bs)
-	if err != nil {
-		return nil, err
-	}
-	statusCode, ok := res[0].(uint16)
-	if !ok {
-		err := fmt.Errorf("invalid statusCode(uint16) %v", res[0])
-		return nil, err
-	}
-	log.Info("statusCode ", statusCode)
-	body, ok := res[1].(string)
-	if !ok {
-		err := fmt.Errorf("invalid body(string) %v", res[1])
-		return nil, err
-	}
-	log.Debug("body ", body)
-	headers, ok := res[2].([]struct {
-		Key   string `json:"key"`
-		Value string `json:"value"`
-	})
-	if !ok {
-		err := fmt.Errorf("invalid headers %v", res[2])
-		return nil, err
-	}
-	for _, h := range headers {
-		log.Info("header ", h)
-		w.Header().Set(h.Key, h.Value)
-	}
-	_, err = w.Write([]byte(body))
-	if err != nil {
-		return nil, err
-	}
-	w.WriteHeader(int(statusCode))
-	return bs, nil
+	// strings, _ := abi.NewType("string[]", "", nil)
+	// kvs, _ := abi.NewType("tuple[]", "", []abi.ArgumentMarshaling{
+	// 	{Name: "key", Type: "string"},
+	// 	{Name: "value", Type: "string"},
+	// })
+	// args := abi.Arguments{
+	// 	{Type: strings},
+	// 	{Type: kvs},
+	// }
+	// resource, params, err := extractUrl(path)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// values := []interface{}{resource, params}
+	// dataField, err := args.Pack(values...)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// //sig of request(string[], KeyValue[])
+	// calldata := append(common.Hex2Bytes("1374c460"), dataField...)
+	// addWeb3Header(w, "Calldata", "0x"+hex.EncodeToString(calldata))
+	// bs, werr := callContract(contract, chain, calldata)
+	// if werr.HasError() {
+	// 	return nil, fmt.Errorf("call contract err %v", werr.Error())
+	// }
+	// uint_16, _ := abi.NewType("uint16", "", nil)
+	// string_, _ := abi.NewType("string", "", nil)
+	// returnArgs := abi.Arguments{
+	// 	{Type: uint_16},
+	// 	{Type: string_},
+	// 	{Type: kvs},
+	// }
+	// res, err := returnArgs.UnpackValues(bs)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// statusCode, ok := res[0].(uint16)
+	// if !ok {
+	// 	err := fmt.Errorf("invalid statusCode(uint16) %v", res[0])
+	// 	return nil, err
+	// }
+	// log.Info("statusCode ", statusCode)
+	// body, ok := res[1].(string)
+	// if !ok {
+	// 	err := fmt.Errorf("invalid body(string) %v", res[1])
+	// 	return nil, err
+	// }
+	// log.Debug("body ", body)
+	// headers, ok := res[2].([]struct {
+	// 	Key   string `json:"key"`
+	// 	Value string `json:"value"`
+	// })
+	// if !ok {
+	// 	err := fmt.Errorf("invalid headers %v", res[2])
+	// 	return nil, err
+	// }
+	// for _, h := range headers {
+	// 	log.Info("header ", h)
+	// 	w.Header().Set(h.Key, h.Value)
+	// }
+	// _, err = w.Write([]byte(body))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// w.WriteHeader(int(statusCode))
+	// return bs, nil
+	return []byte{}, nil
 }
 
 func extractUrl(input string) ([]string, []KeyValue, error) {

@@ -105,7 +105,7 @@ func toJSON(arg abi.Type, value interface{}) interface{} {
 	}
 }
 
-func (client *Client) callContract(contract common.Address, chain string, calldata []byte) ([]byte, error) {
+func (client *Client) callContract(contract common.Address, chain int, calldata []byte) ([]byte, error) {
 	msg := ethereum.CallMsg{
 		From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		To:        &contract,
@@ -145,7 +145,7 @@ func handleCallContract(client ethclient.Client, msg ethereum.CallMsg) ([]byte, 
 }
 
 func getDefaultNSSuffix(config Config) (string, error) {
-	chainConfig := config.ChainConfigs["1"] // Previously config.DefaultChain
+	chainConfig := config.ChainConfigs[1]
 	// use first ns config as default
 	for suffix := range chainConfig.NSConfig {
 		return suffix, nil
@@ -153,11 +153,3 @@ func getDefaultNSSuffix(config Config) (string, error) {
 	return "", fmt.Errorf("cannot find ns config for default chain %v", "1") // Previously config.DefaultChain
 }
 
-func getChainById(chainId string, config Config) string {
-	for k, v := range config.Name2Chain {
-		if chainId == v {
-			return k
-		}
-	}
-	return chainId
-}
