@@ -54,6 +54,48 @@ var nsTypeMapping = map[string]NameServiceType{
 	"SNS":  SimpleNameService,
 }
 
+const BlobTxBytesPerFieldElement = 32 // Size in bytes of a field element
+const BlobTxFieldElementsPerBlob = 4096
+const BlobSize = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob
+
+func decodeBlob(blob []byte) []byte {
+	length := len(blob)
+
+	var data []byte
+	for i := 0; i < length; i += BlobTxBytesPerFieldElement {
+		max := i + BlobTxBytesPerFieldElement
+		if max > length {
+			max = length
+		}
+		data = append(data, blob[i+1:max]...)
+	}
+
+	i := len(data) - 1
+	for ; i >= 0; i-- {
+		if data[i] != 0x00 {
+			break
+		}
+	}
+	data = data[:i+1]
+	return data
+}
+
+func decodeBlobs(blobs []byte) []byte {
+	length := len(blobs)
+
+	var data []byte
+	for i := 0; i < length; i += BlobSize {
+		max := i + BlobSize
+		if max > length {
+			max = length
+		}
+
+		blobData := decodeBlob(blobs[i:max])
+		data = append(data, blobData...)
+	}
+	return data
+}
+
 func handle(w http.ResponseWriter, req *http.Request) {
 	h := req.Host
 	path := req.URL.Path
@@ -138,6 +180,14 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			respondWithErrorPage(w, err)
 			return
 		}
+		// TODO eip4844 decode blobs
+		if resolveMode == ResolveModeManual {
+			file := decodeBlobs(res[0].([]byte))
+			retrieval := make([]interface{}, 0, 1)
+			res = append(retrieval, file)
+			log.Info("res (manual): ", "0x"+hex.EncodeToString(file))
+		}
+
 		e := render(w, req, w3url.ReturnType, mimeType, res)
 		if e != nil {
 			respondWithErrorPage(w, Web3Error{http.StatusBadRequest, e.Error()})
