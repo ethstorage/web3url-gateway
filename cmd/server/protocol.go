@@ -28,6 +28,7 @@ type Web3URL struct {
 	Arguments   []string       // arguments to call
 	ReturnType  string         // return type
 	NSType      string
+	Eip4844     bool
 }
 
 const (
@@ -180,12 +181,10 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			respondWithErrorPage(w, err)
 			return
 		}
-		// TODO eip4844 decode blobs
-		if resolveMode == ResolveModeManual {
+		if w3url.Eip4844 && resolveMode == ResolveModeManual {
 			file := decodeBlobs(res[0].([]byte))
 			retrieval := make([]interface{}, 0, 1)
 			res = append(retrieval, file)
-			log.Info("res (manual): ", "0x"+hex.EncodeToString(file))
 		}
 
 		e := render(w, req, w3url.ReturnType, mimeType, res)
@@ -417,6 +416,11 @@ func parseWeb3URL(path string) (Web3URL, Web3Error) {
 	}
 	if w.TargetChain == "" {
 		w.TargetChain = w.NSChain
+	}
+
+	config, ok := config.ChainConfigs[w.TargetChain]
+	if ok {
+		w.Eip4844 = config.Eip4844
 	}
 	return w, NoWeb3Error
 }

@@ -42,6 +42,7 @@ type NameServiceInfo struct {
 type ChainConfig struct {
 	ChainID  string
 	RPC      string
+	Eip4844  bool
 	NSConfig map[string]NameServiceInfo
 }
 
