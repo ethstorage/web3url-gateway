@@ -28,7 +28,6 @@ type Web3URL struct {
 	Arguments   []string       // arguments to call
 	ReturnType  string         // return type
 	NSType      string
-	Eip4844     bool
 }
 
 const (
@@ -53,48 +52,6 @@ var nsTypeMapping = map[string]NameServiceType{
 	"W3NS": Web3QNameService,
 	"ENS":  EthereumNameService,
 	"SNS":  SimpleNameService,
-}
-
-const BlobTxBytesPerFieldElement = 32 // Size in bytes of a field element
-const BlobTxFieldElementsPerBlob = 4096
-const BlobSize = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob
-
-func decodeBlob(blob []byte) []byte {
-	length := len(blob)
-
-	var data []byte
-	for i := 0; i < length; i += BlobTxBytesPerFieldElement {
-		max := i + BlobTxBytesPerFieldElement
-		if max > length {
-			max = length
-		}
-		data = append(data, blob[i+1:max]...)
-	}
-
-	i := len(data) - 1
-	for ; i >= 0; i-- {
-		if data[i] != 0x00 {
-			break
-		}
-	}
-	data = data[:i+1]
-	return data
-}
-
-func decodeBlobs(blobs []byte) []byte {
-	length := len(blobs)
-
-	var data []byte
-	for i := 0; i < length; i += BlobSize {
-		max := i + BlobSize
-		if max > length {
-			max = length
-		}
-
-		blobData := decodeBlob(blobs[i:max])
-		data = append(data, blobData...)
-	}
-	return data
 }
 
 func handle(w http.ResponseWriter, req *http.Request) {
@@ -181,12 +138,6 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			respondWithErrorPage(w, err)
 			return
 		}
-		if w3url.Eip4844 && resolveMode == ResolveModeManual {
-			file := decodeBlobs(res[0].([]byte))
-			retrieval := make([]interface{}, 0, 1)
-			res = append(retrieval, file)
-		}
-
 		e := render(w, req, w3url.ReturnType, mimeType, res)
 		if e != nil {
 			respondWithErrorPage(w, Web3Error{http.StatusBadRequest, e.Error()})
@@ -416,11 +367,6 @@ func parseWeb3URL(path string) (Web3URL, Web3Error) {
 	}
 	if w.TargetChain == "" {
 		w.TargetChain = w.NSChain
-	}
-
-	config, ok := config.ChainConfigs[w.TargetChain]
-	if ok {
-		w.Eip4844 = config.Eip4844
 	}
 	return w, NoWeb3Error
 }

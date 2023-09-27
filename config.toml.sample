@@ -171,4 +171,3 @@ defaultChain = ""
     [chainConfigs."333"]
     "ChainID" = "333"
     "RPC" = "http://65.109.63.154:9545"
-    "Eip4844" = true
