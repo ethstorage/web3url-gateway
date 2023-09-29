@@ -35,6 +35,12 @@ type AbiType struct {
 	Type string
 }
 
+// Mostly to workaround the fact that
+// in TOML, array can't contain multiple types
+type MethodValue struct {
+	Value interface{}
+}
+
 type TestError struct {
 	Label string
 	HttpCode int
@@ -57,7 +63,7 @@ type Test struct {
 	
 	MethodName string
 	MethodArgs []AbiType
-	MethodArgValues []interface{}
+	MethodArgValues []MethodValue
 	MethodReturn []AbiType
 	
 	ContractReturnProcessing web3protocol.ContractReturnProcessing
@@ -155,18 +161,28 @@ func TestSuite(t *testing.T) {
 					if len(test.MethodArgValues) > 0 {
 						assert.Equal(t, len(test.MethodArgValues), len(parsedUrl.MethodArgValues), "Unexpected number of argument values")
 						for i, methodArgValue := range test.MethodArgValues {
-							switch methodArgValue.(type) {
+							switch methodArgValue.Value.(type) {
 								// Convert into to bigint
 								case int64:
 									newValue := new(big.Int)
-									newValue.SetInt64(methodArgValue.(int64))
-									methodArgValue = newValue
+									newValue.SetInt64(methodArgValue.Value.(int64))
+									methodArgValue.Value = newValue
 							}
 							switch test.MethodArgs[i].Type {
 								case "bytes32":
-									methodArgValue = common.HexToHash(methodArgValue.(string))
+									methodArgValue.Value = common.HexToHash(methodArgValue.Value.(string))
+								case "bytes":
+									methodArgValue.Value = common.FromHex(methodArgValue.Value.(string))
+								case "address":
+									methodArgValue.Value = common.HexToAddress(methodArgValue.Value.(string))
 							}
-							assert.Equal(t, methodArgValue, parsedUrl.MethodArgValues[i])
+							assert.Equal(t, methodArgValue.Value, parsedUrl.MethodArgValues[i])
+						}
+					}
+					if len(test.MethodReturn) > 0 {
+						assert.Equal(t, len(test.MethodReturn), len(parsedUrl.MethodReturn), "Unexpected number of arguments")
+						for i, methodReturn := range test.MethodReturn {
+							assert.Equal(t, methodReturn.Type, parsedUrl.MethodReturn[i].String())
 						}
 					}
 

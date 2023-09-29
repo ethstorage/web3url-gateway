@@ -6,7 +6,7 @@ import(
 	"net/http"
 	"math/big"
 	"net/url"
-	"fmt"
+	// "fmt"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -39,13 +39,27 @@ func (client *Client) parseAutoModeUrl(web3Url *Web3URL, urlMainParts map[string
 	}
 
 	for _, pathnamePart := range pathnameParts[2:] {
-		abiType, abiTypeString, value, err := client.parseArgument(pathnamePart, domainNameResolverChainId)
+		abiType, _, value, err := client.parseArgument(pathnamePart, domainNameResolverChainId)
 		if err != nil {
 			return err
 		}
 		web3Url.MethodArgs = append(web3Url.MethodArgs, abiType)
 		web3Url.MethodArgValues = append(web3Url.MethodArgValues, value)
-fmt.Println(abiType, abiTypeString, value, err)
+	}
+
+	// Get the mime type to use
+	lastPathnamePartParts := strings.Split(pathnameParts[len(pathnameParts) - 1], ".")
+	if len(lastPathnamePartParts) > 1 {
+		// If no mime type is found, this will return empty string
+		web3Url.FirstValueAsBytesMimeType = mime.TypeByExtension("." + lastPathnamePartParts[len(lastPathnamePartParts) - 1])
+	}
+
+	// Return: By default bytes
+	web3Url.ContractReturnProcessing = ContractReturnProcessingFirstValueAsBytes
+	// Check if there is a returns def specified
+	err = checkReturnType(web3Url, urlMainParts)
+	if err != nil {
+		return
 	}
 
 	// _, _, err = client.parseArguments(web3Url.ChainId, web3Url.ContractAddress, web3Url.Arguments)
@@ -194,20 +208,26 @@ func (client *Client) parseArgument(s string, nsChain int) (abi.Type, string, in
 			v = addr
 		case "bytes":
 			if !has0xPrefix(ss[1]) || !isHex(ss[1][2:]) {
-				return abi.Type{}, "bytes", nil, &Web3Error{http.StatusBadRequest, "Argument is not a valid hex string: " + s}
+				return abi.Type{}, "bytes", nil, &Web3Error{http.StatusBadRequest, "Argument is not a valid hex string: " + ss[1]}
 			}
 			v = common.FromHex(ss[1])
 		case "string":
 			v = ss[1]
-		case "bool":
-			{
-				if ss[1] == "0" {
-					v = false
-				}
-				v = true
+			// URI-percent-encoding decoding
+			decodedV, err := url.PathUnescape(v.(string))
+			if err != nil  {
+				return abi.Type{}, "string", nil, &Web3Error{http.StatusBadRequest, "Unable to URI-percent decode: " + ss[1]}
 			}
+			v = decodedV
+		// case "bool":
+		// 	{
+		// 		if ss[1] == "0" {
+		// 			v = false
+		// 		}
+		// 		v = true
+		// 	}
 		default:
-			return abi.Type{}, "", nil, &Web3Error{http.StatusBadRequest, "unknown type: " + ss[0]}
+			return abi.Type{}, "", nil, &Web3Error{http.StatusBadRequest, "Unknown type: " + ss[0]}
 		}
 		ty, _ := abi.NewType(ss[0], "", nil)
 		return ty, ss[0], v, nil
@@ -216,6 +236,10 @@ func (client *Client) parseArgument(s string, nsChain int) (abi.Type, string, in
 	n := new(big.Int)
 	n, success := n.SetString(ss[0], 10)
 	if success {
+		// Check that positive
+		if n.Cmp(new(big.Int)) == -1 {
+			return abi.Type{}, "uint256", nil, &Web3Error{http.StatusBadRequest, "Number is negative: " + ss[0]}
+		}
 		// treat it as uint256
 		ty, _ := abi.NewType("uint256", "", nil)
 		return ty, "uint256", n, nil
@@ -246,12 +270,9 @@ func (client *Client) parseArgument(s string, nsChain int) (abi.Type, string, in
 	return abi.Type{}, "", nil, err
 }
 
-func checkReturnType(web3Url *Web3URL) error {
-	parsedUrl, err := url.Parse(web3Url.Url)
-	if err != nil {
-		return err
-	}
-	parsedQuery, err := url.ParseQuery(parsedUrl.RawQuery)
+func checkReturnType(web3Url *Web3URL, urlMainParts map[string]string) error {
+	
+	parsedQuery, err := url.ParseQuery(urlMainParts["searchParams"])
 	if err != nil {
 		return err
 	}
@@ -264,6 +285,7 @@ func checkReturnType(web3Url *Web3URL) error {
 		// cannot parse a full url, early exit
 		return &Web3Error{http.StatusBadRequest, "Duplicate return attribute"}
 	}
+
 	// here should only one string is meaningful
 	var rType string
 	if len(termReturnsURL) == 1 {
@@ -271,14 +293,39 @@ func checkReturnType(web3Url *Web3URL) error {
 	} else if len(termReturnTypesURL) == 1 {
 		rType = termReturnTypesURL[0]
 	}
-	if web3Url.ReturnType == "" {
-		if rType != "" {
-			web3Url.ReturnType = rType
-		}
-	} else {
-		if rType != "" && rType != web3Url.ReturnType {
-			return &Web3Error{http.StatusBadRequest, "Conflict return types"}
-		}
+
+	// No rType? We exit here
+	if rType == "" {
+		return nil
 	}
+
+	// Parse the returnType definition
+	if len(rType) < 2 {
+		return &Web3Error{http.StatusBadRequest, "Invalid returns attribute"}
+	}
+	if string(rType[0]) != "(" || string(rType[len(rType) - 1]) != ")" {
+		return &Web3Error{http.StatusBadRequest, "Invalid returns attribute"}
+	}
+
+	// Ok at this stage we know we are going to return JSON-encoded vars
+	web3Url.ContractReturnProcessing = ContractReturnProcessingJsonEncodeValues
+
+	// Remove parenthesis
+	rType = rType[1:len(rType) - 1]
+	// If rType is now empty, we default to bytes32
+	if rType == "" {
+		rType = "bytes32"
+	}
+	// Do the types parsing
+	rTypeParts := strings.Split(rType, ",")
+	web3Url.MethodReturn = []abi.Type{}
+	for _, rTypePart := range rTypeParts {
+		abiType, err := abi.NewType(rTypePart, "", nil)
+		if err != nil {
+			return &Web3Error{http.StatusBadRequest, "Invalid type: " + rTypePart}
+		}
+		web3Url.MethodReturn = append(web3Url.MethodReturn, abiType)
+	}
+
 	return nil
 }

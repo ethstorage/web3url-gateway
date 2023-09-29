@@ -90,6 +90,12 @@ func (client *Client) getAddressFromNameService(nameServiceChain int, nameWithSu
     if common.IsHexAddress(nameWithSuffix) {
         return common.HexToAddress(nameWithSuffix), 0, nil
     }
+
+    // Not an address? It now has to have a dot to be a domain name, or it is just an invalid address
+    if len(strings.Split(nameWithSuffix, ".")) == 1 {
+    	return common.Address{}, 0, &Web3Error{http.StatusBadRequest, "Unrecognized address"}
+    }
+
     nsInfo, rpc, we := client.getConfigs(nameServiceChain, nameWithSuffix)
     if we != nil {
         return common.Address{}, 0, we
@@ -189,7 +195,7 @@ func (client *Client) getResolver(ethClient *ethclient.Client, nsAddr common.Add
         return common.Address{}, e
     }
     if common.Bytes2Hex(bs) == EmptyAddress {
-        return common.Address{}, &Web3Error{http.StatusBadRequest, "Cannot resolve domain name"}
+        return common.Address{}, &Web3Error{http.StatusNotFound, "Cannot resolve domain name"}
     }
     log.Debug("resolver: ", common.BytesToAddress(bs).String())
     return common.BytesToAddress(bs), nil
@@ -207,7 +213,7 @@ func (client *Client) getConfigs(nameServiceChain int, nameWithSuffix string) (N
     }
     nsInfo, ok := chainInfo.NSConfig[suffix]
     if !ok {
-        return NameServiceInfo{}, "", &Web3Error{http.StatusBadRequest, "unsupported suffix: " + suffix}
+        return NameServiceInfo{}, "", &Web3Error{http.StatusBadRequest, "Unsupported domain name suffix: " + suffix}
     }
     return nsInfo, chainInfo.RPC, nil
 }
