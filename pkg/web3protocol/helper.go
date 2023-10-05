@@ -91,21 +91,25 @@ func toJSON(arg abi.Type, value interface{}) (result interface{}, err error) {
     switch arg.T {
         case abi.StringTy:
             result = value
+
         case abi.IntTy, abi.UintTy, abi.FixedPointTy, abi.AddressTy:
             result = fmt.Sprintf("%v", value)
+
         case abi.BytesTy, abi.FixedBytesTy, abi.HashTy:
             result = fmt.Sprintf("0x%x", value)
+
         case abi.SliceTy, abi.ArrayTy:
             ty, _ := abi.NewType(arg.Elem.String(), "", nil)
-            result := make([]interface{}, 0)
+            result = make([]interface{}, 0)
             rv := reflect.ValueOf(value)
             for i := 0; i < rv.Len(); i++ {
                 subResult, err := toJSON(ty, rv.Index(i).Interface())
                 if err != nil {
                     return result, err
                 }
-                result = append(result, subResult)
+                result = append(result.([]interface{}), subResult)
             }
+            
         default:
             err = errors.New(fmt.Sprintf("Unsupported type: 0x%x", arg.T));
     }

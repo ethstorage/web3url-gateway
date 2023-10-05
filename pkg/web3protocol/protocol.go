@@ -15,9 +15,11 @@ import (
 
     log "github.com/sirupsen/logrus"
 
+    "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
+    "github.com/ethereum/go-ethereum/crypto"
 )
 
 type Client struct {
@@ -293,25 +295,79 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
 }
 
 func (client *Client) FetchContractReturn(web3Url *Web3URL) (contractReturn []byte, err error) {
-    // fetchedWeb3Url = FetchedWeb3URL{
-    //     ParsedUrl: web3Url,
-    // }
+    var calldata []byte
 
-    // res, err := parseOutput(bs, web3Url.ReturnType)
-    // if err != nil {
-    //  return web3Url, err
-    // }
-    // var mimeType string
-    // err = render(w, req, web3Url.ReturnType, mimeType, res)
-    // if err != nil {
-    //  return
-    // }
+    // Contract call is specified with method and arguments, deduce the calldata from it
+    if web3Url.ContractCallMode == ContractCallModeMethod {
+        
+        // ABI-encode the arguments
+        abiArguments := abi.Arguments{}
+        for _, methodArg := range web3Url.MethodArgs {
+            abiArguments = append(abiArguments, abi.Argument{Type: methodArg})
+        }
+        calldataArgumentsPart, err := abiArguments.Pack(web3Url.MethodArgValues...)
+        if err != nil {
+            return contractReturn, err
+        }
+
+        // Determine method signature
+        methodSignature := web3Url.MethodName + "("
+        for i, methodArg := range web3Url.MethodArgs {
+            methodSignature += methodArg.String()
+            if i < len(web3Url.MethodArgs) - 1 {
+                methodSignature += ","
+            }
+        }
+        methodSignature += ")"
+        methodSignatureHash := crypto.Keccak256Hash([]byte(methodSignature))
+
+        // Compute the calldata
+        calldata = append(methodSignatureHash[0:4], calldataArgumentsPart...)
+
+    // Contract call is specified with calldata directly
+    } else if web3Url.ContractCallMode == ContractCallModeCalldata {
+        calldata = web3Url.Calldata
+    // Empty field: This should not happen
+    } else {
+        err = errors.New("ContractCallMode is empty")
+    }
+
+    // Prepare the ethereum message to send
+    callMessage := ethereum.CallMsg{
+        From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
+        To:        &web3Url.ContractAddress,
+        Gas:       0,
+        GasPrice:  nil,
+        GasFeeCap: nil,
+        GasTipCap: nil,
+        Data:      calldata,
+        Value:     nil,
+    }
+    
+    // Create connection
+    ethClient, err := ethclient.Dial(client.Config.ChainConfigs[web3Url.ChainId].RPC)
+    if err != nil {
+      return contractReturn, &Web3Error{http.StatusBadRequest, err.Error()}
+    }
+    defer ethClient.Close()
+
+    // Do the contract call
+    contractReturn, err = ethClient.CallContract(context.Background(), callMessage, nil)
+    if err != nil {
+      return contractReturn, &Web3Error{http.StatusNotFound, err.Error()}
+    }
+
+    if len(contractReturn) == 0 {
+        return contractReturn, &Web3Error{http.StatusNotFound, "The contract returned no data (\"0x\").\n\nThis could be due to any of the following:\n  - The contract does not have the requested function,\n  - The parameters passed to the contract function may be invalid, or\n  - The address is not a contract."}
+    }
 
     return
 }
 
 
 func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []byte) (fetchedWeb3Url FetchedWeb3URL, err error) {
+    // Init the maps
+    fetchedWeb3Url.HttpHeaders = map[string]string{}
 
     if web3Url.ContractReturnProcessing == "" {
         err = errors.New("Missing ContractReturnProcessing field");
@@ -331,6 +387,12 @@ func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []b
             return fetchedWeb3Url, &Web3Error{http.StatusBadRequest, "Unable to parse contract output"}
         }
         fetchedWeb3Url.Output = unpackedValues[0].([]byte)
+        fetchedWeb3Url.HttpCode = 200
+
+        // If a MIME type was hinted, inject it
+        if web3Url.DecodedABIEncodedBytesMimeType != "" {
+            fetchedWeb3Url.HttpHeaders["Content-Type"] = web3Url.DecodedABIEncodedBytesMimeType;
+        }
 
     // We JSON encode the raw bytes of the returned data
     } else if web3Url.ContractReturnProcessing == ContractReturnProcessingRawBytesJsonEncoded {
@@ -339,6 +401,8 @@ func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []b
             return fetchedWeb3Url, err
         }
         fetchedWeb3Url.Output = jsonEncodedOutput
+        fetchedWeb3Url.HttpCode = 200
+        fetchedWeb3Url.HttpHeaders["Content-Type"] = "application/json";
 
     // Having a contract return signature, we ABI-decode it and return the result JSON-encoded
     } else if web3Url.ContractReturnProcessing == ContractReturnProcessingJsonEncodeValues {
@@ -370,6 +434,8 @@ func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []b
             return fetchedWeb3Url, err
         }
         fetchedWeb3Url.Output = jsonEncodedOutput
+        fetchedWeb3Url.HttpCode = 200
+        fetchedWeb3Url.HttpHeaders["Content-Type"] = "application/json";
     }
 
     return

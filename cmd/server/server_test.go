@@ -92,8 +92,10 @@ type TestType string
 const (
 	// We parse a web3:// URL
 	TestTypeUrlParsing = "urlParsing"
-	// We process some returned data
+	// We process data returned by a contract
 	TestTypeContractReturnProcessing = "contractReturnProcessing"
+	// Do the whole process and fetch an URL
+	TestTypeFetch = "fetch"
 )
 
 type TestGroups struct {
@@ -106,8 +108,9 @@ type TestGroups struct {
 
 func TestSuite(t *testing.T) {
 	// file := "../../tests/mode-manual.toml"
-	// file := "../../tests/mode-auto.toml"
-	file := "../../tests/contract-return-processing.toml"
+	// file := "../../tests/parsing-mode-auto.toml"
+	// file := "../../tests/contract-return-processing.toml"
+	file := "../../tests/fetch.toml"
 	f, err := os.Open(file)
 	if err != nil {
 		panic(err)
@@ -242,6 +245,7 @@ func TestSuite(t *testing.T) {
 					// Create and populate a WEB3URL
 					web3Url := web3protocol.Web3URL{
 						ContractReturnProcessing: test.ContractReturnProcessing,
+						DecodedABIEncodedBytesMimeType: test.DecodedABIEncodedBytesMimeType,
 						JsonEncodedValueTypes: []abi.Type{},
 					}
 					for _, jsonEncodedValueType := range test.JsonEncodedValueTypes {
@@ -269,6 +273,56 @@ func TestSuite(t *testing.T) {
 						if test.OutputAsString != "" {
 							assert.Equal(t, test.OutputAsString, string(fetchedWeb3Url.Output))
 						}
+						if test.HttpCode > 0 {
+							assert.Equal(t, test.HttpCode, fetchedWeb3Url.HttpCode)
+						}
+						assert.Equal(t, len(test.HttpHeaders), len(fetchedWeb3Url.HttpHeaders), "Unexpected number of http headers")
+						for i, httpHeader := range test.HttpHeaders {
+							assert.Equal(t, httpHeader, fetchedWeb3Url.HttpHeaders[i])
+						}
+					} else { // err != nil
+						// If no error was expected, fail
+						if test.Error.Label == "" && test.Error.HttpCode == 0 {
+							assert.Fail(t, "Unexpected error", err)
+						}
+
+						if test.Error.Label != "" {
+							assert.Equal(t, test.Error.Label, err.Error())
+						}
+						if test.Error.HttpCode > 0 {
+							if web3Err, ok := err.(*web3protocol.Web3Error); ok {
+								assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+							} else {
+								assert.Fail(t, "Error is unexpectly not a Web3Error", err)
+							}
+						}
+					}
+
+				// Test type: Execution of the whole process
+				} else if testGroups.Type == TestTypeFetch {
+					// Fetch the url
+					fetchedWeb3Url, err := client.FetchUrl(test.Url)
+
+					if err == nil {
+						// If we were expecting an error, fail
+						if test.Error.Label != "" || test.Error.HttpCode > 0 {
+							assert.Fail(t, "An error was expected")
+						}
+
+						if test.Output != "" {
+							testOutput := common.FromHex(test.Output)
+							assert.Equal(t, testOutput, fetchedWeb3Url.Output)
+						}
+						if test.OutputAsString != "" {
+							assert.Equal(t, test.OutputAsString, string(fetchedWeb3Url.Output))
+						}
+						if test.HttpCode > 0 {
+							assert.Equal(t, test.HttpCode, fetchedWeb3Url.HttpCode)
+						}
+						assert.Equal(t, len(test.HttpHeaders), len(fetchedWeb3Url.HttpHeaders), "Unexpected number of http headers")
+						for i, httpHeader := range test.HttpHeaders {
+							assert.Equal(t, httpHeader, fetchedWeb3Url.HttpHeaders[i])
+						}
 					} else { // err != nil
 						// If no error was expected, fail
 						if test.Error.Label == "" && test.Error.HttpCode == 0 {
@@ -287,11 +341,6 @@ func TestSuite(t *testing.T) {
 						}
 					}
 				}
-
-
-
-
-
 				
 			})
 		}
