@@ -64,10 +64,11 @@ type Test struct {
 	MethodName string
 	MethodArgs []AbiType
 	MethodArgValues []MethodValue
-	MethodReturn []AbiType
 	
 	ContractReturnProcessing web3protocol.ContractReturnProcessing
-	FirstValueAsBytesMimeType string
+	DecodedABIEncodedBytesMimeType string
+	JsonEncodedValueTypes []AbiType
+
 	Error TestError
 }
 
@@ -179,18 +180,18 @@ func TestSuite(t *testing.T) {
 							assert.Equal(t, methodArgValue.Value, parsedUrl.MethodArgValues[i])
 						}
 					}
-					if len(test.MethodReturn) > 0 {
-						assert.Equal(t, len(test.MethodReturn), len(parsedUrl.MethodReturn), "Unexpected number of arguments")
-						for i, methodReturn := range test.MethodReturn {
-							assert.Equal(t, methodReturn.Type, parsedUrl.MethodReturn[i].String())
+					if len(test.JsonEncodedValueTypes) > 0 {
+						assert.Equal(t, len(test.JsonEncodedValueTypes), len(parsedUrl.JsonEncodedValueTypes), "Unexpected number of arguments")
+						for i, methodReturn := range test.JsonEncodedValueTypes {
+							assert.Equal(t, methodReturn.Type, parsedUrl.JsonEncodedValueTypes[i].String())
 						}
 					}
 
 					if test.ContractReturnProcessing != "" {
 						assert.Equal(t, test.ContractReturnProcessing, parsedUrl.ContractReturnProcessing)
 					}
-					if test.FirstValueAsBytesMimeType != "" {
-						assert.Equal(t, test.FirstValueAsBytesMimeType, parsedUrl.FirstValueAsBytesMimeType)
+					if test.DecodedABIEncodedBytesMimeType != "" {
+						assert.Equal(t, test.DecodedABIEncodedBytesMimeType, parsedUrl.DecodedABIEncodedBytesMimeType)
 					}
 				} else { // err != nil
 					// If no error was expected, fail
