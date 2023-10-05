@@ -48,13 +48,16 @@ type TestError struct {
 
 type Test struct {
 	Name string
-	Url string
 
-	ContractAddress common.Address
-	ChainId int
+	Error TestError
+
+	Url string
 
 	HostDomainNameResolver web3protocol.DomainNameService
 	HostDomainNameResolverChainId int
+
+	ContractAddress common.Address
+	ChainId int
 	
 	ResolveMode web3protocol.ResolveMode
 	ContractCallMode web3protocol.ContractCallMode
@@ -69,7 +72,14 @@ type Test struct {
 	DecodedABIEncodedBytesMimeType string
 	JsonEncodedValueTypes []AbiType
 
-	Error TestError
+	ContractReturn string
+
+	// Output as bytes ("0xabcdef" string)
+	Output string
+	// Output as string (for easier readibility)
+	OutputAsString string
+	HttpCode int
+	HttpHeaders map[string]string
 }
 
 type TestGroup struct {
@@ -78,8 +88,17 @@ type TestGroup struct {
 	Tests []Test
 }
 
+type TestType string
+const (
+	// We parse a web3:// URL
+	TestTypeUrlParsing = "urlParsing"
+	// We process some returned data
+	TestTypeContractReturnProcessing = "contractReturnProcessing"
+)
+
 type TestGroups struct {
-	Name      string
+	Name string
+	Type TestType
 	Groups map[string]TestGroup
 	// Name2Chain      map[string]string
 	// ChainConfigs    map[string]ChainConfig
@@ -87,7 +106,8 @@ type TestGroups struct {
 
 func TestSuite(t *testing.T) {
 	// file := "../../tests/mode-manual.toml"
-	file := "../../tests/mode-auto.toml"
+	// file := "../../tests/mode-auto.toml"
+	file := "../../tests/contract-return-processing.toml"
 	f, err := os.Open(file)
 	if err != nil {
 		panic(err)
@@ -113,107 +133,164 @@ func TestSuite(t *testing.T) {
 				client.Config.ChainConfigs = config.ChainConfigs
 				client.Config.Name2Chain = config.Name2Chain
 
-				parsedUrl, err := client.ParseUrl(test.Url)
+				// Several types of tests
+				// Test type: Parsing URL
+				if testGroups.Type == TestTypeUrlParsing {
+					// Parse the URL
+					parsedUrl, err := client.ParseUrl(test.Url)
 
-				if err == nil {
-					// If we were expecting an error, fail
-					if test.Error.Label != "" || test.Error.HttpCode > 0 {
-						assert.Fail(t, "An error was expected")
+// fmt.Printf("\nParsedUrl: %+v\n", parsedUrl)
+
+					if err == nil {
+						// If we were expecting an error, fail
+						if test.Error.Label != "" || test.Error.HttpCode > 0 {
+							assert.Fail(t, "An error was expected")
+						}
+
+						if test.ContractAddress.Hex() != "0x0000000000000000000000000000000000000000" {
+							assert.Equal(t, test.ContractAddress, parsedUrl.ContractAddress)
+						}
+						if test.ChainId > 0 {
+							assert.Equal(t, test.ChainId, parsedUrl.ChainId)
+						}
+						
+						if test.HostDomainNameResolver != "" {
+							assert.Equal(t, test.HostDomainNameResolver, parsedUrl.HostDomainNameResolver)
+						}
+						if test.HostDomainNameResolverChainId > 0 {
+							assert.Equal(t, test.HostDomainNameResolverChainId, parsedUrl.HostDomainNameResolverChainId)
+						}
+
+						if test.ResolveMode != "" {
+							assert.Equal(t, test.ResolveMode, parsedUrl.ResolveMode)
+						}
+						if test.ContractCallMode != "" {
+							assert.Equal(t, test.ContractCallMode, parsedUrl.ContractCallMode)
+						}
+						
+						if test.Calldata != "" {
+							testCalldata, err := hexutil.Decode(test.Calldata)
+							if err != nil {
+								panic(err)
+							}
+							assert.Equal(t, testCalldata, parsedUrl.Calldata)
+						}
+
+						if test.MethodName != "" {
+							assert.Equal(t, test.MethodName, parsedUrl.MethodName)
+						}
+						if len(test.MethodArgs) > 0 {
+							assert.Equal(t, len(test.MethodArgs), len(parsedUrl.MethodArgs), "Unexpected number of arguments")
+							for i, methodArg := range test.MethodArgs {
+								assert.Equal(t, methodArg.Type, parsedUrl.MethodArgs[i].String())
+							}
+						}
+						if len(test.MethodArgValues) > 0 {
+							assert.Equal(t, len(test.MethodArgValues), len(parsedUrl.MethodArgValues), "Unexpected number of argument values")
+							for i, methodArgValue := range test.MethodArgValues {
+								switch methodArgValue.Value.(type) {
+									// Convert into to bigint
+									case int64:
+										newValue := new(big.Int)
+										newValue.SetInt64(methodArgValue.Value.(int64))
+										methodArgValue.Value = newValue
+								}
+								switch test.MethodArgs[i].Type {
+									case "bytes32":
+										methodArgValue.Value = common.HexToHash(methodArgValue.Value.(string))
+									case "bytes":
+										methodArgValue.Value = common.FromHex(methodArgValue.Value.(string))
+									case "address":
+										methodArgValue.Value = common.HexToAddress(methodArgValue.Value.(string))
+								}
+								assert.Equal(t, methodArgValue.Value, parsedUrl.MethodArgValues[i])
+							}
+						}
+						if len(test.JsonEncodedValueTypes) > 0 {
+							assert.Equal(t, len(test.JsonEncodedValueTypes), len(parsedUrl.JsonEncodedValueTypes), "Unexpected number of arguments")
+							for i, methodReturn := range test.JsonEncodedValueTypes {
+								assert.Equal(t, methodReturn.Type, parsedUrl.JsonEncodedValueTypes[i].String())
+							}
+						}
+
+						if test.ContractReturnProcessing != "" {
+							assert.Equal(t, test.ContractReturnProcessing, parsedUrl.ContractReturnProcessing)
+						}
+						if test.DecodedABIEncodedBytesMimeType != "" {
+							assert.Equal(t, test.DecodedABIEncodedBytesMimeType, parsedUrl.DecodedABIEncodedBytesMimeType)
+						}
+					} else { // err != nil
+						// If no error was expected, fail
+						if test.Error.Label == "" && test.Error.HttpCode == 0 {
+							assert.Fail(t, "Unexpected error", err)
+						}
+
+						if test.Error.Label != "" {
+							assert.Equal(t, test.Error.Label, err.Error())
+						}
+						if test.Error.HttpCode > 0 {
+							if web3Err, ok := err.(*web3protocol.Web3Error); ok {
+								assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+							} else {
+								assert.Fail(t, "Error is unexpectly not a Web3Error", err)
+							}
+						}
 					}
 
-					if test.ContractAddress.Hex() != "0x0000000000000000000000000000000000000000" {
-						assert.Equal(t, test.ContractAddress, parsedUrl.ContractAddress)
+				// Test type: Contract return processing
+				} else if testGroups.Type == TestTypeContractReturnProcessing {
+					// Create and populate a WEB3URL
+					web3Url := web3protocol.Web3URL{
+						ContractReturnProcessing: test.ContractReturnProcessing,
+						JsonEncodedValueTypes: []abi.Type{},
 					}
-					if test.ChainId > 0 {
-						assert.Equal(t, test.ChainId, parsedUrl.ChainId)
-					}
-					
-					if test.HostDomainNameResolver != "" {
-						assert.Equal(t, test.HostDomainNameResolver, parsedUrl.HostDomainNameResolver)
-					}
-					if test.HostDomainNameResolverChainId > 0 {
-						assert.Equal(t, test.HostDomainNameResolverChainId, parsedUrl.HostDomainNameResolverChainId)
-					}
-
-					if test.ResolveMode != "" {
-						assert.Equal(t, test.ResolveMode, parsedUrl.ResolveMode)
-					}
-					if test.ContractCallMode != "" {
-						assert.Equal(t, test.ContractCallMode, parsedUrl.ContractCallMode)
-					}
-					
-					if test.Calldata != "" {
-						testCalldata, err := hexutil.Decode(test.Calldata)
+					for _, jsonEncodedValueType := range test.JsonEncodedValueTypes {
+						abiType, err := abi.NewType(jsonEncodedValueType.Type, "", nil)
 						if err != nil {
-							panic(err)
+							assert.Fail(t, "Error while creating abi type: " + jsonEncodedValueType.Type)
 						}
-						assert.Equal(t, testCalldata, parsedUrl.Calldata)
+						web3Url.JsonEncodedValueTypes = append(web3Url.JsonEncodedValueTypes, abiType)
 					}
+					contractReturn := common.FromHex(test.ContractReturn)
 
-					if test.MethodName != "" {
-						assert.Equal(t, test.MethodName, parsedUrl.MethodName)
-					}
-					if len(test.MethodArgs) > 0 {
-						assert.Equal(t, len(test.MethodArgs), len(parsedUrl.MethodArgs), "Unexpected number of arguments")
-						for i, methodArg := range test.MethodArgs {
-							assert.Equal(t, methodArg.Type, parsedUrl.MethodArgs[i].String())
+					// Execute the processing
+					fetchedWeb3Url, err := client.ProcessContractReturn(&web3Url, contractReturn)
+
+					if err == nil {
+						// If we were expecting an error, fail
+						if test.Error.Label != "" || test.Error.HttpCode > 0 {
+							assert.Fail(t, "An error was expected")
 						}
-					}
-					if len(test.MethodArgValues) > 0 {
-						assert.Equal(t, len(test.MethodArgValues), len(parsedUrl.MethodArgValues), "Unexpected number of argument values")
-						for i, methodArgValue := range test.MethodArgValues {
-							switch methodArgValue.Value.(type) {
-								// Convert into to bigint
-								case int64:
-									newValue := new(big.Int)
-									newValue.SetInt64(methodArgValue.Value.(int64))
-									methodArgValue.Value = newValue
+
+						if test.Output != "" {
+							testOutput := common.FromHex(test.Output)
+							assert.Equal(t, testOutput, fetchedWeb3Url.Output)
+						}
+						if test.OutputAsString != "" {
+							assert.Equal(t, test.OutputAsString, string(fetchedWeb3Url.Output))
+						}
+					} else { // err != nil
+						// If no error was expected, fail
+						if test.Error.Label == "" && test.Error.HttpCode == 0 {
+							assert.Fail(t, "Unexpected error", err)
+						}
+
+						if test.Error.Label != "" {
+							assert.Equal(t, test.Error.Label, err.Error())
+						}
+						if test.Error.HttpCode > 0 {
+							if web3Err, ok := err.(*web3protocol.Web3Error); ok {
+								assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+							} else {
+								assert.Fail(t, "Error is unexpectly not a Web3Error", err)
 							}
-							switch test.MethodArgs[i].Type {
-								case "bytes32":
-									methodArgValue.Value = common.HexToHash(methodArgValue.Value.(string))
-								case "bytes":
-									methodArgValue.Value = common.FromHex(methodArgValue.Value.(string))
-								case "address":
-									methodArgValue.Value = common.HexToAddress(methodArgValue.Value.(string))
-							}
-							assert.Equal(t, methodArgValue.Value, parsedUrl.MethodArgValues[i])
-						}
-					}
-					if len(test.JsonEncodedValueTypes) > 0 {
-						assert.Equal(t, len(test.JsonEncodedValueTypes), len(parsedUrl.JsonEncodedValueTypes), "Unexpected number of arguments")
-						for i, methodReturn := range test.JsonEncodedValueTypes {
-							assert.Equal(t, methodReturn.Type, parsedUrl.JsonEncodedValueTypes[i].String())
-						}
-					}
-
-					if test.ContractReturnProcessing != "" {
-						assert.Equal(t, test.ContractReturnProcessing, parsedUrl.ContractReturnProcessing)
-					}
-					if test.DecodedABIEncodedBytesMimeType != "" {
-						assert.Equal(t, test.DecodedABIEncodedBytesMimeType, parsedUrl.DecodedABIEncodedBytesMimeType)
-					}
-				} else { // err != nil
-					// If no error was expected, fail
-					if test.Error.Label == "" && test.Error.HttpCode == 0 {
-						assert.Fail(t, "Unexpected error", err)
-					}
-
-					if test.Error.Label != "" {
-						assert.Equal(t, test.Error.Label, err.Error())
-					}
-					if test.Error.HttpCode > 0 {
-						if web3Err, ok := err.(*web3protocol.Web3Error); ok {
-							assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
-						} else {
-							assert.Fail(t, "Error is unexpectly not a Web3Error", err)
 						}
 					}
 				}
 
 
 
-// fmt.Printf("\nParsedUrl: %+v\n", parsedUrl)
+
 
 				
 			})

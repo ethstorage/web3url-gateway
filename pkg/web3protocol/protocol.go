@@ -4,9 +4,10 @@ import (
     "context"
     "strconv"
     // "encoding/hex"
-    // "encoding/json"
+    "encoding/json"
     "fmt"
     // "net"
+    "errors"
     "net/http"
     "strings"
     "time"
@@ -88,10 +89,18 @@ type Web3URL struct {
     JsonEncodedValueTypes []abi.Type
 }
 
-type FetchedWeb3Url struct {
-    ParsedUrl Web3URL
+type FetchedWeb3URL struct {
+    // The web3 URL, parsed
+    ParsedUrl *Web3URL
+
+    // The raw data returned by the contract
+    ContractReturn []byte
+
+    // The processed output, to be returned by the browser
     Output []byte
+    // The HTTP code to be returned by the browser
     HttpCode int
+    // The HTTP headers to be returned by the browser
     HttpHeaders map[string]string
 }
 
@@ -110,15 +119,24 @@ func NewClient() (client *Client) {
     return
 }
 
-func (client *Client) FetchUrl(url string) (fetchedUrl FetchedWeb3Url, err error) {
+func (client *Client) FetchUrl(url string) (fetchedUrl FetchedWeb3URL, err error) {
     // Parse the URL
     parsedUrl, err := client.ParseUrl(url)
     if err != nil {
         return
     }
 
-    // Execute it
-    fetchedUrl, err = client.FetchParsedUrl(parsedUrl)
+    // Fetch the contract return data
+    contractReturn, err := client.FetchContractReturn(&parsedUrl)
+    if err != nil {
+        return
+    }
+
+    // Finally, process the returned data
+    fetchedUrl, err = client.ProcessContractReturn(&parsedUrl, contractReturn)
+    if err != nil {
+        return
+    }
 
     return
 }
@@ -274,10 +292,10 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
     return web3Url, nil
 }
 
-func (client *Client) FetchParsedUrl(web3Url Web3URL) (fetchedWeb3Url FetchedWeb3Url, err error) {
-    fetchedWeb3Url = FetchedWeb3Url{
-        ParsedUrl: web3Url,
-    }
+func (client *Client) FetchContractReturn(web3Url *Web3URL) (contractReturn []byte, err error) {
+    // fetchedWeb3Url = FetchedWeb3URL{
+    //     ParsedUrl: web3Url,
+    // }
 
     // res, err := parseOutput(bs, web3Url.ReturnType)
     // if err != nil {
@@ -292,6 +310,70 @@ func (client *Client) FetchParsedUrl(web3Url Web3URL) (fetchedWeb3Url FetchedWeb
     return
 }
 
+
+func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []byte) (fetchedWeb3Url FetchedWeb3URL, err error) {
+
+    if web3Url.ContractReturnProcessing == "" {
+        err = errors.New("Missing ContractReturnProcessing field");
+        return
+    }
+
+    // Returned data is ABI-encoded bytes: We decode them and return them
+    if web3Url.ContractReturnProcessing == ContractReturnProcessingABIEncodedBytes {
+        bytesType, _ := abi.NewType("bytes", "", nil)
+        argsArguments := abi.Arguments{
+            abi.Argument{Name: "", Type: bytesType, Indexed: false},
+        }
+
+        // Decode the ABI bytes
+        unpackedValues, err := argsArguments.UnpackValues(contractReturn)
+        if err != nil {
+            return fetchedWeb3Url, &Web3Error{http.StatusBadRequest, "Unable to parse contract output"}
+        }
+        fetchedWeb3Url.Output = unpackedValues[0].([]byte)
+
+    // We JSON encode the raw bytes of the returned data
+    } else if web3Url.ContractReturnProcessing == ContractReturnProcessingRawBytesJsonEncoded {
+        jsonEncodedOutput, err := json.Marshal([]string{fmt.Sprintf("0x%x", contractReturn)})
+        if err != nil {
+            return fetchedWeb3Url, err
+        }
+        fetchedWeb3Url.Output = jsonEncodedOutput
+
+    // Having a contract return signature, we ABI-decode it and return the result JSON-encoded
+    } else if web3Url.ContractReturnProcessing == ContractReturnProcessingJsonEncodeValues {
+        argsArguments := abi.Arguments{}
+        for _, jsonEncodedValueType := range web3Url.JsonEncodedValueTypes {
+            argsArguments = append(argsArguments, abi.Argument{Name: "", Type: jsonEncodedValueType, Indexed: false})
+        }
+
+        // Decode the ABI data
+        unpackedValues, err := argsArguments.UnpackValues(contractReturn)
+        if err != nil {
+            return fetchedWeb3Url, &Web3Error{http.StatusBadRequest, "Unable to parse contract output"}
+        }
+
+        // Format the data
+        formattedValues := make([]interface{}, 0)
+        for i, arg := range argsArguments {
+            // get the type of the return value
+            formattedValue, err := toJSON(arg.Type, unpackedValues[i])
+            if err != nil {
+                return fetchedWeb3Url, err
+            }
+            formattedValues = append(formattedValues, formattedValue)
+        }
+
+        // JSON encode the data
+        jsonEncodedOutput, err := json.Marshal(formattedValues)
+        if err != nil {
+            return fetchedWeb3Url, err
+        }
+        fetchedWeb3Url.Output = jsonEncodedOutput
+    }
+
+    return
+}
 
 
 
@@ -360,7 +442,7 @@ func parseOutput(output []byte, userTypes string) ([]interface{}, error) {
     if userTypes != "" {
         for i, arg := range argsArray {
             // get the type of the return value
-            res[i] = toJSON(arg.Type, res[i])
+            res[i], _ = toJSON(arg.Type, res[i])
         }
     }
     return res, nil
