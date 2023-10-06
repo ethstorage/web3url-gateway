@@ -15,11 +15,9 @@ import (
 
     log "github.com/sirupsen/logrus"
 
-    "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
-    "github.com/ethereum/go-ethereum/crypto"
 )
 
 type Client struct {
@@ -31,6 +29,13 @@ type DomainNameService string
 const (
     DomainNameServiceENS = "ens"
     DomainNameServiceW3NS = "w3ns"
+)
+
+type ResolveMode string
+const (
+    ResolveModeAuto = "auto"
+    ResolveModeManual = "manual"
+    ResolveModeResourceRequests = "resourceRequest"
 )
 
 type ContractCallMode string
@@ -50,7 +55,7 @@ const (
     // Expect a string as first return value, parse it as a dataUrl
     // ContractReturnProcessingDataUrl = "dataUrl" // To implement
     // Expect a return following the erc5219 spec, will decode it using this spec
-    ContractReturnProcessingErc5219 = "erc5219"
+    ContractReturnProcessingDecodeErc5219Request = "decodeErc5219Request"
 )
 
 type Web3URL struct {
@@ -212,11 +217,26 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
         web3Url.ContractAddress = common.HexToAddress(urlMainParts["hostname"])
     } else {
         // Determine name suffix
-        ss := strings.Split(urlMainParts["hostname"], ".")
-        if len(ss) <= 1 {
+        hostnameParts := strings.Split(urlMainParts["hostname"], ".")
+        if len(hostnameParts) <= 1 {
             return web3Url, &Web3Error{http.StatusBadRequest, "Invalid contract address"}
         }
-        nameServiceSuffix := ss[len(ss)-1]
+        nameServiceSuffix := hostnameParts[len(hostnameParts) - 1]
+        domainNameWithoutSuffix := strings.Join(hostnameParts[0:len(hostnameParts) - 1], ".")
+
+        if domainNameWithoutSuffix == "" {
+            return web3Url, &Web3Error{http.StatusBadRequest, "Invalid domain name"}
+        }
+
+        // If the chain id was not explicitely asked, we will use the "default" chain id of the
+        // name resolution service (e.g. 1 for .eth, 333 for w3q) as the target chain
+        if len(urlMainParts["chainId"]) == 0 {
+            NSDefaultChainId := client.Config.NSDefaultChains[nameServiceSuffix]
+            if NSDefaultChainId == 0 {
+                return web3Url, &Web3Error{http.StatusBadRequest, "Unsupported domain name service suffix: " + nameServiceSuffix}
+            }
+            web3Url.ChainId = NSDefaultChainId
+        }
 
         // We will use a nameservice in the current target chain
         web3Url.HostDomainNameResolverChainId = web3Url.ChainId
@@ -227,7 +247,6 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
             return web3Url, &Web3Error{http.StatusBadRequest, "Unsupported domain name service suffix: " + nameServiceSuffix}
         }
 
-        // TODO change
         web3Url.HostDomainNameResolver = nsInfo.NSType
 
         var addr common.Address
@@ -266,26 +285,11 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
     web3Url.ResolveMode = client.checkResolveMode(web3Url)
 
     if web3Url.ResolveMode == ResolveModeManual {
-        // undecoded := req.RequestURI
-        // if useSubdomain {
-        //  web3Url.RawPath = undecoded
-        // } else {
-        //  web3Url.RawPath = undecoded[strings.Index(undecoded[1:], "/")+1:]
-        // }
         err = client.parseManualModeUrl(&web3Url, urlMainParts)
     } else if web3Url.ResolveMode == ResolveModeAuto {
         err = client.parseAutoModeUrl(&web3Url, urlMainParts)
     } else if web3Url.ResolveMode == ResolveModeResourceRequests {
-        // spliterIdx := strings.Index(p[1:], "/")
-        // path := p[spliterIdx+1:]
-        // if len(req.URL.RawQuery) > 0 {
-        //  path += "?" + req.URL.RawQuery
-        // }
-        // bs, er = handleEIP5219(w, web3Url.Contract, web3Url.ChainId, path)
-        // if er != nil {
-        //  respondWithErrorPage(w, &Web3Error{http.StatusBadRequest, er.Error()})
-        //  return
-        // }
+        err = client.parseResourceRequestModeUrl(&web3Url, urlMainParts)
     }
     if err != nil {
         return
@@ -299,62 +303,25 @@ func (client *Client) FetchContractReturn(web3Url *Web3URL) (contractReturn []by
 
     // Contract call is specified with method and arguments, deduce the calldata from it
     if web3Url.ContractCallMode == ContractCallModeMethod {
-        
-        // ABI-encode the arguments
-        abiArguments := abi.Arguments{}
-        for _, methodArg := range web3Url.MethodArgs {
-            abiArguments = append(abiArguments, abi.Argument{Type: methodArg})
-        }
-        calldataArgumentsPart, err := abiArguments.Pack(web3Url.MethodArgValues...)
+        // Compute the calldata
+        calldata, err = methodCallToCalldata(web3Url.MethodName, web3Url.MethodArgs, web3Url.MethodArgValues)
         if err != nil {
             return contractReturn, err
         }
 
-        // Determine method signature
-        methodSignature := web3Url.MethodName + "("
-        for i, methodArg := range web3Url.MethodArgs {
-            methodSignature += methodArg.String()
-            if i < len(web3Url.MethodArgs) - 1 {
-                methodSignature += ","
-            }
-        }
-        methodSignature += ")"
-        methodSignatureHash := crypto.Keccak256Hash([]byte(methodSignature))
-
-        // Compute the calldata
-        calldata = append(methodSignatureHash[0:4], calldataArgumentsPart...)
-
     // Contract call is specified with calldata directly
     } else if web3Url.ContractCallMode == ContractCallModeCalldata {
         calldata = web3Url.Calldata
+
     // Empty field: This should not happen
     } else {
         err = errors.New("ContractCallMode is empty")
     }
 
-    // Prepare the ethereum message to send
-    callMessage := ethereum.CallMsg{
-        From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
-        To:        &web3Url.ContractAddress,
-        Gas:       0,
-        GasPrice:  nil,
-        GasFeeCap: nil,
-        GasTipCap: nil,
-        Data:      calldata,
-        Value:     nil,
-    }
-    
-    // Create connection
-    ethClient, err := ethclient.Dial(client.Config.ChainConfigs[web3Url.ChainId].RPC)
-    if err != nil {
-      return contractReturn, &Web3Error{http.StatusBadRequest, err.Error()}
-    }
-    defer ethClient.Close()
-
     // Do the contract call
-    contractReturn, err = ethClient.CallContract(context.Background(), callMessage, nil)
+    contractReturn, err = client.callContract(web3Url.ContractAddress, web3Url.ChainId, calldata)
     if err != nil {
-      return contractReturn, &Web3Error{http.StatusNotFound, err.Error()}
+      return
     }
 
     if len(contractReturn) == 0 {
@@ -436,6 +403,10 @@ func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []b
         fetchedWeb3Url.Output = jsonEncodedOutput
         fetchedWeb3Url.HttpCode = 200
         fetchedWeb3Url.HttpHeaders["Content-Type"] = "application/json";
+
+    // The returned data come from contract implementing ERC5219, process it
+    } else if web3Url.ContractReturnProcessing == ContractReturnProcessingDecodeErc5219Request {
+        fetchedWeb3Url, err = client.ProcessResourceRequestContractReturn(web3Url, contractReturn)
     }
 
     return

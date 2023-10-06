@@ -107,8 +107,10 @@ type TestGroups struct {
 }
 
 func TestSuite(t *testing.T) {
-	// file := "../../tests/mode-manual.toml"
+	// file := "../../tests/parsing-base.toml"
+	// file := "../../tests/parsing-mode-manual.toml"
 	// file := "../../tests/parsing-mode-auto.toml"
+	// file := "../../tests/parsing-mode-resource-request.toml"
 	// file := "../../tests/contract-return-processing.toml"
 	file := "../../tests/fetch.toml"
 	f, err := os.Open(file)
@@ -135,6 +137,10 @@ func TestSuite(t *testing.T) {
 				client := web3protocol.NewClient()
 				client.Config.ChainConfigs = config.ChainConfigs
 				client.Config.Name2Chain = config.Name2Chain
+				client.Config.NSDefaultChains = map[string]int{
+					"eth":1,
+					"w3q":333,
+				}
 
 				// Several types of tests
 				// Test type: Parsing URL
@@ -205,6 +211,24 @@ func TestSuite(t *testing.T) {
 										methodArgValue.Value = common.FromHex(methodArgValue.Value.(string))
 									case "address":
 										methodArgValue.Value = common.HexToAddress(methodArgValue.Value.(string))
+									case "string[]":
+										argValue := []string{}
+										for _, entry := range methodArgValue.Value.([]interface{}) {
+											argValue = append(argValue, entry.(string))
+										}
+										methodArgValue.Value = argValue
+									case "(string,string)[]":
+										// A bit of hardcoding here, with "Key" and "Value"
+										// Will not work in other cases
+										argValue := []struct{Key, Value string}{}
+										for _, entry := range methodArgValue.Value.([]interface{}) {
+											newEntry := struct{Key, Value string}{
+												Key: entry.([]interface{})[0].(string),
+												Value: entry.([]interface{})[1].(string),
+											}
+											argValue = append(argValue, newEntry)
+										}
+										methodArgValue.Value = argValue
 								}
 								assert.Equal(t, methodArgValue.Value, parsedUrl.MethodArgValues[i])
 							}
@@ -233,7 +257,7 @@ func TestSuite(t *testing.T) {
 						}
 						if test.Error.HttpCode > 0 {
 							if web3Err, ok := err.(*web3protocol.Web3Error); ok {
-								assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+								assert.Equal(t, test.Error.HttpCode, web3Err.HttpCode)
 							} else {
 								assert.Fail(t, "Error is unexpectly not a Web3Error", err)
 							}
@@ -291,7 +315,7 @@ func TestSuite(t *testing.T) {
 						}
 						if test.Error.HttpCode > 0 {
 							if web3Err, ok := err.(*web3protocol.Web3Error); ok {
-								assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+								assert.Equal(t, test.Error.HttpCode, web3Err.HttpCode)
 							} else {
 								assert.Fail(t, "Error is unexpectly not a Web3Error", err)
 							}
@@ -334,7 +358,7 @@ func TestSuite(t *testing.T) {
 						}
 						if test.Error.HttpCode > 0 {
 							if web3Err, ok := err.(*web3protocol.Web3Error); ok {
-								assert.Equal(t, web3Err.HttpCode, test.Error.HttpCode)
+								assert.Equal(t, test.Error.HttpCode, web3Err.HttpCode)
 							} else {
 								assert.Fail(t, "Error is unexpectly not a Web3Error", err)
 							}

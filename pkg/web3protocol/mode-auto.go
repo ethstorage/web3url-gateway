@@ -25,9 +25,6 @@ func (client *Client) parseAutoModeUrl(web3Url *Web3URL, urlMainParts map[string
     }
 
     pathnameParts := strings.Split(urlMainParts["pathname"], "/")
-    if len(pathnameParts) < 2 {
-        return &Web3Error{http.StatusBadRequest, "Pathname in auto mode is invalid"}
-    }
 
     // Get method name
     methodName := pathnameParts[1]

@@ -3,7 +3,7 @@ package web3protocol
 import (
     // "bufio"
     "context"
-    "encoding/hex"
+    // "encoding/hex"
     "fmt"
     // "net"
     "net/http"
@@ -17,6 +17,7 @@ import (
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
+    "github.com/ethereum/go-ethereum/crypto"
     // influxdb2 "github.com/influxdata/influxdb-client-go/v2"
     // "github.com/naoina/toml"
     log "github.com/sirupsen/logrus"
@@ -109,7 +110,7 @@ func toJSON(arg abi.Type, value interface{}) (result interface{}, err error) {
                 }
                 result = append(result.([]interface{}), subResult)
             }
-            
+
         default:
             err = errors.New(fmt.Sprintf("Unsupported type: 0x%x", arg.T));
     }
@@ -118,28 +119,38 @@ func toJSON(arg abi.Type, value interface{}) (result interface{}, err error) {
 }
 
 
-// // convert the value to json string recursively, use "0x" hex string for bytes, use string for numbers
-// func toJSONOld(arg abi.Type, value interface{}) interface{} {
-//     switch arg.T {
-//     case abi.IntTy, abi.UintTy, abi.FixedPointTy, abi.AddressTy:
-//         return fmt.Sprintf("%v", value)
-//     case abi.BytesTy, abi.FixedBytesTy, abi.HashTy:
-//         return fmt.Sprintf("0x%x", value)
-//     case abi.SliceTy, abi.ArrayTy:
-//         ty, _ := abi.NewType(arg.Elem.String(), "", nil)
-//         tv := make([]interface{}, 0)
-//         rv := reflect.ValueOf(value)
-//         for i := 0; i < rv.Len(); i++ {
-//             tv = append(tv, toJSON(ty, rv.Index(i).Interface()))
-//         }
-//         return tv
-//     default:
-//         return value
-//     }
-// }
 
-func (client *Client) callContract(contract common.Address, chain int, calldata []byte) ([]byte, error) {
-    msg := ethereum.CallMsg{
+func methodCallToCalldata(methodName string, methodArgTypes []abi.Type, methodArgValues []interface{}) (calldata []byte, err error) {
+    // ABI-encode the arguments
+    abiArguments := abi.Arguments{}
+    for _, methodArgType := range methodArgTypes {
+        abiArguments = append(abiArguments, abi.Argument{Type: methodArgType})
+    }
+    calldataArgumentsPart, err := abiArguments.Pack(methodArgValues...)
+    if err != nil {
+        return
+    }
+
+    // Determine method signature
+    methodSignature := methodName + "("
+    for i, methodArgType := range methodArgTypes {
+        methodSignature += methodArgType.String()
+        if i < len(methodArgTypes) - 1 {
+            methodSignature += ","
+        }
+    }
+    methodSignature += ")"
+    methodSignatureHash := crypto.Keccak256Hash([]byte(methodSignature))
+
+    // Compute the calldata
+    calldata = append(methodSignatureHash[0:4], calldataArgumentsPart...)
+
+    return
+}
+
+func (client *Client) callContract(contract common.Address, chain int, calldata []byte) (contractReturn []byte, err error) {
+    // Prepare the ethereum message to send
+    callMessage := ethereum.CallMsg{
         From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
         To:        &contract,
         Gas:       0,
@@ -149,19 +160,21 @@ func (client *Client) callContract(contract common.Address, chain int, calldata 
         Data:      calldata,
         Value:     nil,
     }
-    ethClient, linkErr := ethclient.Dial(client.Config.ChainConfigs[chain].RPC)
-    if linkErr != nil {
-        log.Info("Dial failed: ", linkErr.Error())
-        return nil, &Web3Error{http.StatusNotFound, linkErr.Error()}
+
+    // Create connection
+    ethClient, err := ethclient.Dial(client.Config.ChainConfigs[chain].RPC)
+    if err != nil {
+        return contractReturn, &Web3Error{http.StatusBadRequest, err.Error()}
     }
     defer ethClient.Close()
-    bs, err := handleCallContract(*ethClient, msg)
+
+    // Do the contract call
+    contractReturn, err = handleCallContract(*ethClient, callMessage)
     if err != nil {
-        return nil, err
+        return contractReturn, &Web3Error{http.StatusNotFound, err.Error()}
     }
-    log.Info("return data len: ", len(bs))
-    log.Debug("return data: 0x", hex.EncodeToString(bs))
-    return bs, nil
+
+    return
 }
 
 func handleCallContract(client ethclient.Client, msg ethereum.CallMsg) ([]byte, error) {
