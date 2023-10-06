@@ -1,68 +1,21 @@
 package web3protocol
 
 import (
-    // "bufio"
     "context"
-    // "encoding/hex"
     "fmt"
-    // "net"
     "net/http"
-    // "os"
     "reflect"
-    "strings"
     "errors"
-    // "time"
 
     "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
     "github.com/ethereum/go-ethereum/crypto"
-    // influxdb2 "github.com/influxdata/influxdb-client-go/v2"
-    // "github.com/naoina/toml"
     log "github.com/sirupsen/logrus"
 )
 
 
-
-
-
-
-
-
-type arrayFlags []string
-
-func (i *arrayFlags) String() string {
-    return strings.Join(*i, ",")
-}
-
-func (i *arrayFlags) Set(value string) error {
-    *i = append(*i, value)
-    return nil
-}
-
-type stringFlags struct {
-    set   bool
-    value string
-}
-
-type ArgInfo struct {
-    methodSignature string
-    mimeType        string
-    calldata        string
-}
-
-func (sf *stringFlags) String() string {
-    return sf.value
-}
-
-func (sf *stringFlags) Set(value string) error {
-    sf.value = value
-    sf.set = true
-    return nil
-}
-
-var NoWeb3Error = Web3Error{}
 
 // has0xPrefix validates str begins with '0x' or '0X'.
 func has0xPrefix(str string) bool {
@@ -119,7 +72,7 @@ func toJSON(arg abi.Type, value interface{}) (result interface{}, err error) {
 }
 
 
-
+// For a method signature and the actual arguments, generate the calldata
 func methodCallToCalldata(methodName string, methodArgTypes []abi.Type, methodArgValues []interface{}) (calldata []byte, err error) {
     // ABI-encode the arguments
     abiArguments := abi.Arguments{}
@@ -148,6 +101,7 @@ func methodCallToCalldata(methodName string, methodArgTypes []abi.Type, methodAr
     return
 }
 
+// Call a contract with calldata
 func (client *Client) callContract(contract common.Address, chain int, calldata []byte) (contractReturn []byte, err error) {
     // Prepare the ethereum message to send
     callMessage := ethereum.CallMsg{
@@ -188,14 +142,5 @@ func handleCallContract(client ethclient.Client, msg ethereum.CallMsg) ([]byte, 
         }
     }
     return bs, nil
-}
-
-func getDefaultNSSuffix(config Config) (string, error) {
-    chainConfig := config.ChainConfigs[1]
-    // use first ns config as default
-    for suffix := range chainConfig.NSConfig {
-        return suffix, nil
-    }
-    return "", fmt.Errorf("cannot find ns config for default chain %v", "1") // Previously config.DefaultChain
 }
 

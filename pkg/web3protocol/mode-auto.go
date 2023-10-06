@@ -9,10 +9,8 @@ import(
     "regexp"
     // "fmt"
 
-    "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
-    "github.com/ethereum/go-ethereum/crypto"
 )
 
 func (client *Client) parseAutoModeUrl(web3Url *Web3URL, urlMainParts map[string]string) (err error) {
@@ -118,118 +116,13 @@ func (client *Client) parseAutoModeUrl(web3Url *Web3URL, urlMainParts map[string
         }
     }
 
-    // _, _, err = client.parseArguments(web3Url.ChainId, web3Url.ContractAddress, web3Url.Arguments)
-
-    // if err != nil {
-    //  log.Infof("Cannot parse message: %v\n", err)
-    //  return
-    // }
-
-    // err = checkReturnType(web3Url)
-    // if err != nil {
-    //  return
-    // }
-
-    // ethClient, linkErr := ethclient.Dial(client.Config.ChainConfigs[web3Url.ChainId].RPC)
-    // if linkErr != nil {
-    //  log.Info("Dial failed: ", linkErr.Error())
-    //  return nil, &Web3Error{http.StatusNotFound, linkErr.Error()}
-    // }
-    // defer ethClient.Close()
-    // bs, e := ethClient.CallContract(context.Background(), msg, nil)
-    // if e != nil {
-    //  log.Info("Call Contract failed ", e.Error())
-    //  return nil, &Web3Error{http.StatusNotFound, e.Error()}
-    // }
-    // log.Info("return data len: ", len(bs))
-    // log.Debug("return data: 0x", hex.EncodeToString(bs))
-
     return
 }
 
-// func handleAutoMode(web3Url Web3URL) ([]byte, string, Web3Error) {
-//  msg, argInfo, err := parseArguments(web3Url.ChainId, web3Url.Contract, web3Url.Arguments)
-//  addWeb3Header(w, "Method-Signature", argInfo.methodSignature)
-//  addWeb3Header(w, "Calldata", argInfo.calldata)
-//  if err.HasError() {
-//      log.Infof("Cannot parse message: %v\n", err)
-//      return nil, "", err
-//  }
-//  client, linkErr := ethclient.Dial(config.ChainConfigs[web3Url.ChainId].RPC)
-//  if linkErr != nil {
-//      log.Info("Dial failed: ", linkErr.Error())
-//      return nil, "", &Web3Error{http.StatusNotFound, linkErr.Error()}
-//  }
-//  defer client.Close()
-//  bs, e := client.CallContract(context.Background(), msg, nil)
-//  if e != nil {
-//      log.Info("Call Contract failed ", e.Error())
-//      return nil, "", &Web3Error{http.StatusNotFound, e.Error()}
-//  }
-//  log.Info("return data len: ", len(bs))
-//  log.Debug("return data: 0x", hex.EncodeToString(bs))
-
-//  return bs, argInfo.mimeType, err
-// }
 
 
 
 
-// parseArguments parses a [METHOD_NAME, ARG0, ARG1, ...] string array into an ethereum message with provided address, and return the mime type if end with type extension
-func (client *Client) parseArguments(nameServiceChain int, addr common.Address, args []string) (ethereum.CallMsg, ArgInfo, error) {
-    msig := "("
-    mimeType := ""
-    var arguments abi.Arguments = make([]abi.Argument, 0)
-    values := make([]interface{}, 0)
-    for i := 1; i < len(args); i++ {
-        if len(args[i]) == 0 {
-            continue
-        }
-        ty, typeStr, value, err := client.parseArgument(args[i], nameServiceChain)
-        if err != nil {
-            return ethereum.CallMsg{}, ArgInfo{}, err
-        }
-        arguments = append(arguments, abi.Argument{Type: ty})
-        values = append(values, value)
-        if i != 1 {
-            msig = msig + ","
-        }
-        msig = msig + typeStr
-        ss := strings.Split(args[i], ".")
-        if i == len(args)-1 && len(ss) > 1 {
-            mimeType = mime.TypeByExtension("." + ss[len(ss)-1])
-        }
-    }
-    dataField, err := arguments.Pack(values...)
-    if err != nil {
-        return ethereum.CallMsg{}, ArgInfo{}, &Web3Error{http.StatusBadRequest, err.Error()}
-    }
-    msig = msig + ")"
-
-    var calldata []byte
-    var argInfo ArgInfo
-
-    // skip parsing the calldata if there's no argument or the method signature(args[0]) is empty
-    if len(args) != 0 && args[0] != "" {
-        h := crypto.Keccak256Hash(append([]byte(args[0]), msig...))
-        mid := h[0:4]
-        calldata = append(mid, dataField...)
-        argInfo.methodSignature = args[0] + msig
-    }
-    msg := ethereum.CallMsg{
-        From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
-        To:        &addr,
-        Gas:       0,
-        GasPrice:  nil,
-        GasFeeCap: nil,
-        GasTipCap: nil,
-        Data:      calldata,
-        Value:     nil,
-    }
-    argInfo.mimeType = mimeType
-    argInfo.calldata = "0x" + common.Bytes2Hex(calldata)
-    return msg, argInfo, nil
-}
 
 // parseArgument parses a [TYPE!]VALUE string into an abi.Type. The type will be auto-detected if TYPE not provided
 func (client *Client) parseArgument(s string, nsChain int) (abi.Type, string, interface{}, error) {
@@ -326,62 +219,3 @@ func (client *Client) parseArgument(s string, nsChain int) (abi.Type, string, in
     return abi.Type{}, "", nil, err
 }
 
-// func checkReturnType(web3Url *Web3URL, urlMainParts map[string]string) error {
-    
-//  parsedQuery, err := url.ParseQuery(urlMainParts["searchParams"])
-//  if err != nil {
-//      return err
-//  }
-
-//  returnTypesValue := parsedQuery["returnTypes"]
-//  returnsValue := parsedQuery["returns"]
-//  // attribute `returnTypes` is an alias of `returns`, for compatibility concern
-//  // duplicate returns are prohibited
-//  if len(returnsValue) > 0 && len(returnTypesValue) > 0 || len(returnsValue) > 2 || len(returnTypesValue) > 2 {
-//      // cannot parse a full url, early exit
-//      return &Web3Error{http.StatusBadRequest, "Duplicate return attribute"}
-//  }
-
-//  // here should only one string is meaningful
-//  var rType string
-//  if len(returnsValue) == 1 {
-//      rType = returnsValue[0]
-//  } else if len(returnTypesValue) == 1 {
-//      rType = returnTypesValue[0]
-//  }
-
-//  // No rType? We exit here
-//  if rType == "" {
-//      return nil
-//  }
-
-//  // Parse the returnType definition
-//  if len(rType) < 2 {
-//      return &Web3Error{http.StatusBadRequest, "Invalid returns attribute"}
-//  }
-//  if string(rType[0]) != "(" || string(rType[len(rType) - 1]) != ")" {
-//      return &Web3Error{http.StatusBadRequest, "Invalid returns attribute"}
-//  }
-
-//  // Ok at this stage we know we are going to return JSON-encoded vars
-//  web3Url.ContractReturnProcessing = ContractReturnProcessingJsonEncodeValues
-
-//  // Remove parenthesis
-//  rType = rType[1:len(rType) - 1]
-//  // If rType is now empty, we default to bytes32
-//  if rType == "" {
-//      rType = "bytes32"
-//  }
-//  // Do the types parsing
-//  rTypeParts := strings.Split(rType, ",")
-//  web3Url.JsonEncodedValueTypes = []abi.Type{}
-//  for _, rTypePart := range rTypeParts {
-//      abiType, err := abi.NewType(rTypePart, "", nil)
-//      if err != nil {
-//          return &Web3Error{http.StatusBadRequest, "Invalid type: " + rTypePart}
-//      }
-//      web3Url.JsonEncodedValueTypes = append(web3Url.JsonEncodedValueTypes, abiType)
-//  }
-
-//  return nil
-// }

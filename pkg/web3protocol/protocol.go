@@ -1,23 +1,17 @@
 package web3protocol
 
 import (
-    "context"
     "strconv"
-    // "encoding/hex"
     "encoding/json"
     "fmt"
-    // "net"
     "errors"
     "net/http"
     "strings"
     "time"
     "regexp"
 
-    log "github.com/sirupsen/logrus"
-
     "github.com/ethereum/go-ethereum/accounts/abi"
     "github.com/ethereum/go-ethereum/common"
-    "github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Client struct {
@@ -58,6 +52,7 @@ const (
     ContractReturnProcessingDecodeErc5219Request = "decodeErc5219Request"
 )
 
+// This contains a web3:// URL parsed and ready to call the main smartcontract
 type Web3URL struct {
     // The actual url string "web3://...."
     Url string
@@ -96,6 +91,8 @@ type Web3URL struct {
     JsonEncodedValueTypes []abi.Type
 }
 
+// This contains the result of a web3:// URL call : the parsed URL, the raw contract return,
+// and the bytes output, HTTP code and headers for the browser.
 type FetchedWeb3URL struct {
     // The web3 URL, parsed
     ParsedUrl *Web3URL
@@ -112,6 +109,9 @@ type FetchedWeb3URL struct {
 }
 
 
+/**
+ * You'll need to instantiate a client to make calls.
+ */
 func NewClient() (client *Client) {
     // Default values
     config := Config{
@@ -126,6 +126,12 @@ func NewClient() (client *Client) {
     return
 }
 
+/**
+ * The main function of the package.
+ * For a given full web3:// url ("web3://xxxx"), returns a structure containing
+ * the bytes output and the HTTP code and headers, as well as plenty of informations on
+ * how the processing was done.
+ */
 func (client *Client) FetchUrl(url string) (fetchedUrl FetchedWeb3URL, err error) {
     // Parse the URL
     parsedUrl, err := client.ParseUrl(url)
@@ -148,9 +154,13 @@ func (client *Client) FetchUrl(url string) (fetchedUrl FetchedWeb3URL, err error
     return
 }
 
+/**
+ * Step 1 : Parse the URL and determine how we are going to call the main contract.
+ */
 func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
     web3Url.Url = url
 
+    // Parse the main structure of the URL
     web3UrlRegexp, err := regexp.Compile(`^(?P<protocol>[^:]+):\/\/(?P<hostname>[^:\/?]+)(:(?P<chainId>[1-9][0-9]*))?(?P<path>(?P<pathname>\/[^?]*)?([?](?P<searchParams>.*))?)?$`)
     if err != nil {
         return
@@ -165,37 +175,14 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
             urlMainParts[name] = matches[i]
         }
     }
-// fmt.Println("%+v\n", urlMainParts)
 
-    if urlMainParts["protocol"] != "web3" {
+    // Protocol name: 1 name and alias supported
+    if urlMainParts["protocol"] != "web3" && urlMainParts["protocol"] != "w3" {
         return web3Url, &Web3Error{http.StatusBadRequest, "Protocol name is invalid"}
     }
 
-
-// var contract string
-// ss := strings.Split(path, "/")
-// contract = ss[1]
-// web3Url.RawPath = path[len(ss[1])+1:]
-
-    // sr[0] means all part before a potential symbol "->", split it to get chainId
-
-
-    //  contract = st[0]
-    //  web3Url.HostDomainNameResolverChainId = st[1]
-
-    //  // check if chainID is valid, against cached config(can stem from a config file)
-    //  _, ok := client.Config.ChainConfigs[web3Url.HostDomainNameResolverChainId]
-    //  if !ok {
-    //      // check if chainName is valid
-    //      chainId, ok := client.Config.Name2Chain[strings.ToLower(web3Url.HostDomainNameResolverChainId)]
-    //      if !ok {
-    //          return web3Url, &Web3Error{http.StatusBadRequest, "unsupported chain: " + web3Url.HostDomainNameResolverChainId}
-    //      }
-    //      web3Url.HostDomainNameResolverChainId = chainId
-    //  }
-    // }
-
     // Default chain is ethereum mainnet
+    // Check if we were explicitely asked to go to another chain
     web3Url.ChainId = 1
     if len(urlMainParts["chainId"]) > 0 {
         chainId, err := strconv.Atoi(urlMainParts["chainId"])
@@ -212,7 +199,7 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
         return web3Url, &Web3Error{http.StatusBadRequest, fmt.Sprintf("Unsupported chain %v", web3Url.ChainId)}
     }
 
-    // after spliting from "->" and ":", var contact shall be a pure name service or a hex address
+    // Main hostname : We determine if we need hostname resolution, and do it
     if common.IsHexAddress(urlMainParts["hostname"]) {
         web3Url.ContractAddress = common.HexToAddress(urlMainParts["hostname"])
     } else {
@@ -228,8 +215,9 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
             return web3Url, &Web3Error{http.StatusBadRequest, "Invalid domain name"}
         }
 
-        // If the chain id was not explicitely asked, we will use the "default" chain id of the
-        // name resolution service (e.g. 1 for .eth, 333 for w3q) as the target chain
+        // If the chain id was not explicitely requested on the URL, we will use the 
+        // "default home" chain id of the name resolution service 
+        // (e.g. 1 for .eth, 333 for w3q) as the target chain
         if len(urlMainParts["chainId"]) == 0 {
             NSDefaultChainId := client.Config.NSDefaultChains[nameServiceSuffix]
             if NSDefaultChainId == 0 {
@@ -246,9 +234,9 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
         if !ok {
             return web3Url, &Web3Error{http.StatusBadRequest, "Unsupported domain name service suffix: " + nameServiceSuffix}
         }
-
         web3Url.HostDomainNameResolver = nsInfo.NSType
 
+        // Make the domaine name resolution, cache it
         var addr common.Address
         var targetChain int
         var hit bool
@@ -281,23 +269,49 @@ func (client *Client) ParseUrl(url string) (web3Url Web3URL, err error) {
     // 3 modes:
     // - Auto : we parse the path and arguments and send them
     // - Manual : we forward all the path & arguments as calldata
-    // - 5219 : we parse the path and arguments and send them
-    web3Url.ResolveMode = client.checkResolveMode(web3Url)
+    // - ResourceRequest : we parse the path and arguments and send them
+    // Call the resolveMode in the contract
+    resolveModeCalldata, err := methodCallToCalldata("resolveMode", []abi.Type{}, []interface{}{})
+    if err != nil {
+        return
+    }
+    resolveModeReturn, err := client.callContract(web3Url.ContractAddress, web3Url.ChainId, resolveModeCalldata)
+    // Auto : exact match or empty bytes32 value or empty value (method does not exist or return nothing)
+    // or execution reverted
+    if len(resolveModeReturn) == 32 && common.Bytes2Hex(resolveModeReturn) == "6175746f00000000000000000000000000000000000000000000000000000000" || 
+        len(resolveModeReturn) == 32 && common.Bytes2Hex(resolveModeReturn) == "0000000000000000000000000000000000000000000000000000000000000000" || 
+        len(resolveModeReturn) == 0 ||
+        err != nil {
+        web3Url.ResolveMode = ResolveModeAuto
+    // Manual : exact match
+    } else if len(resolveModeReturn) == 32 && common.Bytes2Hex(resolveModeReturn) == "6d616e75616c0000000000000000000000000000000000000000000000000000" {
+        web3Url.ResolveMode = ResolveModeManual
+    // ResourceRequest : exact match
+    } else if len(resolveModeReturn) == 32 && common.Bytes2Hex(resolveModeReturn) == "3532313900000000000000000000000000000000000000000000000000000000" {
+        web3Url.ResolveMode = ResolveModeResourceRequests
+    // Other cases (method returning non recognized value) : throw an error
+    } else {
+        return web3Url, &Web3Error{http.StatusBadRequest, "Unsupported resolve mode"}
+    }
 
+    // Then process the resolve-mode-specific parts
     if web3Url.ResolveMode == ResolveModeManual {
         err = client.parseManualModeUrl(&web3Url, urlMainParts)
     } else if web3Url.ResolveMode == ResolveModeAuto {
         err = client.parseAutoModeUrl(&web3Url, urlMainParts)
     } else if web3Url.ResolveMode == ResolveModeResourceRequests {
         err = client.parseResourceRequestModeUrl(&web3Url, urlMainParts)
-    }
+    } 
     if err != nil {
         return
     }
 
-    return web3Url, nil
+    return
 }
 
+/**
+ * Step 2: Make the call to the main contract.
+ */
 func (client *Client) FetchContractReturn(web3Url *Web3URL) (contractReturn []byte, err error) {
     var calldata []byte
 
@@ -331,7 +345,9 @@ func (client *Client) FetchContractReturn(web3Url *Web3URL) (contractReturn []by
     return
 }
 
-
+/**
+ * Step 3 : Process the data returned by the main contract.
+ */
 func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []byte) (fetchedWeb3Url FetchedWeb3URL, err error) {
     // Init the maps
     fetchedWeb3Url.HttpHeaders = map[string]string{}
@@ -410,77 +426,4 @@ func (client *Client) ProcessContractReturn(web3Url *Web3URL, contractReturn []b
     }
 
     return
-}
-
-
-
-
-
-
-
-func addWeb3Header(w http.ResponseWriter, header string, value string) {
-    w.Header().Add("Web3-"+header, value)
-}
-
-func respondWithErrorPage(w http.ResponseWriter, err Web3Error) {
-    w.WriteHeader(err.HttpCode)
-    _, e := fmt.Fprintf(w, "<html><h1>%d: %s</h1>%v<html/>", err.HttpCode, http.StatusText(err.HttpCode), err.Error())
-    if e != nil {
-        log.Errorf("Cannot write error page: %v\n", e)
-        return
-    }
-}
-
-func (client *Client) checkResolveMode(web3Url Web3URL) ResolveMode {
-    msg, _, err := client.parseArguments(0, web3Url.ContractAddress, []string{"resolveMode"})
-    if err != nil {
-        panic(err)
-    }
-    ethClient, _ := ethclient.Dial(client.Config.ChainConfigs[web3Url.ChainId].RPC)
-    defer ethClient.Close()
-    bs, e := ethClient.CallContract(context.Background(), msg, nil)
-    if e != nil {
-        return ResolveModeAuto
-    }
-    if len(bs) == 32 {
-        if common.Bytes2Hex(bs) == "6d616e75616c0000000000000000000000000000000000000000000000000000" {
-            return ResolveModeManual
-        }
-        // 5219
-        if common.Bytes2Hex(bs) == "3532313900000000000000000000000000000000000000000000000000000000" {
-            return ResolveModeResourceRequests
-        }
-    }
-    return ResolveModeAuto
-}
-
-// parseOutput parses the bytes into actual values according to the returnTypes string
-func parseOutput(output []byte, userTypes string) ([]interface{}, error) {
-    returnTypes := "(bytes)"
-    if userTypes == "()" {
-        return []interface{}{"0x" + common.Bytes2Hex(output)}, nil
-    } else if userTypes != "" {
-        returnTypes = userTypes
-    }
-    returnArgs := strings.Split(strings.Trim(returnTypes, "()"), ",")
-    var argsArray abi.Arguments
-    for _, arg := range returnArgs {
-        ty, err := abi.NewType(arg, "", nil)
-        if err != nil {
-            return nil, &Web3Error{http.StatusBadRequest, err.Error()}
-        }
-        argsArray = append(argsArray, abi.Argument{Name: "", Type: ty, Indexed: false})
-    }
-    var res []interface{}
-    res, err := argsArray.UnpackValues(output)
-    if err != nil {
-        return nil, &Web3Error{http.StatusBadRequest, err.Error()}
-    }
-    if userTypes != "" {
-        for i, arg := range argsArray {
-            // get the type of the return value
-            res[i], _ = toJSON(arg.Type, res[i])
-        }
-    }
-    return res, nil
 }

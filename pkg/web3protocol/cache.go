@@ -8,7 +8,7 @@ import (
     "github.com/ethereum/go-ethereum/common"
     influxdb2 "github.com/influxdata/influxdb-client-go/v2"
     "github.com/influxdata/influxdb-client-go/v2/api"
-    log "github.com/sirupsen/logrus"
+    // log "github.com/sirupsen/logrus"
 )
 
 type solvedAddr struct {
@@ -55,7 +55,7 @@ func (lc *localCache) add(nsChainAndName string, addr common.Address, targetChai
         time.Now().Add(lc.lifetime).Unix(),
     }
     lc.trace(nsChainAndName, "add")
-    log.Debugf("[cache] add %s\n", nsChainAndName)
+    // log.Debugf("[cache] add %s\n", nsChainAndName)
 }
 
 func (lc *localCache) get(nsChainAndName string) (common.Address, int, bool) {
@@ -66,7 +66,7 @@ func (lc *localCache) get(nsChainAndName string) (common.Address, int, bool) {
         return common.Address{}, 0, false
     }
     lc.trace(nsChainAndName, "hit")
-    log.Debugf("[cache] hit %s\n", nsChainAndName)
+    // log.Debugf("[cache] hit %s\n", nsChainAndName)
     return ca.addr, ca.targetChain, true
 }
 
@@ -76,16 +76,16 @@ func (lc *localCache) cleanupLoop() {
     for {
         <-t.C
         lc.mu.Lock()
-        log.Infof("[cache] size=%v \n", len(lc.addrs))
+        // log.Infof("[cache] size=%v \n", len(lc.addrs))
         for key, ca := range lc.addrs {
-            log.Infof("[cache] key=%s\n", key)
+            // log.Infof("[cache] key=%s\n", key)
             if ca.expire <= time.Now().Unix() {
                 delete(lc.addrs, key)
                 lc.trace(key, "delete")
-                log.Infof("[cache] cleanup %s\n", key)
+                // log.Infof("[cache] cleanup %s\n", key)
             }
         }
-        log.Infof("[cache] size=%v \n", len(lc.addrs))
+        // log.Infof("[cache] size=%v \n", len(lc.addrs))
         lc.mu.Unlock()
     }
 }
@@ -102,7 +102,7 @@ func (lc *localCache) trace(key, tipe string) {
             AddField("size", len(lc.addrs)).
             SetTime(time.Now())
         if er := lc.tracer.WritePoint(context.Background(), point); er != nil {
-            log.Errorln("db err", er)
+            // log.Errorln("db err", er)
         }
     }
 }

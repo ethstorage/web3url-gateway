@@ -5,14 +5,24 @@ import (
     "net/http"
     "strings"
     "fmt"
+    "mime"
 
+    "github.com/ethereum/go-ethereum"
     "github.com/ethereum/go-ethereum/common"
     "github.com/ethereum/go-ethereum/ethclient"
+    "github.com/ethereum/go-ethereum/accounts/abi"
+    "github.com/ethereum/go-ethereum/crypto"
     log "github.com/sirupsen/logrus"
     "golang.org/x/net/idna"
 
     "golang.org/x/crypto/sha3"
 )
+
+type ArgInfo struct {
+    methodSignature string
+    mimeType        string
+    calldata        string
+}
 
 var (
     EmptyString  = strings.Repeat("0", 62) + "20" + strings.Repeat("0", 64)
@@ -236,4 +246,92 @@ func (client *Client) parseChainSpecificAddress(addr string) (common.Address, in
         return common.Address{}, 0, &Web3Error{http.StatusBadRequest, "invalid contract address from name service: " + addr}
     }
     return common.HexToAddress(ss[1]), chainId, nil
+}
+
+
+// parseArguments parses a [METHOD_NAME, ARG0, ARG1, ...] string array into an ethereum message with provided address, and return the mime type if end with type extension
+func (client *Client) parseArguments(nameServiceChain int, addr common.Address, args []string) (ethereum.CallMsg, ArgInfo, error) {
+    msig := "("
+    mimeType := ""
+    var arguments abi.Arguments = make([]abi.Argument, 0)
+    values := make([]interface{}, 0)
+    for i := 1; i < len(args); i++ {
+        if len(args[i]) == 0 {
+            continue
+        }
+        ty, typeStr, value, err := client.parseArgument(args[i], nameServiceChain)
+        if err != nil {
+            return ethereum.CallMsg{}, ArgInfo{}, err
+        }
+        arguments = append(arguments, abi.Argument{Type: ty})
+        values = append(values, value)
+        if i != 1 {
+            msig = msig + ","
+        }
+        msig = msig + typeStr
+        ss := strings.Split(args[i], ".")
+        if i == len(args)-1 && len(ss) > 1 {
+            mimeType = mime.TypeByExtension("." + ss[len(ss)-1])
+        }
+    }
+    dataField, err := arguments.Pack(values...)
+    if err != nil {
+        return ethereum.CallMsg{}, ArgInfo{}, &Web3Error{http.StatusBadRequest, err.Error()}
+    }
+    msig = msig + ")"
+
+    var calldata []byte
+    var argInfo ArgInfo
+
+    // skip parsing the calldata if there's no argument or the method signature(args[0]) is empty
+    if len(args) != 0 && args[0] != "" {
+        h := crypto.Keccak256Hash(append([]byte(args[0]), msig...))
+        mid := h[0:4]
+        calldata = append(mid, dataField...)
+        argInfo.methodSignature = args[0] + msig
+    }
+    msg := ethereum.CallMsg{
+        From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
+        To:        &addr,
+        Gas:       0,
+        GasPrice:  nil,
+        GasFeeCap: nil,
+        GasTipCap: nil,
+        Data:      calldata,
+        Value:     nil,
+    }
+    argInfo.mimeType = mimeType
+    argInfo.calldata = "0x" + common.Bytes2Hex(calldata)
+    return msg, argInfo, nil
+}
+
+// parseOutput parses the bytes into actual values according to the returnTypes string
+func parseOutput(output []byte, userTypes string) ([]interface{}, error) {
+    returnTypes := "(bytes)"
+    if userTypes == "()" {
+        return []interface{}{"0x" + common.Bytes2Hex(output)}, nil
+    } else if userTypes != "" {
+        returnTypes = userTypes
+    }
+    returnArgs := strings.Split(strings.Trim(returnTypes, "()"), ",")
+    var argsArray abi.Arguments
+    for _, arg := range returnArgs {
+        ty, err := abi.NewType(arg, "", nil)
+        if err != nil {
+            return nil, &Web3Error{http.StatusBadRequest, err.Error()}
+        }
+        argsArray = append(argsArray, abi.Argument{Name: "", Type: ty, Indexed: false})
+    }
+    var res []interface{}
+    res, err := argsArray.UnpackValues(output)
+    if err != nil {
+        return nil, &Web3Error{http.StatusBadRequest, err.Error()}
+    }
+    if userTypes != "" {
+        for i, arg := range argsArray {
+            // get the type of the return value
+            res[i], _ = toJSON(arg.Type, res[i])
+        }
+    }
+    return res, nil
 }

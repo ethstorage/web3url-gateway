@@ -9,6 +9,7 @@ import (
     "github.com/ethereum/go-ethereum/accounts/abi"
 )
 
+// Step 1 : Process the web3:// url
 func (client *Client) parseResourceRequestModeUrl(web3Url *Web3URL, urlMainParts map[string]string) (err error) {
 
     // For this mode, we call a specific function
@@ -72,7 +73,7 @@ func (client *Client) parseResourceRequestModeUrl(web3Url *Web3URL, urlMainParts
     return
 }
 
-
+// Step 3 : We have the contract return, process it
 func (client *Client) ProcessResourceRequestContractReturn(web3Url *Web3URL, contractReturn []byte) (fetchedWeb3Url FetchedWeb3URL, err error) {
     // Init the maps
     fetchedWeb3Url.HttpHeaders = map[string]string{}
