@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	// "fmt"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -399,16 +399,17 @@ var decodingTestLinks = []struct {
 	{"w3eth.io", "/w3url.eth/css/app~d0ae3f07.e6592741.css", "manual", "", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
 
 	// decoded for auto mode, so encoded has same return type and calldata as unencoded
-	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "string", "", true},
-	{"w3eth.eth.gor.w3link.io", "/symbol?returns=%28string%29", "auto", "string", "", true},
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "string", "0x95d89b41", true},
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=%28string%29", "auto", "string", "0x95d89b41", true},
 	// {"w3link.io", "/test.w3q:w3q-g->(bytes[][])/getA", "auto", "(bytes[][])", "0xd46300fd", true},
 	// {"w3link.io", "/test.w3q-%3E(bytes%5B%5D%5B%5D)/getA", "auto", "(bytes[][])", "0xd46300fd", true},
+	// These 2 trigger an out of gas error
 	// {"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!podrás.svg", "auto", "(bytes)", composecalldata, true},
 	// {"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string%21podr%c3%a1s.svg", "auto", "(bytes)", composecalldata, true},
 
-	// // decoded for 5219 mode so encoded has same calldata as unencoded; if >2 params are provided the calldata is not stable because the order is random
-	// {"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a$bc+d?b=币", "5219", "(bytes)", the5219calldata, true},
-	// {"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a%24bc%2bd?b=%e5%b8%81", "5219", "(bytes)", the5219calldata, true},
+	// decoded for 5219 mode so encoded has same calldata as unencoded; if >2 params are provided the calldata is not stable because the order is random
+	{"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a$bc+d?b=%e5%b8%81", "resourceRequest", "", the5219calldata, true},
+	{"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a%24bc%2bd?b=%e5%b8%81", "resourceRequest", "", the5219calldata, true},
 }
 
 func TestEncoded(t *testing.T) {

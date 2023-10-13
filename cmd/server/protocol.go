@@ -18,6 +18,7 @@ import (
 
 func handle(w http.ResponseWriter, req *http.Request) {
 	h := req.Host
+
 	path := req.URL.EscapedPath()
 	w.Header().Set("Access-Control-Allow-Origin", config.CORS)
 	if strings.HasPrefix(h, "ordinals.btc.") {
@@ -64,9 +65,9 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Web3-Chain-Id", fmt.Sprintf("%d", parsedWeb3Url.ChainId))
 	w.Header().Set("Web3-Resolve-Mode", string(parsedWeb3Url.ResolveMode))
 	w.Header().Set("Web3-Contract-Call-Mode", string(parsedWeb3Url.ContractCallMode))
-	if parsedWeb3Url.ContractCallMode == web3protocol.ContractCallModeCalldata {
-		w.Header().Set("Web3-Calldata", fmt.Sprintf("0x%x", parsedWeb3Url.Calldata))
-	} else if parsedWeb3Url.ContractCallMode == web3protocol.ContractCallModeMethod {
+	calldata, _ := parsedWeb3Url.ComputeCalldata()
+	w.Header().Set("Web3-Calldata", fmt.Sprintf("0x%x", calldata))
+	if parsedWeb3Url.ContractCallMode == web3protocol.ContractCallModeMethod {
 		w.Header().Set("Web3-Mode-Auto-Method", parsedWeb3Url.MethodName)
 		methodArgTypes := []string{}
 		for _, methodArgType := range parsedWeb3Url.MethodArgs {

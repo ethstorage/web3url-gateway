@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/ethereum/go-ethereum v1.13.2
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
-	github.com/web3-protocol/web3protocol-go v0.0.0-20231013090851-fdc118e10228
+	github.com/web3-protocol/web3protocol-go v0.0.0-20231013141719-679956813721
 	golang.org/x/net v0.16.0
 )
 
