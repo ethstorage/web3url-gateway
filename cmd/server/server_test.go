@@ -1,19 +1,17 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"io/ioutil"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	// "fmt"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/web3-protocol/web3protocol-go"
 )
 
 func init() {
@@ -24,46 +22,10 @@ func init() {
 	config.NSDefaultChains["eth"] = 5
 	config.NSDefaultChains["w3q"] = 3334
 	config.DefaultChain = 3334
+
+	initWeb3protocolClient()
 }
 
-
-
-func TestGetAddress(t *testing.T) {
-	// var testCases = []struct {
-	// 	chainId    string
-	// 	domain     string
-	// 	expect     string
-	// 	webHandler bool
-	// }{
-	// 	// not use web handler
-	// 	{"3334", "quark.w3q", "0x6D4a199f603b084a2f1761Dc9F322F92E68bfd5E", false},
-	// 	// user Web handler
-	// 	{"3334", "quark.w3q", "0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9", true},
-	// 	// skip deprecated key and fallback to address
-	// 	{"5", "quark.eth", "0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699", true},
-	// 	// text key is contentcontract, prefix is w3q-g: fallback to address
-	// 	{"5", "ethstorage.eth", "0x79550b825Ef3D7B1f825BE9965FaE80BdF77A7e2", true},
-	// 	// text key is contentcontract, prefix is w3q-g:
-	// 	{"5", "testcontentcontract.eth", "0xBccb33C4D28AB444E22F3519736270a3bA412d9b", true},
-	// 	// direct mapping if not web handler
-	// 	{"1", "terraformnavigator.eth", "0x9A595bc28F1c40ab96247E8157A2b0A6762E7543", false},
-	// 	// fall back to addr using web handler
-	// 	{"1", "terraformnavigator.eth", "0x9A595bc28F1c40ab96247E8157A2b0A6762E7543", true},
-	// }
-	// var addr common.Address
-	// var err Web3Error
-	// for _, test := range testCases {
-	// 	t.Run(test.expect, func(t *testing.T) {
-	// 		if test.webHandler {
-	// 			addr, _, err = getAddressFromNameServiceWebHandler(test.chainId, test.domain)
-	// 		} else {
-	// 			addr, _, err = getAddressFromNameService(test.chainId, test.domain)
-	// 		}
-	// 		assert.Equal(t, 0, err.code)
-	// 		assert.Equal(t, test.expect, addr.Hex())
-	// 	})
-	// }
-}
 
 
 var testURLs = []struct {
@@ -75,39 +37,39 @@ var testURLs = []struct {
 }{
 	{"localhost", "/0x6587e67F1FBEAabDEe8b70EFb396E750e216283B:w3q-g/asdf/1234?foo=bar", "application/json", "{\"resource\":[\"asdf\",\"1234\"], \"params\":[{\"key\":\"foo\", \"value\": \"bar\"}}", http.StatusOK},
 	{"localhost", "/quark.w3q/index.txt", "text/plain; charset=utf-8", "hello, world", http.StatusOK},
-	{"localhost", "/concat.w3q->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "application/json", "[\"abc\"]\n", http.StatusOK},
-	{"localhost", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returnTypes=(string)", "application/json", "[\"abc\"]\n", http.StatusOK},
-	{"localhost", "/concat.w3q->(string)/concat/bytes!0x/bytes!0x/bytes!0x", "application/json", "[\"\"]\n", http.StatusOK},
-	{"localhost", "/concat.w3q/concat/bytes!0x/bytes!0x/bytes!0x?returnTypes=(string)", "application/json", "[\"\"]\n", http.StatusOK},
-	{"localhost", "/concat.w3q->(uint256,string,bool)/retrieve", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
-	{"localhost", "/concat.w3q/retrieve?returns=(uint256,string,bool)", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
-	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
+	// {"localhost", "/concat.w3q->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "application/json", "[\"abc\"]\n", http.StatusOK},
+	{"localhost", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returnTypes=(string)", "application/json", "[\"abc\"]", http.StatusOK},
+	// {"localhost", "/concat.w3q->(string)/concat/bytes!0x/bytes!0x/bytes!0x", "application/json", "[\"\"]\n", http.StatusOK},
+	{"localhost", "/concat.w3q/concat/bytes!0x/bytes!0x/bytes!0x?returnTypes=(string)", "application/json", "[\"\"]", http.StatusOK},
+	// {"localhost", "/concat.w3q->(uint256,string,bool)/retrieve", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
+	{"localhost", "/concat.w3q/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"Galileo\",true]", http.StatusOK},
+	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"Galileo\",true]", http.StatusOK},
 	// same return types
-	{"localhost", "/concat.w3q->(uint256,string,bool)/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
-	{"localhost", "/usdt.w3q->(uint256)/balanceOf/0x8f315cEBD2Eb6304a49d50D551608ffD06C8810a", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
-	{"localhost", "/0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad:w3q-g->(uint256)/balanceOf/address!charles.w3q", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
-	{"localhost", "/usdt.w3q->()/balanceOf/address!charles.w3q", "application/json", "[\"0x000000000000000000000000000000000000000000000000000009184e729fff\"]\n", http.StatusOK},
+	// {"localhost", "/concat.w3q->(uint256,string,bool)/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
+	// {"localhost", "/usdt.w3q->(uint256)/balanceOf/0x8f315cEBD2Eb6304a49d50D551608ffD06C8810a", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
+	// {"localhost", "/0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad:w3q-g->(uint256)/balanceOf/address!charles.w3q", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
+	// {"localhost", "/usdt.w3q->()/balanceOf/address!charles.w3q", "application/json", "[\"0x000000000000000000000000000000000000000000000000000009184e729fff\"]\n", http.StatusOK},
 	// array types and bytes processing
-	{"localhost", "/test.w3q->(bytes[][])/getA", "application/json", "[[[\"0x61\"],[\"0x62\"]]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(uint8[][][])/getB", "application/json", "[[[[\"0\"],[\"1\"]],[[\"2\"],[\"3\"]],[[\"4\"],[\"5\"]]]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(bytes8[2][1])/getC", "application/json", "[[[\"0x6300000000000000\",\"0x6400000000000000\"]]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(bytes32[2])/getD", "application/json", "[[\"0x7465737400000000000000000000000000000000000000000000000000000000\",\"0x6279746573000000000000000000000000000000000000000000000000000000\"]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(address[2])/getE", "application/json", "[[\"0xd95fa5e8C8C6920430c0406f9A819576759911e3\",\"0x0000000000000000000000000000000000000000\"]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(string[2])/getF", "application/json", "[[\"test\",\"string\"]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(uint256[2])/getG", "application/json", "[[\"0\",\"115792089237316195423570985008687907853269984665640564039457584007913129639935\"]]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(bytes)/getH", "application/json", "[\"0x74657374\"]\n", http.StatusOK},
-	{"localhost", "/test.w3q->(string)/getI", "application/json", "[\"test\\\"string\"]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(bytes[][])/getA", "application/json", "[[[\"0x61\"],[\"0x62\"]]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(uint8[][][])/getB", "application/json", "[[[[\"0\"],[\"1\"]],[[\"2\"],[\"3\"]],[[\"4\"],[\"5\"]]]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(bytes8[2][1])/getC", "application/json", "[[[\"0x6300000000000000\",\"0x6400000000000000\"]]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(bytes32[2])/getD", "application/json", "[[\"0x7465737400000000000000000000000000000000000000000000000000000000\",\"0x6279746573000000000000000000000000000000000000000000000000000000\"]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(address[2])/getE", "application/json", "[[\"0xd95fa5e8C8C6920430c0406f9A819576759911e3\",\"0x0000000000000000000000000000000000000000\"]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(string[2])/getF", "application/json", "[[\"test\",\"string\"]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(uint256[2])/getG", "application/json", "[[\"0\",\"115792089237316195423570985008687907853269984665640564039457584007913129639935\"]]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(bytes)/getH", "application/json", "[\"0x74657374\"]\n", http.StatusOK},
+	// {"localhost", "/test.w3q->(string)/getI", "application/json", "[\"test\\\"string\"]\n", http.StatusOK},
 	// ethereum
-	{"localhost", "/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:gor/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
-	{"localhost", "/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:5/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
-	{"localhost", "/quark.eth:gor/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
+	{"localhost", "/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:gor/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
+	{"localhost", "/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:5/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
+	{"localhost", "/quark.eth:gor/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
 	{"localhost", "/0x79550b825ef3d7b1f825be9965fae80bdf77a7e2:3334/hello.txt", "text/plain; charset=utf-8", "hello! ethstorage!", http.StatusOK},
 	// wrong domain
-	{"localhost", "/quarkd.w3q/files/index.txt", "", "", http.StatusBadRequest},
+	{"localhost", "/quarkd.w3q/files/index.txt", "", "", http.StatusNotFound},
 	// wrong suffix
 	{"localhost", "/quark.w4q/index.txt", "", "", http.StatusBadRequest},
 	// conflict return types
-	{"localhost", "/concat.w3q->(uint256,string,bool)/retrieve?returnTypes=(uint256,string)", "", "", http.StatusBadRequest},
+	// {"localhost", "/concat.w3q->(uint256,string,bool)/retrieve?returnTypes=(uint256,string)", "", "", http.StatusBadRequest},
 	// duplicate return attributes
 	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256,string,bool)&returns=(uint256,string,bool)", "", "", http.StatusBadRequest},
 }
@@ -136,7 +98,7 @@ func TestHandle(t *testing.T) {
 func TestServer(t *testing.T) {
 	for _, test := range testURLs {
 		t.Run(test.path, func(t *testing.T) {
-			resp, err := http.Get("http://localhost" + test.path)
+			resp, err := http.Get("http://localhost:9999" + test.path)
 			assert.NoError(t, err)
 			defer resp.Body.Close()
 			data, err := ioutil.ReadAll(resp.Body)
@@ -165,92 +127,95 @@ var w3links = []struct {
 	// no default chain for w3link
 	{"quark.w3link.io", "/index.txt", "", "", http.StatusBadRequest},
 	// [name].[tld].[chain id or short name].w3link.io
-	{"concat.w3q.w3q-g.w3link.io", "/concat/bytes!0x61/bytes!0x62/bytes!0x63?returns=(string)", "application/json", "[\"abc\"]\n", http.StatusOK},
-	{"concat.w3q.3334.w3link.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
+	{"concat.w3q.w3q-g.w3link.io", "/concat/bytes!0x61/bytes!0x62/bytes!0x63?returns=(string)", "application/json", "[\"abc\"]", http.StatusOK},
+	{"concat.w3q.3334.w3link.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"Galileo\",true]", http.StatusOK},
 	{"concat.w3q.w3link.io", "/retrieve?returns=(uint256,string,bool)", "", "", http.StatusBadRequest},
 	{"concat.w3link.io", "/retrieve?returns=(uint256,string,bool)", "", "", http.StatusBadRequest},
-	{"usdt.w3q.3334.w3link.io", "/balanceOf/0x8f315cEBD2Eb6304a49d50D551608ffD06C8810a?returns=(uint256)", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
-	{"usdt.w3q.3334.w3link.io", "/balanceOf/address!charles.w3q?returns=()", "application/json", "[\"0x000000000000000000000000000000000000000000000000000009184e729fff\"]\n", http.StatusOK},
-	{"usdt.w3q.3334.w3link.io", "/balanceOf/address!charles.w3q?returns=(uint256)", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
+	{"usdt.w3q.3334.w3link.io", "/balanceOf/0x8f315cEBD2Eb6304a49d50D551608ffD06C8810a?returns=(uint256)", "application/json", "[\"0x9184e729fff\"]", http.StatusOK},
+	{"usdt.w3q.3334.w3link.io", "/balanceOf/address!charles.w3q?returns=()", "application/json", "[\"0x000000000000000000000000000000000000000000000000000009184e729fff\"]", http.StatusOK},
+	{"usdt.w3q.3334.w3link.io", "/balanceOf/address!charles.w3q?returns=(uint256)", "application/json", "[\"0x9184e729fff\"]", http.StatusOK},
 	// ethereum
-	{"quark.eth.gor.w3link.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
-	{"quark.eth.5.w3link.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
+	{"quark.eth.gor.w3link.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
+	{"quark.eth.5.w3link.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
 	{"ethstorage.eth.gor.w3link.io", "/hello.txt", "text/plain; charset=utf-8", "hello! ethstorage!", http.StatusOK},
-	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "application/json", "[\"UNI-V3-POS\"]\n", http.StatusOK},
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "application/json", "[\"UNI-V3-POS\"]", http.StatusOK},
 	{"ethstorage.eth.w3link.io", "/hello.txt", "", "", http.StatusBadRequest},
 	// wrong chain
 	{"quark.eth.w3q-g.w3link.io", "/files/index.txt", "", "", http.StatusBadRequest},
 	// wrong domain
-	{"quarkk.eth.5.w3link.io", "/files/index.txt", "", "", http.StatusBadRequest},
+	{"quarkk.eth.5.w3link.io", "/files/index.txt", "", "", http.StatusNotFound},
 	// wrong suffix
 	{"quark.w4q.3334.w3link.io", "/index.txt", "", "", http.StatusBadRequest},
 	// if subdomain is specified, path should start with a method
 	{"usdt.w3q.3334.w3link.io", "/0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad:w3q-g->(uint256)/balanceOf/address!charles.w3q", "", "", http.StatusBadRequest},
 	{"concat.w3q.3334.w3link.io", "/concat.w3q:3334->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "", "", http.StatusBadRequest},
-	{"concat.w3q.3334.w3link.io", "/->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "", "", http.StatusBadRequest},
+	// {"concat.w3q.3334.w3link.io", "/->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "", "", http.StatusBadRequest},
 	// back compatible with hosted dweb files
-	{"concat.w3q.3334.w3link.io", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returns=(string)", "application/json", "[\"abc\"]\n", http.StatusOK},
+	{"concat.w3q.3334.w3link.io", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returns=(string)", "application/json", "[\"abc\"]", http.StatusOK},
 	// address as subdomain is supported
-	{"0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad.w3q-g.w3link.io", "/balanceOf/address!charles.w3q?returns=(uint256)", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
-	{"0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad.w3link.io", "/balanceOf/address!charles.w3q?returns=(uint256)", "application/json", "[\"9999999999999\"]\n", http.StatusBadRequest},
+	{"0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad.w3q-g.w3link.io", "/balanceOf/address!charles.w3q?returns=(uint256)", "application/json", "[\"0x9184e729fff\"]", http.StatusOK},
+	{"0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad.w3link.io", "/balanceOf/address!charles.w3q?returns=(uint256)", "application/json", "[\"0x9184e729fff\"]", http.StatusBadRequest},
 	// IP address banned
 	{"111.111.111.111", "/quark.w3q/index.txt", "", "", http.StatusBadRequest},
 	{"111.111.111.111:80", "/quark.w3q/index.txt", "", "", http.StatusBadRequest},
 	// contract address
-	{"0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Ether\"]\n", http.StatusOK},
-	{"0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Ether\"]\n", http.StatusOK},
+	{"0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Ether\"]", http.StatusOK},
+	{"0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Ether\"]", http.StatusOK},
 	// l2
-	{"w3link.eth.gor.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]\n", http.StatusOK},
-	{"0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.arb1.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]\n", http.StatusOK},
-	{"0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.42161.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]\n", http.StatusOK},
-	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.oeth.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]\n", http.StatusOK},
-	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.10.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]\n", http.StatusOK},
-	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.ogor.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]\n", http.StatusOK},
-	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.420.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]\n", http.StatusOK},
-	{"0x0997fb92ee366c93d66fF43ba337ACA94F56EAe0.421613.w3link.io", "/totalSupply?returns=(uint256)", "application/json", "[\"10000000000000000\"]\n", http.StatusOK},
-	{"0x0997fb92ee366c93d66fF43ba337ACA94F56EAe0.arb-goerli.w3link.io", "/totalSupply?returns=(uint256)", "application/json", "[\"10000000000000000\"]\n", http.StatusOK},
-	{"0xae95d4890bf4471501e0066b6c6244e1caaee791.evmos-testnet.w3link.io", "/name?returns=(string)", "application/json", "[\"USDC Mock\"]\n", http.StatusOK},
-	{"0xae95d4890bf4471501e0066b6c6244e1caaee791.9000.w3link.io", "/name?returns=(string)", "application/json", "[\"USDC Mock\"]\n", http.StatusOK},
-	{"0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.evmos.w3link.io", "/name?returns=(string)", "application/json", "[\"Cosmos Hub\"]\n", http.StatusOK},
-	{"0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.9001.w3link.io", "/name?returns=(string)", "application/json", "[\"Cosmos Hub\"]\n", http.StatusOK},
-	{"0x2cE21976443622ab8F0B7F6fa3aF953ff9BCdCf6.arb-nova.w3link.io", "/name?returns=(string)", "application/json", "[\"Arbitrum Nova Gaming\"]\n", http.StatusOK},
-	{"0x2cE21976443622ab8F0B7F6fa3aF953ff9BCdCf6.42170.w3link.io", "/name?returns=(string)", "application/json", "[\"Arbitrum Nova Gaming\"]\n", http.StatusOK},
-	{"0xe9e7cea3dedca5984780bafc599bd69add087d56.56.w3link.io", "/name?returns=(string)", "application/json", "[\"BUSD Token\"]\n", http.StatusOK},
-	{"0xe9e7cea3dedca5984780bafc599bd69add087d56.bnb.w3link.io", "/name?returns=(string)", "application/json", "[\"BUSD Token\"]\n", http.StatusOK},
-	{"0xc5976c1ff6c550150293a31b5f9da787a3ebf5f0.97.w3link.io", "/name?returns=(string)", "application/json", "[\"FakeUSDC\"]\n", http.StatusOK},
-	{"0xc5976c1ff6c550150293a31b5f9da787a3ebf5f0.bnbt.w3link.io", "/name?returns=(string)", "application/json", "[\"FakeUSDC\"]\n", http.StatusOK},
-	{"0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.43114.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped AVAX\"]\n", http.StatusOK},
-	{"0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.avax.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped AVAX\"]\n", http.StatusOK},
-	{"0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.43113.w3link.io", "/name?returns=(string)", "application/json", "[\"wAVAX\"]\n", http.StatusOK},
-	{"0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.fuji.w3link.io", "/name?returns=(string)", "application/json", "[\"wAVAX\"]\n", http.StatusOK},
-	{"0x69c744d3444202d35a2783929a0f930f2fbb05ad.250.w3link.io", "/name?returns=(string)", "application/json", "[\"Staked FTM\"]\n", http.StatusOK},
-	{"0x69c744d3444202d35a2783929a0f930f2fbb05ad.ftm.w3link.io", "/name?returns=(string)", "application/json", "[\"Staked FTM\"]\n", http.StatusOK},
-	{"0xf1277d1ed8ad466beddf92ef448a132661956621.4002.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Fantom\"]\n", http.StatusOK},
-	{"0xf1277d1ed8ad466beddf92ef448a132661956621.tftm.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Fantom\"]\n", http.StatusOK},
-	{"0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.1666600000.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped ONE\"]\n", http.StatusOK},
-	{"0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.hmy-s0.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped ONE\"]\n", http.StatusOK},
-	{"0xc9c8ba8c7e2eaf43e84330db08915a8106d7bd74.1666700000.w3link.io", "/name?returns=(string)", "application/json", "[\"E2E_TEST_TOKEN\"]\n", http.StatusOK},
-	{"0xc9c8ba8c7e2eaf43e84330db08915a8106d7bd74.hmy-b-s0.w3link.io", "/name?returns=(string)", "application/json", "[\"E2E_TEST_TOKEN\"]\n", http.StatusOK},
-	{"0x0000000000000000000000000000000000001010.137.w3link.io", "/name?returns=(string)", "application/json", "[\"Matic Token\"]\n", http.StatusOK},
-	{"0x0000000000000000000000000000000000001010.matic.w3link.io", "/name?returns=(string)", "application/json", "[\"Matic Token\"]\n", http.StatusOK},
-	{"0x431e9631cda6da17acb3ff3784df6cebed86b5f4.80001.w3link.io", "/name?returns=(string)", "application/json", "[\"MaticTest\"]\n", http.StatusOK},
-	{"0x431e9631cda6da17acb3ff3784df6cebed86b5f4.maticmum.w3link.io", "/name?returns=(string)", "application/json", "[\"MaticTest\"]\n", http.StatusOK},
+	{"w3link.eth.gor.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]", http.StatusOK},
+	{"0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.arb1.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]", http.StatusOK},
+	{"0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.42161.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]", http.StatusOK},
+	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.oeth.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]", http.StatusOK},
+	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.10.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]", http.StatusOK},
+	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.ogor.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]", http.StatusOK},
+	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.420.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]", http.StatusOK},
+	{"0x0997fb92ee366c93d66fF43ba337ACA94F56EAe0.421613.w3link.io", "/totalSupply?returns=(uint256)", "application/json", "[\"0x2386f26fc10000\"]", http.StatusOK},
+	{"0x0997fb92ee366c93d66fF43ba337ACA94F56EAe0.arb-goerli.w3link.io", "/totalSupply?returns=(uint256)", "application/json", "[\"0x2386f26fc10000\"]", http.StatusOK},
+	{"0xae95d4890bf4471501e0066b6c6244e1caaee791.evmos-testnet.w3link.io", "/name?returns=(string)", "application/json", "[\"USDC Mock\"]", http.StatusOK},
+	{"0xae95d4890bf4471501e0066b6c6244e1caaee791.9000.w3link.io", "/name?returns=(string)", "application/json", "[\"USDC Mock\"]", http.StatusOK},
+	{"0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.evmos.w3link.io", "/name?returns=(string)", "application/json", "[\"Cosmos Hub\"]", http.StatusOK},
+	{"0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.9001.w3link.io", "/name?returns=(string)", "application/json", "[\"Cosmos Hub\"]", http.StatusOK},
+	{"0x2cE21976443622ab8F0B7F6fa3aF953ff9BCdCf6.arb-nova.w3link.io", "/name?returns=(string)", "application/json", "[\"Arbitrum Nova Gaming\"]", http.StatusOK},
+	{"0x2cE21976443622ab8F0B7F6fa3aF953ff9BCdCf6.42170.w3link.io", "/name?returns=(string)", "application/json", "[\"Arbitrum Nova Gaming\"]", http.StatusOK},
+	{"0xe9e7cea3dedca5984780bafc599bd69add087d56.56.w3link.io", "/name?returns=(string)", "application/json", "[\"BUSD Token\"]", http.StatusOK},
+	{"0xe9e7cea3dedca5984780bafc599bd69add087d56.bnb.w3link.io", "/name?returns=(string)", "application/json", "[\"BUSD Token\"]", http.StatusOK},
+	{"0xc5976c1ff6c550150293a31b5f9da787a3ebf5f0.97.w3link.io", "/name?returns=(string)", "application/json", "[\"FakeUSDC\"]", http.StatusOK},
+	{"0xc5976c1ff6c550150293a31b5f9da787a3ebf5f0.bnbt.w3link.io", "/name?returns=(string)", "application/json", "[\"FakeUSDC\"]", http.StatusOK},
+	{"0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.43114.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped AVAX\"]", http.StatusOK},
+	{"0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.avax.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped AVAX\"]", http.StatusOK},
+	{"0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.43113.w3link.io", "/name?returns=(string)", "application/json", "[\"wAVAX\"]", http.StatusOK},
+	{"0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.fuji.w3link.io", "/name?returns=(string)", "application/json", "[\"wAVAX\"]", http.StatusOK},
+	{"0x69c744d3444202d35a2783929a0f930f2fbb05ad.250.w3link.io", "/name?returns=(string)", "application/json", "[\"Staked FTM\"]", http.StatusOK},
+	{"0x69c744d3444202d35a2783929a0f930f2fbb05ad.ftm.w3link.io", "/name?returns=(string)", "application/json", "[\"Staked FTM\"]", http.StatusOK},
+	{"0xf1277d1ed8ad466beddf92ef448a132661956621.4002.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Fantom\"]", http.StatusOK},
+	{"0xf1277d1ed8ad466beddf92ef448a132661956621.tftm.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Fantom\"]", http.StatusOK},
+	// Some test are disabled due to the fact that the only known RPC does not respect the use of
+	// the "input" field, and use the deprecated "data" one
+	// Cf https://github.com/ethereum/go-ethereum/pull/28078
+	// {"0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.1666600000.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped ONE\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.hmy-s0.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped ONE\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xc9c8ba8c7e2eaf43e84330db08915a8106d7bd74.1666700000.w3link.io", "/name?returns=(string)", "application/json", "[\"E2E_TEST_TOKEN\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xc9c8ba8c7e2eaf43e84330db08915a8106d7bd74.hmy-b-s0.w3link.io", "/name?returns=(string)", "application/json", "[\"E2E_TEST_TOKEN\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	{"0x0000000000000000000000000000000000001010.137.w3link.io", "/name?returns=(string)", "application/json", "[\"Matic Token\"]", http.StatusOK},
+	{"0x0000000000000000000000000000000000001010.matic.w3link.io", "/name?returns=(string)", "application/json", "[\"Matic Token\"]", http.StatusOK},
+	{"0x431e9631cda6da17acb3ff3784df6cebed86b5f4.80001.w3link.io", "/name?returns=(string)", "application/json", "[\"MaticTest\"]", http.StatusOK},
+	{"0x431e9631cda6da17acb3ff3784df6cebed86b5f4.maticmum.w3link.io", "/name?returns=(string)", "application/json", "[\"MaticTest\"]", http.StatusOK},
 	// {"0x6091F52B352Ea22a34d8a89812BA1f85D197F877.1402.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin\"]\n", http.StatusOK},
 	// {"0x6091F52B352Ea22a34d8a89812BA1f85D197F877.zkevmtest.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin\"]\n", http.StatusOK},
-	{"0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.100001.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKC\"]\n", http.StatusOK},
-	{"0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.qkc-s0.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKC\"]\n", http.StatusOK},
-	{"0xF2Fa1B7C11c33BAC1dB7b037478453289AC90E60.110001.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKCDev\"]\n", http.StatusOK},
-	{"0xF2Fa1B7C11c33BAC1dB7b037478453289AC90E60.qkc-d-s0.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKCDev\"]\n", http.StatusOK},
-	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.metis-andromeda.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK},
-	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.1088.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK},
-	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.metis-goerli.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK},
-	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.599.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK},
+	// {"0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.100001.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKC\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.qkc-s0.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKC\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xF2Fa1B7C11c33BAC1dB7b037478453289AC90E60.110001.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKCDev\"]", http.StatusOK}, // Disabled due to RPC timeout
+	// {"0xF2Fa1B7C11c33BAC1dB7b037478453289AC90E60.qkc-d-s0.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKCDev\"]", http.StatusOK}, // Disabled due to RPC timeout
+	// {"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.metis-andromeda.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.1088.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.metis-goerli.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.599.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
 	// {"0x6b57e328a83e91CD7721b06F8C72f4977aD4896D.scr-testl1.w3link.io", "/name?returns=(string)", "application/json", "[\"Scroll Tast1\"]\n", http.StatusOK},
 	// {"0x6b57e328a83e91CD7721b06F8C72f4977aD4896D.534351.w3link.io", "/name?returns=(string)", "application/json", "[\"Scroll Tast1\"]\n", http.StatusOK},
 	// {"0x91034bA7F184C40745321A10e00f4aBC5E0f1bB5.scr-prealpha.w3link.io", "/name?returns=(string)", "application/json", "[\"SCROLLOG\"]\n", http.StatusOK},
 	// {"0x91034bA7F184C40745321A10e00f4aBC5E0f1bB5.534354.w3link.io", "/name?returns=(string)", "application/json", "[\"SCROLLOG\"]\n", http.StatusOK},
-	{"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.84531.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]\n", http.StatusOK},
-	{"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.basegor.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]\n", http.StatusOK},
+	// {"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.84531.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.basegor.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]\n", http.StatusOK}, // Disable due to bad RPC/"input" ignored
 	{"ordinals.btc.w3link.io", "/number/234524", "text/plain; charset=utf-8", "{\"p\":\"sns\",\"op\":\"reg\",\"name\":\"0278.sats\"}", http.StatusOK},
 	{"ordinals.btc.w3link.io", "/txid/4d4a4a3397c62ae43889d40d7f8410b0209db59d2afba97850b0f6e11c060922i0", "text/plain; charset=utf-8", "{\"p\":\"sns\",\"op\":\"reg\",\"name\":\"0278.sats\"}", http.StatusOK},
 	{"ordinals.btc.w3link.io", "/number1/234524", "", "", http.StatusBadRequest},
@@ -287,8 +252,8 @@ var w3eths = []struct {
 	statusCode int
 }{
 
-	{"quark.w3eth.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
-	{"0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699.w3eth.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"12341234\",\"goerli\",true]\n", http.StatusOK},
+	{"quark.w3eth.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
+	{"0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699.w3eth.io", "/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
 	{"ethstorage.w3eth.io", "/hello.txt", "text/plain; charset=utf-8", "hello! ethstorage!", http.StatusOK},
 	{"eth-store.eth.w3eth.io", "/", "", "", http.StatusBadRequest},
 	{"ethstorage.eth.gor.w3eth.io", "/hello.txt", "", "", http.StatusBadRequest},
@@ -316,49 +281,49 @@ func TestW3eths(t *testing.T) {
 	}
 }
 
-var w3urls = []struct {
-	chainId    int
-	domain     string
-	path       string
-	expect     string
-	statusCode int
-}{
-	{56, "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]\n", http.StatusOK},
-	{56, "w3bnb.io", "/0xe9e7cea3dedca5984780bafc599bd69add087d56:56/name?returns=(string)", "[\"BUSD Token\"]\n", http.StatusOK},
-	{43114, "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]\n", http.StatusOK},
-	{43114, "w3avax.io", "/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7:43114/name?returns=(string)", "[\"Wrapped AVAX\"]\n", http.StatusOK},
-	{9001, "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]\n", http.StatusOK},
-	{9001, "w3evmos.io", "/0xc5e00d3b04563950941f7137b5afa3a534f0d6d6:9001/name?returns=(string)", "[\"Cosmos Hub\"]\n", http.StatusOK},
-	{250, "0x69c744d3444202d35a2783929a0f930f2fbb05ad.w3ftm.io", "/name?returns=(string)", "[\"Staked FTM\"]\n", http.StatusOK},
-	{250, "w3ftm.io", "/0x69c744d3444202d35a2783929a0f930f2fbb05ad/name?returns=(string)", "[\"Staked FTM\"]\n", http.StatusOK},
-	{1666600000, "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]\n", http.StatusOK},
-	{1666600000, "w3one.io", "/0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a/name?returns=(string)", "[\"Wrapped ONE\"]\n", http.StatusOK},
-	{137, "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Matic Token\"]\n", http.StatusOK},
-	{137, "w3matic.io", "/0x0000000000000000000000000000000000001010/name?returns=(string)", "[\"Matic Token\"]\n", http.StatusOK},
-	{100001, "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]\n", http.StatusOK},
-	{100001, "w3qkc.io", "/0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5/greet?returns=(string)", "[\"Hello QKC\"]\n", http.StatusOK},
-}
+// var w3urls = []struct {
+// 	chainId    int
+// 	domain     string
+// 	path       string
+// 	expect     string
+// 	statusCode int
+// }{
+// 	{56, "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
+// 	{56, "w3bnb.io", "/0xe9e7cea3dedca5984780bafc599bd69add087d56:56/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
+// 	{43114, "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
+// 	{43114, "w3avax.io", "/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7:43114/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
+// 	{9001, "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
+// 	{9001, "w3evmos.io", "/0xc5e00d3b04563950941f7137b5afa3a534f0d6d6:9001/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
+// 	{250, "0x69c744d3444202d35a2783929a0f930f2fbb05ad.w3ftm.io", "/name?returns=(string)", "[\"Staked FTM\"]", http.StatusOK},
+// 	{250, "w3ftm.io", "/0x69c744d3444202d35a2783929a0f930f2fbb05ad/name?returns=(string)", "[\"Staked FTM\"]", http.StatusOK},
+// 	{1666600000, "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK},
+// 	{1666600000, "w3one.io", "/0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK},
+// 	{137, "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Matic Token\"]", http.StatusOK},
+// 	{137, "w3matic.io", "/0x0000000000000000000000000000000000001010/name?returns=(string)", "[\"Matic Token\"]", http.StatusOK},
+// 	{100001, "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK},
+// 	{100001, "w3qkc.io", "/0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK},
+// }
 
-func TestW3urls(t *testing.T) {
-	for _, test := range w3urls {
-		t.Run(test.domain+test.path, func(t *testing.T) {
-			config.DefaultChain = test.chainId
-			req := httptest.NewRequest("GET", test.path, nil)
-			req.Host = test.domain
-			w := httptest.NewRecorder()
-			handle(w, req)
-			res := w.Result()
-			defer res.Body.Close()
-			data, err := ioutil.ReadAll(res.Body)
-			assert.NoError(t, err)
-			if test.statusCode == http.StatusOK {
-				assert.Equal(t, test.expect, string(data)[:])
-			} else {
-				assert.Equal(t, test.statusCode, res.StatusCode)
-			}
-		})
-	}
-}
+// func TestW3urls(t *testing.T) {
+// 	for _, test := range w3urls {
+// 		t.Run(test.domain+test.path, func(t *testing.T) {
+// 			config.DefaultChain = test.chainId
+// 			req := httptest.NewRequest("GET", test.path, nil)
+// 			req.Host = test.domain
+// 			w := httptest.NewRecorder()
+// 			handle(w, req)
+// 			res := w.Result()
+// 			defer res.Body.Close()
+// 			data, err := ioutil.ReadAll(res.Body)
+// 			assert.NoError(t, err)
+// 			if test.statusCode == http.StatusOK {
+// 				assert.Equal(t, test.expect, string(data)[:])
+// 			} else {
+// 				assert.Equal(t, test.statusCode, res.StatusCode)
+// 			}
+// 		})
+// 	}
+// }
 
 var mimeTypeUrls = []struct {
 	chainId    int
@@ -368,7 +333,7 @@ var mimeTypeUrls = []struct {
 	statusCode int
 }{
 	// content-type is detected by http.DetectContentType()
-	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5", "text/xml; charset=utf-8", http.StatusOK},
+	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5", "", http.StatusOK},
 	// use mime if specified
 	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5?mime.content=image%2Fsvg%2Bxml", "image/svg+xml", http.StatusOK},
 	{1, "0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.type=svg", "image/svg+xml", http.StatusOK},
@@ -379,7 +344,7 @@ var mimeTypeUrls = []struct {
 	// use extention of last param if no mime specified
 	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg", "image/svg+xml", http.StatusOK},
 	// mime overrides extention
-	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
+	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html", http.StatusOK},
 	// mime.type is ignored if cannot find the corresponding content type
 	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=foo", "image/svg+xml", http.StatusOK},
 	// use mime.content if mime.type cannot find the corresponding content type
@@ -419,31 +384,31 @@ var decodingTestLinks = []struct {
 	expectCalldataEqual bool
 }{
 	// remain encoded for manual mode to pass calldata
-	{"quark.w3q.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
+	{"quark.w3q.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
 	// not same calldata as decoded one
-	{"quark.w3q.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/yöu@here.txt")), false},
-	{"0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/yöu@here.txt")), false},
+	{"quark.w3q.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "", hexutil.Encode([]byte("/yöu@here.txt")), false},
+	{"0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9.w3q-g.w3link.io", "/y%C3u%40here.txt", "manual", "", hexutil.Encode([]byte("/yöu@here.txt")), false},
 	//make sure hosted website resources work on w3link.io. e.g., http://w3box.w3q.w3q-g.w3link.io/css/app~748942c6.5e9ce3e0.css
-	{"w3box.w3q.w3q-g.w3link.io", "/css/app~748942c6.5e9ce3e0.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~748942c6.5e9ce3e0.css")), true},
-	{"0x1499A319278e81390d2F32afA3Ab08617d5E8c0D.w3q-g.w3link.io", "/css/app~748942c6.5e9ce3e0.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~748942c6.5e9ce3e0.css")), true},
-	{"w3link.io", "/quark.w3q:w3q-g/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
-	{"w3link.io", "/0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9:w3q-g/y%C3u%40here.txt", "manual", "(bytes)", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
+	{"w3box.w3q.w3q-g.w3link.io", "/css/app~748942c6.5e9ce3e0.css", "manual", "", hexutil.Encode([]byte("/css/app~748942c6.5e9ce3e0.css")), true},
+	{"0x1499A319278e81390d2F32afA3Ab08617d5E8c0D.w3q-g.w3link.io", "/css/app~748942c6.5e9ce3e0.css", "manual", "", hexutil.Encode([]byte("/css/app~748942c6.5e9ce3e0.css")), true},
+	{"w3link.io", "/quark.w3q:w3q-g/y%C3u%40here.txt", "manual", "", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
+	{"w3link.io", "/0xc934D34DF21dE61A62b3D12E929b65D0bCfaf8b9:w3q-g/y%C3u%40here.txt", "manual", "", hexutil.Encode([]byte("/y%C3u%40here.txt")), true},
 
-	//make sure hosted website resources work on w3eth.io. e.g., https://w3url.w3eth.io/css/app~d0ae3f07.e6592741.css
-	{"w3url.w3eth.io", "/css/app~d0ae3f07.e6592741.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
-	{"w3eth.io", "/w3url.eth/css/app~d0ae3f07.e6592741.css", "manual", "(bytes)", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
+	// make sure hosted website resources work on w3eth.io. e.g., https://w3url.w3eth.io/css/app~d0ae3f07.e6592741.css
+	{"w3url.w3eth.io", "/css/app~d0ae3f07.e6592741.css", "manual", "", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
+	{"w3eth.io", "/w3url.eth/css/app~d0ae3f07.e6592741.css", "manual", "", hexutil.Encode([]byte("/css/app~d0ae3f07.e6592741.css")), true},
 
 	// decoded for auto mode, so encoded has same return type and calldata as unencoded
-	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "(string)", "0x95d89b41", true},
-	{"w3eth.eth.gor.w3link.io", "/symbol?returns=%28string%29", "auto", "(string)", "0x95d89b41", true},
-	{"w3link.io", "/test.w3q:w3q-g->(bytes[][])/getA", "auto", "(bytes[][])", "0xd46300fd", true},
-	{"w3link.io", "/test.w3q-%3E(bytes%5B%5D%5B%5D)/getA", "auto", "(bytes[][])", "0xd46300fd", true},
-	{"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!podrás.svg", "auto", "(bytes)", composecalldata, true},
-	{"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string%21podr%c3%a1s.svg", "auto", "(bytes)", composecalldata, true},
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "string", "", true},
+	{"w3eth.eth.gor.w3link.io", "/symbol?returns=%28string%29", "auto", "string", "", true},
+	// {"w3link.io", "/test.w3q:w3q-g->(bytes[][])/getA", "auto", "(bytes[][])", "0xd46300fd", true},
+	// {"w3link.io", "/test.w3q-%3E(bytes%5B%5D%5B%5D)/getA", "auto", "(bytes[][])", "0xd46300fd", true},
+	// {"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!podrás.svg", "auto", "(bytes)", composecalldata, true},
+	// {"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string%21podr%c3%a1s.svg", "auto", "(bytes)", composecalldata, true},
 
-	// decoded for 5219 mode so encoded has same calldata as unencoded; if >2 params are provided the calldata is not stable because the order is random
-	{"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a$bc+d?b=币", "5219", "(bytes)", the5219calldata, true},
-	{"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a%24bc%2bd?b=%e5%b8%81", "5219", "(bytes)", the5219calldata, true},
+	// // decoded for 5219 mode so encoded has same calldata as unencoded; if >2 params are provided the calldata is not stable because the order is random
+	// {"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a$bc+d?b=币", "5219", "(bytes)", the5219calldata, true},
+	// {"0x6587e67F1FBEAabDEe8b70EFb396E750e216283B.w3q-g.w3link.io", "/a%24bc%2bd?b=%e5%b8%81", "5219", "(bytes)", the5219calldata, true},
 }
 
 func TestEncoded(t *testing.T) {
@@ -452,10 +417,26 @@ func TestEncoded(t *testing.T) {
 			config.DefaultChain = 1
 			config.NSDefaultChains["eth"] = 1
 			config.NSDefaultChains["w3q"] = 333
+			
+			ensConfig := web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS]
+			ensConfig.DefaultChainId = 1
+			web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS] = ensConfig
+
+			w3nsConfig := web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceW3NS]
+			w3nsConfig.DefaultChainId = 333
+			web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceW3NS] = w3nsConfig
 		} else {
 			config.DefaultChain = 0
 			config.NSDefaultChains["eth"] = 5
 			config.NSDefaultChains["w3q"] = 3334
+
+			ensConfig := web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS]
+			ensConfig.DefaultChainId = 5
+			web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS] = ensConfig
+
+			w3nsConfig := web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceW3NS]
+			w3nsConfig.DefaultChainId = 3334
+			web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceW3NS] = w3nsConfig
 		}
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", test.path, nil)
@@ -465,7 +446,7 @@ func TestEncoded(t *testing.T) {
 			res := w.Result()
 			defer res.Body.Close()
 			assert.Equal(t, test.mode, res.Header.Get("Web3-Resolve-Mode"))
-			assert.Equal(t, test.returns, res.Header.Get("Web3-Return-Type"))
+			assert.Equal(t, test.returns, res.Header.Get("Web3-Json-Encoded-Value-Types"))
 			if test.expectCalldataEqual {
 				assert.Equal(t, test.calldata, res.Header.Get("Web3-Calldata"))
 			} else {

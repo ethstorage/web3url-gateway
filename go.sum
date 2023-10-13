@@ -416,6 +416,7 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
+github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/supranational/blst v0.3.11 h1:LyU6FolezeWAhvQk0k6O/d49jqgO52MSDDfYgbeoEm4=
 github.com/supranational/blst v0.3.11/go.mod h1:jZJtfjgudtNl4en1tzwPIV3KjUnQUvG3/j+w+fVonLw=
@@ -456,6 +457,10 @@ github.com/web3-protocol/web3protocol-go v0.0.0-20231013072406-bbdbf224c4d4 h1:F
 github.com/web3-protocol/web3protocol-go v0.0.0-20231013072406-bbdbf224c4d4/go.mod h1:8GRXvajsXc887sD5eFiAT+dnxdhmZF9qbVw8dLoreow=
 github.com/web3-protocol/web3protocol-go v0.0.0-20231013080849-e6f717a529b6 h1:HBWCQPUSPye4QCIltCW2Nv6SREZIA6dg+eU418CpuYw=
 github.com/web3-protocol/web3protocol-go v0.0.0-20231013080849-e6f717a529b6/go.mod h1:8GRXvajsXc887sD5eFiAT+dnxdhmZF9qbVw8dLoreow=
+github.com/web3-protocol/web3protocol-go v0.0.0-20231013085136-9c599e952611 h1:4yfdWhaZq/lcm2RWBtUs1JtC3i8L5tDs+br7Y9h8yJU=
+github.com/web3-protocol/web3protocol-go v0.0.0-20231013085136-9c599e952611/go.mod h1:8GRXvajsXc887sD5eFiAT+dnxdhmZF9qbVw8dLoreow=
+github.com/web3-protocol/web3protocol-go v0.0.0-20231013090851-fdc118e10228 h1:DgYyOTTVv/TUw5EAIdFm0ZKfXYMvo1qDeKqlX56ofdo=
+github.com/web3-protocol/web3protocol-go v0.0.0-20231013090851-fdc118e10228/go.mod h1:8GRXvajsXc887sD5eFiAT+dnxdhmZF9qbVw8dLoreow=
 github.com/willf/bitset v1.1.3/go.mod h1:RjeCKbqT1RxIR/KWY6phxZiaY1IyutSBfGjNPySAYV4=
 github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

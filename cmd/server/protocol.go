@@ -18,7 +18,7 @@ import (
 
 func handle(w http.ResponseWriter, req *http.Request) {
 	h := req.Host
-	path := req.URL.Path
+	path := req.URL.EscapedPath()
 	w.Header().Set("Access-Control-Allow-Origin", config.CORS)
 	if strings.HasPrefix(h, "ordinals.btc.") {
 		handleOrdinals(w, req, path)
@@ -153,9 +153,18 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 	var useSubdomain bool
 	p := path
 	if l <= 2 {
+		// If /xxxx:[chainShortName]/, replace chainShortName by chain id
+		pathParts := strings.Split(p, "/")
+		secondPathPartParts := strings.Split(pathParts[1], ":")
+		if len(secondPathPartParts) == 2 {
+			if chainId, ok := config.Name2Chain[secondPathPartParts[1]]; ok {
+				pathParts[1] = secondPathPartParts[0] + ":" + fmt.Sprintf("%d", chainId)
+				p = strings.Join(pathParts, "/")
+			}
+		}
 		// back compatible with hosted dweb files
-		if strings.HasSuffix(strings.Split(path, "/")[1], ".w3q") {
-			p = strings.Replace(path, ".w3q/", ".w3q:w3q-g/", 1)
+		if strings.HasSuffix(strings.Split(p, "/")[1], ".w3q") {
+			p = strings.Replace(p, ".w3q/", ".w3q:3334/", 1)
 		}
 	}
 	if l == 3 {
@@ -186,7 +195,14 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 			log.Info("invalid contract address")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
-		full := strings.Join(pieces[0:2], ":")
+		name := pieces[0]
+		var chainId string
+		if _, ok := config.Name2Chain[pieces[1]]; ok {
+			chainId = fmt.Sprintf("%d", config.Name2Chain[pieces[1]])
+		} else {
+			chainId = pieces[1]
+		}
+		full := name + ":" + chainId
 		pp := strings.Split(path, "/")
 		if strings.HasSuffix(pp[1], ".w3q") || strings.HasSuffix(pp[1], ".eth") {
 			p = strings.Replace(path, pp[1], full, 1)
@@ -195,14 +211,20 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 		}
 		useSubdomain = true
 	}
-	//e.g. quark.w3q.w3q-g.w3link.io
+	//e.g. quark.w3q.w3q-g.w3link.io, quark.w3q.3334.w3link.io
 	if l == 5 {
-		if config.DefaultChain == 0 {
+		if config.DefaultChain > 0 {
 			log.Info("no tld should be provided when default chain is specified")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
 		name := strings.Join(pieces[0:2], ".")
-		full := name + ":" + pieces[2]
+		var chainId string
+		if _, ok := config.Name2Chain[pieces[2]]; ok {
+			chainId = fmt.Sprintf("%d", config.Name2Chain[pieces[2]])
+		} else {
+			chainId = pieces[2]
+		}
+		full := name + ":" + chainId
 		if strings.Index(path, "/"+name+"/") == 0 {
 			// append chain short name to hosted dweb files
 			p = strings.Replace(path, "/"+name+"/", "/"+full+"/", 1)
