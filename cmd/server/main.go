@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -13,7 +12,9 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 
-	"github.com/ethstorage/web3url-gateway/pkg/web3protocol"
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/web3-protocol/web3protocol-go"
 )
 
 var (
@@ -22,7 +23,6 @@ var (
 	versionCheck                  = flag.Bool("version", false, "print version of web3url server")
 	dbToken                       = flag.String("dbToken", "", "influxDB auth token")
 	cacheDurationMinutes          = flag.Int("cacheDurationMinutes", 60, "cache duration in minutes; default to 60")
-	nameAddrCache                 *localCache
 	writeAPI                      api.WriteAPIBlocking
 	certificateFile               = stringFlags{}
 	keyFile                       = stringFlags{}
@@ -32,6 +32,7 @@ var (
 	cors                          = stringFlags{value: "*"}
 	nsInfos, chainInfos, nsChains arrayFlags
 	config                        Web3Config
+	web3protocolClient            *web3protocol.Client
 	majorVersion                  = "0"
 	minorVersion                  = "2"
 	patchVersion                  = "0"
@@ -54,10 +55,11 @@ func initConfig() {
 	flag.Var(&homePage, "homePage", "home page address")
 	flag.Var(&cors, "cors", "comma separated list of domains from which to accept cross origin requests")
 	flag.Parse()
+
 	// read from config file
 	config = Web3Config{}
 	config.NSDefaultChains = make(map[string]int)
-	config.ChainConfigs = make(map[int]web3protocol.ChainConfig)
+	config.ChainConfigs = make(map[int]ChainConfig)
 	config.Name2Chain = make(map[string]int)
 	config.Verbosity = *verbosity
 	err := loadConfig(*configurationFile, &config)
@@ -99,10 +101,10 @@ func initConfig() {
 			log.Fatalf("Unable to parse %v as an integer\n", ss[0])
 			return
 		}
-		config.ChainConfigs[chainId] = web3protocol.ChainConfig{
+		config.ChainConfigs[chainId] = ChainConfig{
 			ChainID:  chainId,
 			RPC:      ss[2],
-			NSConfig: make(map[string]web3protocol.NameServiceInfo),
+			NSConfig: make(map[string]NameServiceInfo),
 		}
 		config.Name2Chain[ss[1]] = chainId
 	}
@@ -112,7 +114,7 @@ func initConfig() {
 			log.Fatalf("Expect 4 fields in nsInfo but got %v\n:%v", len(ss), ss)
 			return
 		}
-		if _, ok := nsTypeMapping[ss[2]]; !ok {
+		if ss[2] != web3protocol.DomainNameServiceENS && ss[2] != web3protocol.DomainNameServiceW3NS {
 			log.Fatalf("Unknown nsType %v\n", ss[2])
 			return
 		}
@@ -125,7 +127,7 @@ func initConfig() {
 			log.Fatalf("Unsupport chainID %v\n", ss[0])
 			return
 		}
-		config.ChainConfigs[chainId].NSConfig[ss[1]] = web3protocol.NameServiceInfo{
+		config.ChainConfigs[chainId].NSConfig[ss[1]] = NameServiceInfo{
 			NSType: web3protocol.DomainNameService(ss[2]),
 			NSAddr: ss[3],
 		}
@@ -144,12 +146,76 @@ func initConfig() {
 	}
 }
 
+func initWeb3protocolClient() {
+	// Prepare config
+	web3pConfig := web3protocol.Config{
+		Chains: map[int]web3protocol.ChainConfig{},
+		DomainNameServices: map[web3protocol.DomainNameService]web3protocol.DomainNameServiceConfig{},
+	}
+
+	for _, chainConfig := range config.ChainConfigs {
+		// Config the chain
+		web3pChainConfig := web3protocol.ChainConfig{
+			ChainId: chainConfig.ChainID,
+			RPC: chainConfig.RPC,
+			DomainNameServices: map[web3protocol.DomainNameService]web3protocol.DomainNameServiceChainConfig{},
+		}
+
+		// Config the domain name service in chain, and deduce global infos about the domain name service
+		for suffix, nsConfig := range chainConfig.NSConfig {
+			web3pChainConfig.DomainNameServices[nsConfig.NSType] = web3protocol.DomainNameServiceChainConfig{
+					Id: nsConfig.NSType,
+					ResolverAddress: common.HexToAddress(nsConfig.NSAddr),
+				};
+
+			if _, ok := web3pConfig.DomainNameServices[nsConfig.NSType]; !ok {
+				web3pConfig.DomainNameServices[nsConfig.NSType] = web3protocol.DomainNameServiceConfig{
+					Id: nsConfig.NSType,
+					Suffix: suffix,
+				}
+			}
+		}
+
+		// Add to list of chains
+		web3pConfig.Chains[web3pChainConfig.ChainId] = web3pChainConfig
+	}
+
+	// Fill short names in chain configs
+	for shortName, chainId := range config.Name2Chain {
+		web3pChainConfig, ok := web3pConfig.Chains[chainId]
+		if !ok {
+			log.Fatalf("Chain short name %v is defined, but his chain is not\n", shortName)
+			return
+		}
+		web3pChainConfig.ShortName = shortName
+		web3pConfig.Chains[chainId] = web3pChainConfig
+	}
+
+	// Fill default chains in domain name service configs
+	for suffix, defaultChainId := range config.NSDefaultChains {
+		domainNameService := web3pConfig.GetDomainNameServiceBySuffix(suffix)
+		if domainNameService == "" {
+			log.Fatalf("A default chain id is specified for domain name service whose extension is %v, but no chain use this domain name service\n", suffix)
+			return
+		}
+		web3pDomainNameServiceConfig := web3pConfig.DomainNameServices[domainNameService]
+		web3pDomainNameServiceConfig.DefaultChainId = defaultChainId
+		web3pConfig.DomainNameServices[domainNameService] = web3pDomainNameServiceConfig
+	}
+
+	// Setup name address cache to 10 minutes, hardocded
+	web3pConfig.NameAddrCacheDurationInMinutes = 10
+
+	// Create the web3:// client
+	web3protocolClient = web3protocol.NewClient(&web3pConfig)
+}
+
 func initStats() {
 	if len(*dbToken) > 0 {
 		client := influxdb2.NewClient("http://localhost:8086", *dbToken)
 		writeAPI = client.WriteAPIBlocking("web3q", "bucket0")
 		defer client.Close()
-		nameAddrCache.setTracer(writeAPI)
+		web3protocolClient.DomainNameResolutionCache.SetTracer(writeAPI)
 	}
 }
 
@@ -158,9 +224,8 @@ func main() {
 		fmt.Println("web3url server version", versionInfo())
 		return
 	}
-	// cleanup per hour
-	nameAddrCache = newLocalCache(time.Duration(*cacheDurationMinutes)*time.Minute, 10*time.Minute)
 	initConfig()
+	initWeb3protocolClient()
 	initStats()
 	log.SetLevel(log.Level(config.Verbosity))
 	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
