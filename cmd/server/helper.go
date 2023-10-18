@@ -152,3 +152,23 @@ func getChainById(chainId string) string {
 	}
 	return chainId
 }
+
+// For a given hostname with a chain short name, replace by its chaid id. Examples:
+// uniswap.eth:gor -> uniswap.eth:5
+// uniswap.eth:5 -> uniswap.eth:5
+// uniswap.eth -> uniswap.eth
+func hostChangeChainShortNameToId(host string) (string) {
+	hostParts := strings.Split(host, ":")
+	if len(hostParts) == 1 {
+		return hostParts[0]
+	}
+
+	var chainId string
+	if _, ok := config.Name2Chain[hostParts[1]]; ok {
+		chainId = fmt.Sprintf("%d", config.Name2Chain[hostParts[1]])
+	} else {
+		chainId = hostParts[1]
+	}
+
+	return hostParts[0] + ":" + chainId
+}

@@ -136,45 +136,56 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 // e.g.,
 // 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io
 // quark.w3q.w3q-g.w3link.io
-func handleSubdomain(host string, path string) (string, bool, error) {
+func handleSubdomain(host string, path string) (p string, useSubdomain bool, err error) {
 	log.Info(host + path)
+
+	// Remove port from end of host
 	if strings.Index(host, ":") > 0 {
 		host = host[0:strings.Index(host, ":")]
 	}
+	// Do not authorize being called with an IP address
 	if net.ParseIP(host) != nil {
-		// ban ip addresses
 		return "", false, fmt.Errorf("invalid subdomain")
 	}
-	pieces := strings.Split(host, ".")
-	l := len(pieces)
-	if l > 5 {
+
+	hostParts := strings.Split(host, ".")
+	hostPartsCount := len(hostParts)
+	if hostPartsCount > 5 {
 		log.Info("subdomain too long")
 		return "", false, fmt.Errorf("invalid subdomain")
 	}
-	var useSubdomain bool
-	p := path
-	if l <= 2 {
-		// If /xxxx:[chainShortName]/, replace chainShortName by chain id
+	
+	p = path
+
+	// https://[gateway-host].[gateway-tld]/[web3-hex-address | web3-host]
+	// Examples:
+	// https://localhost/quark.w3q/index.txt -> web3://quark.w3q/index.txt
+	// https://w3eth.io/quark.w3q/index.txt -> web3://quark.w3q/index.txt
+	if hostPartsCount <= 2 {
+		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
 		pathParts := strings.Split(p, "/")
-		secondPathPartParts := strings.Split(pathParts[1], ":")
-		if len(secondPathPartParts) == 2 {
-			if chainId, ok := config.Name2Chain[secondPathPartParts[1]]; ok {
-				pathParts[1] = secondPathPartParts[0] + ":" + fmt.Sprintf("%d", chainId)
-				p = strings.Join(pathParts, "/")
-			}
-		}
+		pathParts[1] = hostChangeChainShortNameToId(pathParts[1])
+		p = strings.Join(pathParts, "/")
+
 		// back compatible with hosted dweb files
 		if strings.HasSuffix(strings.Split(p, "/")[1], ".w3q") {
 			p = strings.Replace(p, ".w3q/", ".w3q:3334/", 1)
 		}
 	}
-	if l == 3 {
+
+	// https://[web3-hex-address | web3-host-name].[gateway-host].[gateway-tld]
+	// These URLs require a default chain specified in config. Examples, with default chain id == 1:
+	// https://quark.w3eth.io/index.txt -> web3://quark.eth/index.txt ("eth" deduced as 
+	//   the default domain name service TLD from config)
+	// https://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699.w3eth.io/index.txt -> 
+	//   web3://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:1/index.txt
+	if hostPartsCount == 3 {
 		if config.DefaultChain == 0 {
 			return "", false, fmt.Errorf("default chain is not specified")
 		}
-		if common.IsHexAddress(pieces[0]) {
+		if common.IsHexAddress(hostParts[0]) {
 			//e.g. 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io/name?returns=(string)
-			p = "/" + pieces[0] + ":" + strconv.Itoa(config.DefaultChain) + path
+			p = "/" + hostParts[0] + ":" + strconv.Itoa(config.DefaultChain) + path
 		} else {
 			//e.g. quark.w3eth.io
 			suffix, err := getDefaultNSSuffix()
@@ -182,7 +193,8 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 				log.Info(err.Error())
 				return "", false, fmt.Errorf("invalid subdomain")
 			}
-			name := pieces[0] + "." + suffix
+			name := hostParts[0] + "." + suffix
+
 			// back compatible with hosted dweb files
 			if !strings.Contains(path, "/"+name+"/") {
 				p = "/" + name + path
@@ -190,20 +202,20 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 		}
 		useSubdomain = true
 	}
-	// e.g. 0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io
-	if l == 4 {
-		if !common.IsHexAddress(pieces[0]) {
+
+	// https://[web3-hex-address].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
+	// Examples:
+	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io/index.txt -> web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/index.txt
+	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io/index.txt -> web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/index.txt
+	if hostPartsCount == 4 {
+		if !common.IsHexAddress(hostParts[0]) {
 			log.Info("invalid contract address")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
-		name := pieces[0]
-		var chainId string
-		if _, ok := config.Name2Chain[pieces[1]]; ok {
-			chainId = fmt.Sprintf("%d", config.Name2Chain[pieces[1]])
-		} else {
-			chainId = pieces[1]
-		}
-		full := name + ":" + chainId
+
+		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
+		full := hostChangeChainShortNameToId(hostParts[0] + ":" + hostParts[1])
+
 		pp := strings.Split(path, "/")
 		if strings.HasSuffix(pp[1], ".w3q") || strings.HasSuffix(pp[1], ".eth") {
 			p = strings.Replace(path, pp[1], full, 1)
@@ -212,20 +224,21 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 		}
 		useSubdomain = true
 	}
-	//e.g. quark.w3q.w3q-g.w3link.io, quark.w3q.3334.w3link.io
-	if l == 5 {
+
+	// https://[web3-host-name].[web3-host-tld].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
+	// Examples:
+	// https://quark.w3q.3334.w3link.io/index.txt -> web3://quark.w3q:3334/index.txt
+	// https://quark.w3q.w3q-g.w3link.io/index.txt -> web3://quark.w3q:3334/index.txt
+	if hostPartsCount == 5 {
 		if config.DefaultChain > 0 {
 			log.Info("no tld should be provided when default chain is specified")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
-		name := strings.Join(pieces[0:2], ".")
-		var chainId string
-		if _, ok := config.Name2Chain[pieces[2]]; ok {
-			chainId = fmt.Sprintf("%d", config.Name2Chain[pieces[2]])
-		} else {
-			chainId = pieces[2]
-		}
-		full := name + ":" + chainId
+
+		name := hostParts[0] + "." + hostParts[1]
+		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
+		full := hostChangeChainShortNameToId(name + ":" + hostParts[2])
+
 		if strings.Index(path, "/"+name+"/") == 0 {
 			// append chain short name to hosted dweb files
 			p = strings.Replace(path, "/"+name+"/", "/"+full+"/", 1)
@@ -235,5 +248,6 @@ func handleSubdomain(host string, path string) (string, bool, error) {
 		useSubdomain = true
 	}
 	log.Info("=>", p)
+
 	return p, useSubdomain, nil
 }

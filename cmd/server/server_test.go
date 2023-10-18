@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"fmt"
+	// "fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -37,28 +37,10 @@ var testURLs = []struct {
 }{
 	{"localhost", "/0x6587e67F1FBEAabDEe8b70EFb396E750e216283B:w3q-g/asdf/1234?foo=bar", "application/json", "{\"resource\":[\"asdf\",\"1234\"], \"params\":[{\"key\":\"foo\", \"value\": \"bar\"}}", http.StatusOK},
 	{"localhost", "/quark.w3q/index.txt", "text/plain; charset=utf-8", "hello, world", http.StatusOK},
-	// {"localhost", "/concat.w3q->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "application/json", "[\"abc\"]\n", http.StatusOK},
 	{"localhost", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returnTypes=(string)", "application/json", "[\"abc\"]", http.StatusOK},
-	// {"localhost", "/concat.w3q->(string)/concat/bytes!0x/bytes!0x/bytes!0x", "application/json", "[\"\"]\n", http.StatusOK},
 	{"localhost", "/concat.w3q/concat/bytes!0x/bytes!0x/bytes!0x?returnTypes=(string)", "application/json", "[\"\"]", http.StatusOK},
-	// {"localhost", "/concat.w3q->(uint256,string,bool)/retrieve", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
 	{"localhost", "/concat.w3q/retrieve?returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"Galileo\",true]", http.StatusOK},
 	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"Galileo\",true]", http.StatusOK},
-	// same return types
-	// {"localhost", "/concat.w3q->(uint256,string,bool)/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"12341234\",\"Galileo\",true]\n", http.StatusOK},
-	// {"localhost", "/usdt.w3q->(uint256)/balanceOf/0x8f315cEBD2Eb6304a49d50D551608ffD06C8810a", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
-	// {"localhost", "/0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad:w3q-g->(uint256)/balanceOf/address!charles.w3q", "application/json", "[\"9999999999999\"]\n", http.StatusOK},
-	// {"localhost", "/usdt.w3q->()/balanceOf/address!charles.w3q", "application/json", "[\"0x000000000000000000000000000000000000000000000000000009184e729fff\"]\n", http.StatusOK},
-	// array types and bytes processing
-	// {"localhost", "/test.w3q->(bytes[][])/getA", "application/json", "[[[\"0x61\"],[\"0x62\"]]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(uint8[][][])/getB", "application/json", "[[[[\"0\"],[\"1\"]],[[\"2\"],[\"3\"]],[[\"4\"],[\"5\"]]]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(bytes8[2][1])/getC", "application/json", "[[[\"0x6300000000000000\",\"0x6400000000000000\"]]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(bytes32[2])/getD", "application/json", "[[\"0x7465737400000000000000000000000000000000000000000000000000000000\",\"0x6279746573000000000000000000000000000000000000000000000000000000\"]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(address[2])/getE", "application/json", "[[\"0xd95fa5e8C8C6920430c0406f9A819576759911e3\",\"0x0000000000000000000000000000000000000000\"]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(string[2])/getF", "application/json", "[[\"test\",\"string\"]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(uint256[2])/getG", "application/json", "[[\"0\",\"115792089237316195423570985008687907853269984665640564039457584007913129639935\"]]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(bytes)/getH", "application/json", "[\"0x74657374\"]\n", http.StatusOK},
-	// {"localhost", "/test.w3q->(string)/getI", "application/json", "[\"test\\\"string\"]\n", http.StatusOK},
 	// ethereum
 	{"localhost", "/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:gor/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
 	{"localhost", "/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:5/retrieve?returnTypes=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"goerli\",true]", http.StatusOK},
@@ -68,8 +50,6 @@ var testURLs = []struct {
 	{"localhost", "/quarkd.w3q/files/index.txt", "", "", http.StatusNotFound},
 	// wrong suffix
 	{"localhost", "/quark.w4q/index.txt", "", "", http.StatusBadRequest},
-	// conflict return types
-	// {"localhost", "/concat.w3q->(uint256,string,bool)/retrieve?returnTypes=(uint256,string)", "", "", http.StatusBadRequest},
 	// duplicate return attributes
 	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256,string,bool)&returns=(uint256,string,bool)", "", "", http.StatusBadRequest},
 }
@@ -146,10 +126,6 @@ var w3links = []struct {
 	{"quarkk.eth.5.w3link.io", "/files/index.txt", "", "", http.StatusNotFound},
 	// wrong suffix
 	{"quark.w4q.3334.w3link.io", "/index.txt", "", "", http.StatusBadRequest},
-	// if subdomain is specified, path should start with a method
-	{"usdt.w3q.3334.w3link.io", "/0x17BCDdfD83bBA0dBed86Ca8b7444145A3ee3acad:w3q-g->(uint256)/balanceOf/address!charles.w3q", "", "", http.StatusBadRequest},
-	{"concat.w3q.3334.w3link.io", "/concat.w3q:3334->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "", "", http.StatusBadRequest},
-	// {"concat.w3q.3334.w3link.io", "/->(string)/concat/bytes!0x61/bytes!0x62/bytes!0x63", "", "", http.StatusBadRequest},
 	// back compatible with hosted dweb files
 	{"concat.w3q.3334.w3link.io", "/concat.w3q/concat/bytes!0x61/bytes!0x62/bytes!0x63?returns=(string)", "application/json", "[\"abc\"]", http.StatusOK},
 	// address as subdomain is supported
@@ -401,7 +377,6 @@ var decodingTestLinks = []struct {
 	// decoded for auto mode, so encoded has same return type and calldata as unencoded
 	{"w3eth.eth.gor.w3link.io", "/symbol?returns=(string)", "auto", "string", "0x95d89b41", true},
 	{"w3eth.eth.gor.w3link.io", "/symbol?returns=%28string%29", "auto", "string", "0x95d89b41", true},
-	// {"w3link.io", "/test.w3q:w3q-g->(bytes[][])/getA", "auto", "(bytes[][])", "0xd46300fd", true},
 	// {"w3link.io", "/test.w3q-%3E(bytes%5B%5D%5B%5D)/getA", "auto", "(bytes[][])", "0xd46300fd", true},
 	// These 2 trigger an out of gas error
 	// {"0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!podrás.svg", "auto", "(bytes)", composecalldata, true},

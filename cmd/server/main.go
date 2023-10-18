@@ -203,8 +203,8 @@ func initWeb3protocolClient() {
 		web3pConfig.DomainNameServices[domainNameService] = web3pDomainNameServiceConfig
 	}
 
-	// Setup name address cache to 10 minutes, hardocded
-	web3pConfig.NameAddrCacheDurationInMinutes = 10
+	// Setup name address cache
+	web3pConfig.NameAddrCacheDurationInMinutes = *cacheDurationMinutes
 
 	// Create the web3:// client
 	web3protocolClient = web3protocol.NewClient(&web3pConfig)
