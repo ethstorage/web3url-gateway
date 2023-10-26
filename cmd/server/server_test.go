@@ -50,8 +50,8 @@ var testURLs = []struct {
 	{"localhost", "/quarkd.w3q/files/index.txt", "", "", http.StatusNotFound},
 	// wrong suffix
 	{"localhost", "/quark.w4q/index.txt", "", "", http.StatusBadRequest},
-	// duplicate return attributes
-	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256,string,bool)&returns=(uint256,string,bool)", "", "", http.StatusBadRequest},
+	// duplicate return attributes: Last one is used
+	{"localhost", "/concat.w3q/retrieve?returnTypes=(uint256)&returns=(uint256,string,bool)", "application/json", "[\"0xbc4ff2\",\"Galileo\",true]", http.StatusOK},
 }
 
 func TestHandle(t *testing.T) {
@@ -308,7 +308,6 @@ var mimeTypeUrls = []struct {
 	mt         string
 	statusCode int
 }{
-	// content-type is detected by http.DetectContentType()
 	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5", "", http.StatusOK},
 	// use mime if specified
 	{1, "cyberbrokers-meta.w3eth.io", "/renderBroker/5?mime.content=image%2Fsvg%2Bxml", "image/svg+xml", http.StatusOK},
@@ -320,7 +319,7 @@ var mimeTypeUrls = []struct {
 	// use extention of last param if no mime specified
 	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg", "image/svg+xml", http.StatusOK},
 	// mime overrides extention
-	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html", http.StatusOK},
+	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
 	// mime.type is ignored if cannot find the corresponding content type
 	{3334, "0x804a6b66b071e7e6494ae0e03768a536ded64262.w3q-g.w3link.io", "/compose/string!10.svg?mime.type=foo", "image/svg+xml", http.StatusOK},
 	// use mime.content if mime.type cannot find the corresponding content type
@@ -331,6 +330,9 @@ func TestMimeTypes(t *testing.T) {
 	for _, test := range mimeTypeUrls {
 		config.DefaultChain = test.chainId
 		config.NSDefaultChains["eth"] = 1
+		ensConfig := web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS]
+		ensConfig.DefaultChainId = 1
+		web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS] = ensConfig
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			req := httptest.NewRequest("GET", test.path, nil)
 			req.Host = test.domain

@@ -172,7 +172,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	if hostPartsCount <= 2 {
 		pathParts := strings.Split(p, "/")
 		// If no chain id, and we have a defaultChain : set it
-		if len(strings.Split(pathParts[1], ":")) == 1 && config.DefaultChain > 0 {
+		if len(strings.Split(pathParts[1], ":")) == 1 && config.DefaultChain > 1 {
 			pathParts[1] = pathParts[1] + ":" + strconv.Itoa(config.DefaultChain)
 		}
 		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
