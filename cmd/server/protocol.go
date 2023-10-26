@@ -54,6 +54,13 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
 		w.Header().Set(httpHeaderName, httpHeaderValue)
 	}
+	// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+	// it will add his own Content-Type: text/xml; charset=utf-8
+	if w.Header().Get("Content-Type") == "" {
+		// Best thing would be to remove the content-type header, but looks like we can 
+		// only set it to empty. This code looks weird but it works.
+		w.Header().Set("Content-Type", "")
+	}
 
 	// Add some debug headers
 	parsedWeb3Url := fetchedWeb3Url.ParsedUrl
@@ -161,9 +168,14 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	// Examples:
 	// https://localhost/quark.w3q/index.txt -> web3://quark.w3q/index.txt
 	// https://w3eth.io/quark.w3q/index.txt -> web3://quark.w3q/index.txt
+	// https://w3bnb.io/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699/index.txt (with defaultChain = 56) -> web3://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:56/index.txt
 	if hostPartsCount <= 2 {
-		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
 		pathParts := strings.Split(p, "/")
+		// If no chain id, and we have a defaultChain : set it
+		if len(strings.Split(pathParts[1], ":")) == 1 && config.DefaultChain > 0 {
+			pathParts[1] = pathParts[1] + ":" + strconv.Itoa(config.DefaultChain)
+		}
+		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
 		pathParts[1] = hostChangeChainShortNameToId(pathParts[1])
 		p = strings.Join(pathParts, "/")
 

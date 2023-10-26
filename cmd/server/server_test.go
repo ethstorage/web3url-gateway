@@ -78,7 +78,7 @@ func TestHandle(t *testing.T) {
 func TestServer(t *testing.T) {
 	for _, test := range testURLs {
 		t.Run(test.path, func(t *testing.T) {
-			resp, err := http.Get("http://localhost:9999" + test.path)
+			resp, err := http.Get("http://localhost:" + config.ServerPort + test.path)
 			assert.NoError(t, err)
 			defer resp.Body.Close()
 			data, err := ioutil.ReadAll(resp.Body)
@@ -257,49 +257,49 @@ func TestW3eths(t *testing.T) {
 	}
 }
 
-// var w3urls = []struct {
-// 	chainId    int
-// 	domain     string
-// 	path       string
-// 	expect     string
-// 	statusCode int
-// }{
-// 	{56, "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
-// 	{56, "w3bnb.io", "/0xe9e7cea3dedca5984780bafc599bd69add087d56:56/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
-// 	{43114, "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
-// 	{43114, "w3avax.io", "/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7:43114/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
-// 	{9001, "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
-// 	{9001, "w3evmos.io", "/0xc5e00d3b04563950941f7137b5afa3a534f0d6d6:9001/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
-// 	{250, "0x69c744d3444202d35a2783929a0f930f2fbb05ad.w3ftm.io", "/name?returns=(string)", "[\"Staked FTM\"]", http.StatusOK},
-// 	{250, "w3ftm.io", "/0x69c744d3444202d35a2783929a0f930f2fbb05ad/name?returns=(string)", "[\"Staked FTM\"]", http.StatusOK},
-// 	{1666600000, "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK},
-// 	{1666600000, "w3one.io", "/0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK},
-// 	{137, "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Matic Token\"]", http.StatusOK},
-// 	{137, "w3matic.io", "/0x0000000000000000000000000000000000001010/name?returns=(string)", "[\"Matic Token\"]", http.StatusOK},
-// 	{100001, "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK},
-// 	{100001, "w3qkc.io", "/0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK},
-// }
+var w3urls = []struct {
+	chainId    int
+	domain     string
+	path       string
+	expect     string
+	statusCode int
+}{
+	{56, "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
+	{56, "w3bnb.io", "/0xe9e7cea3dedca5984780bafc599bd69add087d56:56/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
+	{43114, "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
+	{43114, "w3avax.io", "/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7:43114/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
+	{9001, "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
+	{9001, "w3evmos.io", "/0xc5e00d3b04563950941f7137b5afa3a534f0d6d6:9001/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
+	{250, "0x69c744d3444202d35a2783929a0f930f2fbb05ad.w3ftm.io", "/name?returns=(string)", "[\"Staked FTM\"]", http.StatusOK},
+	{250, "w3ftm.io", "/0x69c744d3444202d35a2783929a0f930f2fbb05ad/name?returns=(string)", "[\"Staked FTM\"]", http.StatusOK},
+	// {1666600000, "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {1666600000, "w3one.io", "/0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	{137, "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Matic Token\"]", http.StatusOK},
+	{137, "w3matic.io", "/0x0000000000000000000000000000000000001010/name?returns=(string)", "[\"Matic Token\"]", http.StatusOK},
+	// {100001, "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+	// {100001, "w3qkc.io", "/0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK}, // Disable due to bad RPC/"input" ignored
+}
 
-// func TestW3urls(t *testing.T) {
-// 	for _, test := range w3urls {
-// 		t.Run(test.domain+test.path, func(t *testing.T) {
-// 			config.DefaultChain = test.chainId
-// 			req := httptest.NewRequest("GET", test.path, nil)
-// 			req.Host = test.domain
-// 			w := httptest.NewRecorder()
-// 			handle(w, req)
-// 			res := w.Result()
-// 			defer res.Body.Close()
-// 			data, err := ioutil.ReadAll(res.Body)
-// 			assert.NoError(t, err)
-// 			if test.statusCode == http.StatusOK {
-// 				assert.Equal(t, test.expect, string(data)[:])
-// 			} else {
-// 				assert.Equal(t, test.statusCode, res.StatusCode)
-// 			}
-// 		})
-// 	}
-// }
+func TestW3urls(t *testing.T) {
+	for _, test := range w3urls {
+		t.Run(test.domain+test.path, func(t *testing.T) {
+			config.DefaultChain = test.chainId
+			req := httptest.NewRequest("GET", test.path, nil)
+			req.Host = test.domain
+			w := httptest.NewRecorder()
+			handle(w, req)
+			res := w.Result()
+			defer res.Body.Close()
+			data, err := ioutil.ReadAll(res.Body)
+			assert.NoError(t, err)
+			if test.statusCode == http.StatusOK {
+				assert.Equal(t, test.expect, string(data)[:])
+			} else {
+				assert.Equal(t, test.statusCode, res.StatusCode)
+			}
+		})
+	}
+}
 
 var mimeTypeUrls = []struct {
 	chainId    int
