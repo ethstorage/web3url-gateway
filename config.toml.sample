@@ -170,4 +170,4 @@ defaultChain = 0
 
     [chainConfigs.333]
     "ChainID" = 333
-    "RPC" = "http://65.109.63.154:9545"
+    "RPC" = "http://88.99.30.186:9545"
