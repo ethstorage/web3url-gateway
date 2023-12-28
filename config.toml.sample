@@ -168,6 +168,6 @@ defaultChain = ""
     "ChainID" = "84531"
     "RPC" = "https://goerli.base.org"
 
-    [chainConfigs."333"]
-    "ChainID" = "333"
+    [chainConfigs."3333"]
+    "ChainID" = "3333"
     "RPC" = "http://65.109.63.154:9545"
