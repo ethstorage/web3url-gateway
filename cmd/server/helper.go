@@ -3,22 +3,18 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
-	"reflect"
 	"strings"
 	"time"
+	"strconv"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/naoina/toml"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/web3-protocol/web3protocol-go"
 )
 
 type Web3Config struct {
@@ -26,37 +22,24 @@ type Web3Config struct {
 	Verbosity       int
 	CertificateFile string
 	KeyFile         string
-	DefaultChain    string
+	DefaultChain    int
 	HomePage        string
 	CORS            string
-	NSDefaultChains map[string]string
-	Name2Chain      map[string]string
-	ChainConfigs    map[string]ChainConfig
+	NSDefaultChains map[string]int
+	Name2Chain      map[string]int
+	ChainConfigs    map[int]ChainConfig
 }
 
 type NameServiceInfo struct {
-	NSType NameServiceType
+	NSType web3protocol.DomainNameService
 	NSAddr string
 }
 
 type ChainConfig struct {
-	ChainID  string
+	ChainID  int
 	RPC      string
 	NSConfig map[string]NameServiceInfo
 }
-
-type Web3Error struct {
-	code int
-	err  string
-}
-
-func (e *Web3Error) Error() string {
-	return e.err
-}
-
-func (e *Web3Error) HasError() bool { return e.code != 0 }
-
-type NameServiceType int
 
 type arrayFlags []string
 
@@ -74,12 +57,6 @@ type stringFlags struct {
 	value string
 }
 
-type ArgInfo struct {
-	methodSignature string
-	mimeType        string
-	calldata        string
-}
-
 func (sf *stringFlags) String() string {
 	return sf.value
 }
@@ -89,8 +66,6 @@ func (sf *stringFlags) Set(value string) error {
 	sf.set = true
 	return nil
 }
-
-var NoWeb3Error = Web3Error{}
 
 // loadConfig loads the TOML config file from provided path if it exists
 func loadConfig(file string, cfg *Web3Config) error {
@@ -113,90 +88,10 @@ func loadConfig(file string, cfg *Web3Config) error {
 	return err
 }
 
-// has0xPrefix validates str begins with '0x' or '0X'.
-func has0xPrefix(str string) bool {
-	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
-}
 
-// isHexCharacter returns bool of c being a valid hexadecimal.
-func isHexCharacter(c byte) bool {
-	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
-}
-
-// isHex validates whether each byte is valid hexadecimal string.
-func isHex(str string) bool {
-	if len(str)%2 != 0 {
-		return false
-	}
-	for _, c := range []byte(str) {
-		if !isHexCharacter(c) {
-			return false
-		}
-	}
-	return true
-}
-
-// convert the value to json string recursively, use "0x" hex string for bytes, use string for numbers
-func toJSON(arg abi.Type, value interface{}) interface{} {
-	switch arg.T {
-	case abi.IntTy, abi.UintTy, abi.FixedPointTy, abi.AddressTy:
-		return fmt.Sprintf("%v", value)
-	case abi.BytesTy, abi.FixedBytesTy, abi.HashTy:
-		return fmt.Sprintf("0x%x", value)
-	case abi.SliceTy, abi.ArrayTy:
-		ty, _ := abi.NewType(arg.Elem.String(), "", nil)
-		tv := make([]interface{}, 0)
-		rv := reflect.ValueOf(value)
-		for i := 0; i < rv.Len(); i++ {
-			tv = append(tv, toJSON(ty, rv.Index(i).Interface()))
-		}
-		return tv
-	default:
-		return value
-	}
-}
-
-func callContract(contract common.Address, chain string, calldata []byte) ([]byte, Web3Error) {
-	msg := ethereum.CallMsg{
-		From:      common.HexToAddress("0x0000000000000000000000000000000000000000"),
-		To:        &contract,
-		Gas:       0,
-		GasPrice:  nil,
-		GasFeeCap: nil,
-		GasTipCap: nil,
-		Data:      calldata,
-		Value:     nil,
-	}
-	client, linkErr := ethclient.Dial(config.ChainConfigs[chain].RPC)
-	if linkErr != nil {
-		log.Info("Dial failed: ", linkErr.Error())
-		return nil, Web3Error{http.StatusNotFound, linkErr.Error()}
-	}
-	defer client.Close()
-	bs, err := handleCallContract(*client, msg)
-	if err.HasError() {
-		return nil, err
-	}
-	log.Info("return data len: ", len(bs))
-	log.Debug("return data: 0x", hex.EncodeToString(bs))
-	return bs, NoWeb3Error
-}
-
-func handleCallContract(client ethclient.Client, msg ethereum.CallMsg) ([]byte, Web3Error) {
-	bs, err := client.CallContract(context.Background(), msg, nil)
-	if err != nil {
-		if err.Error() == "execution reverted" {
-			return nil, Web3Error{http.StatusBadRequest, err.Error()}
-		} else {
-			log.Debug(err)
-			return nil, Web3Error{http.StatusInternalServerError, "internal server error"}
-		}
-	}
-	return bs, NoWeb3Error
-}
 
 func getDefaultNSSuffix() (string, error) {
-	if len(config.DefaultChain) == 0 {
+	if config.DefaultChain == 0 {
 		return "", fmt.Errorf("default chain is not specified")
 	}
 	chainConfig, ok := config.ChainConfigs[config.DefaultChain]
@@ -210,7 +105,7 @@ func getDefaultNSSuffix() (string, error) {
 	return "", fmt.Errorf("cannot find ns config for default chain %v", config.DefaultChain)
 }
 
-func stats(returnSize int, hostPort, targetChain, nsType, path, host string) {
+func stats(returnSize int, hostPort string, targetChain string, nsType, path, host string) {
 	point := influxdb2.NewPointWithMeasurement("w3stats").
 		AddTag("chain", getChainById(targetChain)).
 		AddTag("type", nsType).
@@ -247,10 +142,33 @@ func stats(returnSize int, hostPort, targetChain, nsType, path, host string) {
 }
 
 func getChainById(chainId string) string {
-	for k, v := range config.Name2Chain {
-		if chainId == v {
-			return k
+	chainIdInt, err := strconv.Atoi(chainId)
+	if err == nil {
+		for k, v := range config.Name2Chain {
+			if chainIdInt == v {
+				return k
+			}
 		}
 	}
 	return chainId
+}
+
+// For a given hostname with a chain short name, replace by its chaid id. Examples:
+// uniswap.eth:gor -> uniswap.eth:5
+// uniswap.eth:5 -> uniswap.eth:5
+// uniswap.eth -> uniswap.eth
+func hostChangeChainShortNameToId(host string) (string) {
+	hostParts := strings.Split(host, ":")
+	if len(hostParts) == 1 {
+		return hostParts[0]
+	}
+
+	var chainId string
+	if _, ok := config.Name2Chain[hostParts[1]]; ok {
+		chainId = fmt.Sprintf("%d", config.Name2Chain[hostParts[1]])
+	} else {
+		chainId = hostParts[1]
+	}
+
+	return hostParts[0] + ":" + chainId
 }

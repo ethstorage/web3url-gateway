@@ -3,169 +3,169 @@ CertificateFile = ""
 KeyFile = ""
 HomePage = "/home.w3q/"
 CORS = "*" # list of domains from which to accept cross origin requests (browser enforced)
-defaultChain = ""
+defaultChain = 0
 
 # default chain for supported domain
 [nsDefaultChains]
-"w3q" = "333"
-"eth" = "1"
+"w3q" = 333
+"eth" = 1
 
 # support chain name convention
 [name2chain]
-"w3q-g" = "3334"
-"eth" = "1"
-"gor" = "5"
-"sep" = "11155111"
-"oeth" = "10"
-"arb1" = "42161"
-"ogor" = "420"
-"arb-goerli" = "421613"
-"evmos" = "9001"
-"evmos-testnet" = "9000"
-"arb-nova" = "42170"
-"bnb" = "56"
-"bnbt" = "97"
-"avax" = "43114"
-"fuji" = "43113"
-"ftm" = "250"
-"tftm" = "4002"
-"hmy-s0" = "1666600000"
-"hmy-b-s0" = "1666700000"
-"matic" = "137"
-"maticmum" = "80001"
-"zkevmtest" = "1402"
-"qkc-s0" = "100001"
-"qkc-d-s0" = "110001"
-"metis-andromeda" = "1088"
-"metis-goerli" = "599"
-"scr-testl1" = "534351"
-"scr-prealpha" = "534354"
-"basegor" = "84531"
+"w3q-g" = 3334
+"eth" = 1
+"gor" = 5
+"sep" = 11155111
+"oeth" = 10
+"arb1" = 42161
+"ogor" = 420
+"arb-goerli" = 421613
+"evmos" = 9001
+"evmos-testnet" = 9000
+"arb-nova" = 42170
+"bnb" = 56
+"bnbt" = 97
+"avax" = 43114
+"fuji" = 43113
+"ftm" = 250
+"tftm" = 4002
+"hmy-s0" = 1666600000
+"hmy-b-s0" = 1666700000
+"matic" = 137
+"maticmum" = 80001
+"zkevmtest" = 1402
+"qkc-s0" = 100001
+"qkc-d-s0" = 110001
+"metis-andromeda" = 1088
+"metis-goerli" = 599
+"scr-testl1" = 534351
+"scr-prealpha" = 534354
+"basegor" = 84531
 
 [chainConfigs]
-    [chainConfigs."3334"]
-    "ChainID" = "3334"
+    [chainConfigs.3334]
+    "ChainID" = 3334
     "RPC" = "https://galileo.web3q.io:8545"
-    [chainConfigs."3334".NSConfig."w3q"]
-        "NSType" = 1
+    [chainConfigs.3334.NSConfig."w3q"]
+        "NSType" = "w3ns"
         "NSAddr" = "0xD379B91ac6a93AF106802EB076d16A54E3519CED"
 
-    [chainConfigs."1"]
-    "ChainID" = "1"
+    [chainConfigs.1]
+    "ChainID" = 1
     "RPC" = "https://mainnet.infura.io/v3/************"
-    [chainConfigs."1".NSConfig."eth"]
-        "NSType" = 2
+    [chainConfigs.1.NSConfig."eth"]
+        "NSType" = "ens"
         "NSAddr" = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
 
-    [chainConfigs."5"]
-    "ChainID" = "5"
+    [chainConfigs.5]
+    "ChainID" = 5
     "RPC" = "https://goerli.infura.io/v3/************"
-    [chainConfigs."5".NSConfig."eth"]
-        "NSType" = 2
+    [chainConfigs.5.NSConfig."eth"]
+        "NSType" = "ens"
         "NSAddr" = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
 
-    [chainConfigs."11155111"]
-    "ChainID" = "11155111"
+    [chainConfigs.11155111]
+    "ChainID" = 11155111
     "RPC" = "https://sepolia.infura.io/v3/************"
 
-    [chainConfigs."10"]
-    "ChainID" = "10"
+    [chainConfigs.10]
+    "ChainID" = 10
     "RPC" = "https://optimism-mainnet.infura.io/v3/************"
 
-    [chainConfigs."42161"]
-    "ChainID" = "42161"
+    [chainConfigs.42161]
+    "ChainID" = 42161
     "RPC" = "https://arbitrum-mainnet.infura.io/v3/************"
 
-    [chainConfigs."420"]
-    "ChainID" = "420"
+    [chainConfigs.420]
+    "ChainID" = 420
     "RPC" = "https://optimism-goerli.infura.io/v3/************"
 
-    [chainConfigs."421613"]
-    "ChainID" = "421613"
+    [chainConfigs.421613]
+    "ChainID" = 421613
     "RPC" = "https://arbitrum-goerli.infura.io/v3/************"
 
-    [chainConfigs."9001"]
-    "ChainID" = "9001"
+    [chainConfigs.9001]
+    "ChainID" = 9001
     "RPC" = "https://evmos-evm.publicnode.com"
 
-    [chainConfigs."9000"]
-    "ChainID" = "9000"
+    [chainConfigs.9000]
+    "ChainID" = 9000
     "RPC" = "https://eth.bd.evmos.dev:8545"
 
-    [chainConfigs."42170"]
-    "ChainID" = "42170"
+    [chainConfigs.42170]
+    "ChainID" = 42170
     "RPC" = "https://nova.arbitrum.io/rpc"
 
-    [chainConfigs."56"]
-    "ChainID" = "56"
+    [chainConfigs.56]
+    "ChainID" = 56
     "RPC" = "https://bsc-dataseed4.ninicoin.io"
 
-    [chainConfigs."97"]
-    "ChainID" = "97"
+    [chainConfigs.97]
+    "ChainID" = 97
     "RPC" = "https://data-seed-prebsc-2-s2.binance.org:8545"
 
-    [chainConfigs."43114"]
-    "ChainID" = "43114"
+    [chainConfigs.43114]
+    "ChainID" = 43114
     "RPC" = "https://api.avax.network/ext/bc/C/rpc"
 
-    [chainConfigs."43113"]
-    "ChainID" = "43113"
+    [chainConfigs.43113]
+    "ChainID" = 43113
     "RPC" = "https://api.avax-test.network/ext/bc/C/rpc"
 
-    [chainConfigs."250"]
-    "ChainID" = "250"
+    [chainConfigs.250]
+    "ChainID" = 250
     "RPC" = "https://rpc.ankr.com/fantom"
 
-    [chainConfigs."4002"]
-    "ChainID" = "4002"
+    [chainConfigs.4002]
+    "ChainID" = 4002
     "RPC" = "https://rpc.ankr.com/fantom_testnet"
 
-    [chainConfigs."1666600000"]
-    "ChainID" = "1666600000"
+    [chainConfigs.1666600000]
+    "ChainID" = 1666600000
     "RPC" = "https://a.api.s0.t.hmny.io"
 
-    [chainConfigs."1666700000"]
-    "ChainID" = "1666700000"
+    [chainConfigs.1666700000]
+    "ChainID" = 1666700000
     "RPC" = "https://api.s0.b.hmny.io"
 
-    [chainConfigs."137"]
-    "ChainID" = "137"
+    [chainConfigs.137]
+    "ChainID" = 137
     "RPC" = "https://polygon-bor.publicnode.com"
 
-    [chainConfigs."80001"]
-    "ChainID" = "80001"
+    [chainConfigs.80001]
+    "ChainID" = 80001
     "RPC" = "https://rpc.ankr.com/polygon_mumbai"
 
-    [chainConfigs."1402"]
-    "ChainID" = "1402"
+    [chainConfigs.1402]
+    "ChainID" = 1402
     "RPC" = "https://rpc.public.zkevm-test.net"
 
-    [chainConfigs."100001"]
-    "ChainID" = "100001"
+    [chainConfigs.100001]
+    "ChainID" = 100001
     "RPC" = "https://mainnet-s0-ethapi.quarkchain.io"
 
-    [chainConfigs."110001"]
-    "ChainID" = "110001"
+    [chainConfigs.110001]
+    "ChainID" = 110001
     "RPC" = "https://devnet-s0-ethapi.quarkchain.io"
 
-    [chainConfigs."1088"]
-    "ChainID" = "1088"
+    [chainConfigs.1088]
+    "ChainID" = 1088
     "RPC" = "https://andromeda.metis.io/?owner=1088"
 
-    [chainConfigs."599"]
-    "ChainID" = "599"
+    [chainConfigs.599]
+    "ChainID" = 599
     "RPC" = "https://goerli.gateway.metisdevops.link"
 
-    [chainConfigs."534351"]
-    "ChainID" = "534351"
+    [chainConfigs.534351]
+    "ChainID" = 534351
     "RPC" = "https://prealpha-rpc.scroll.io/l1"
 
-    [chainConfigs."534354"]
-    "ChainID" = "534354"
+    [chainConfigs.534354]
+    "ChainID" = 534354
     "RPC" = "https://prealpha-rpc.scroll.io/l2"
 
-    [chainConfigs."84531"]
-    "ChainID" = "84531"
+    [chainConfigs.84531]
+    "ChainID" = 84531
     "RPC" = "https://goerli.base.org"
 
     [chainConfigs."3333"]
