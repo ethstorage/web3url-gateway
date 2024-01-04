@@ -3,15 +3,15 @@ module github.com/ethstorage/web3url-gateway
 go 1.17
 
 require (
-	github.com/ethereum/go-ethereum v1.13.2
+	github.com/ethereum/go-ethereum v1.12.2
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
-	github.com/web3-protocol/web3protocol-go v0.1.0
+	github.com/web3-protocol/web3protocol-go v0.2.1
 	golang.org/x/net v0.16.0
 )
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/bits-and-blooms/bitset v1.5.0 // indirect
+	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.10.0 // indirect

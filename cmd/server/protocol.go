@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"strconv"
+	"io"
 
 	log "github.com/sirupsen/logrus"
 
@@ -112,15 +113,38 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(fetchedWeb3Url.HttpCode)
 
 	// Send the output
-	_, e := w.Write(fetchedWeb3Url.Output)
-	if e != nil {
-		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, er.Error()})
-		return
+	// We receive it chunk by chunk from web3protocol-go. Usually there is only a single chunk.
+	outputDataLength := 0
+	buf := make([]byte, 8 * 1024 * 1024)
+	for {
+		// Fetch data from web3protocol-go
+		n, err := fetchedWeb3Url.Output.Read(buf)
+		if err != nil && err != io.EOF {
+			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			return
+		}
+		outputDataLength += n
+		if n == 0 {
+			break
+		}
+
+		// Feed the data to the HTTP client
+		_, err = w.Write(buf[:n])
+		if  err != nil {
+			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			return
+		}
+
+		// Flush it so that it gets sent right away, as a chunk
+		// (This is still an HTTP 1.1 server, so it's using Transfer-encoding: chunked)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
 	}
 
 	// Stats
 	if len(*dbToken) > 0 {
-		stats(len(fetchedWeb3Url.Output), req.RemoteAddr, fmt.Sprintf("%d", parsedWeb3Url.ChainId), fmt.Sprintf("%v", parsedWeb3Url.HostDomainNameResolver), path, h)
+		stats(outputDataLength, req.RemoteAddr, fmt.Sprintf("%d", parsedWeb3Url.ChainId), fmt.Sprintf("%v", parsedWeb3Url.HostDomainNameResolver), path, h)
 	}
 }
 
