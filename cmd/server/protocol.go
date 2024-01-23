@@ -21,7 +21,12 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	h := req.Host
 
 	if cname, err := net.LookupCNAME(h); err == nil {
-		h = cname
+		log.Infof("cname is ---> %s", cname)
+		if strings.HasSuffix(cname, ".") {
+			h = cname[:len(cname)-1]
+			w.Header().Set("We3-CNAME", cname)
+		}
+
 	}
 
 	path := req.URL.EscapedPath()
@@ -47,6 +52,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	if len(req.URL.RawQuery) > 0 {
 		web3Url += "?" + req.URL.RawQuery
 	}
+
+	log.Infof("web3url : %s", web3Url)
 
 	// Fetch the web3 URL
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
