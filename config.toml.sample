@@ -1,4 +1,5 @@
 ServerPort = "80"
+RunAsHttp = false
 CertificateFile = ""
 KeyFile = ""
 HomePage = "/home.w3q/"

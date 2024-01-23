@@ -241,8 +241,8 @@ func main() {
 		}
 	})
 
-	log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
-	if config.CertificateFile == "" || config.KeyFile == "" {
+	if config.RunAsHttp {
+		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
 		log.Info("Running server in unsecure mode...")
 		err := http.ListenAndServe(":"+config.ServerPort, nil)
 		if err != nil {
@@ -250,6 +250,7 @@ func main() {
 			return
 		}
 	} else {
+		log.Infof("Serving on https mode ")
 		server := &http.Server{
 			Addr: ":https",
 			TLSConfig: &tls.Config{

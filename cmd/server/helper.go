@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/naoina/toml"
@@ -22,6 +22,7 @@ type Web3Config struct {
 	Verbosity       int
 	CertificateFile string
 	KeyFile         string
+	RunAsHttp       bool
 	DefaultChain    int
 	HomePage        string
 	CORS            string
@@ -87,8 +88,6 @@ func loadConfig(file string, cfg *Web3Config) error {
 	}
 	return err
 }
-
-
 
 func getDefaultNSSuffix() (string, error) {
 	if config.DefaultChain == 0 {
@@ -157,7 +156,7 @@ func getChainById(chainId string) string {
 // uniswap.eth:gor -> uniswap.eth:5
 // uniswap.eth:5 -> uniswap.eth:5
 // uniswap.eth -> uniswap.eth
-func hostChangeChainShortNameToId(host string) (string) {
+func hostChangeChainShortNameToId(host string) string {
 	hostParts := strings.Split(host, ":")
 	if len(hostParts) == 1 {
 		return hostParts[0]
