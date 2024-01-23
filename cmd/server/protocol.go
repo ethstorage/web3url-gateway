@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
-	"strings"
 	"strconv"
-	"io"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -16,9 +16,13 @@ import (
 	"github.com/web3-protocol/web3protocol-go"
 )
 
-
 func handle(w http.ResponseWriter, req *http.Request) {
+
 	h := req.Host
+
+	if cname, err := net.LookupCNAME(h); err == nil {
+		h = cname
+	}
 
 	path := req.URL.EscapedPath()
 	w.Header().Set("Access-Control-Allow-Origin", config.CORS)
@@ -50,7 +54,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		respondWithErrorPage(w, err)
 		return
 	}
-	
+
 	// Send the HTTP headers returned by the protocol
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
 		w.Header().Set(httpHeaderName, httpHeaderValue)
@@ -58,7 +62,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
 	// it will add his own Content-Type: text/xml; charset=utf-8
 	if w.Header().Get("Content-Type") == "" {
-		// Best thing would be to remove the content-type header, but looks like we can 
+		// Best thing would be to remove the content-type header, but looks like we can
 		// only set it to empty. This code looks weird but it works.
 		w.Header().Set("Content-Type", "")
 	}
@@ -115,7 +119,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Send the output
 	// We receive it chunk by chunk from web3protocol-go. Usually there is only a single chunk.
 	outputDataLength := 0
-	buf := make([]byte, 8 * 1024 * 1024)
+	buf := make([]byte, 8*1024*1024)
 	for {
 		// Fetch data from web3protocol-go
 		n, err := fetchedWeb3Url.Output.Read(buf)
@@ -130,7 +134,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 		// Feed the data to the HTTP client
 		_, err = w.Write(buf[:n])
-		if  err != nil {
+		if err != nil {
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
@@ -151,8 +155,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 func respondWithErrorPage(w http.ResponseWriter, err error) {
 	httpCode := 400
 	switch err.(type) {
-		case *web3protocol.ErrorWithHttpCode:
-			httpCode = err.(*web3protocol.ErrorWithHttpCode).HttpCode	
+	case *web3protocol.ErrorWithHttpCode:
+		httpCode = err.(*web3protocol.ErrorWithHttpCode).HttpCode
 	}
 
 	w.WriteHeader(httpCode)
@@ -185,7 +189,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		log.Info("subdomain too long")
 		return "", false, fmt.Errorf("invalid subdomain")
 	}
-	
+
 	p = path
 
 	// https://[gateway-host].[gateway-tld]/[web3-hex-address | web3-host]
@@ -211,9 +215,9 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 
 	// https://[web3-hex-address | web3-host-name].[gateway-host].[gateway-tld]
 	// These URLs require a default chain specified in config. Examples, with default chain id == 1:
-	// https://quark.w3eth.io/index.txt -> web3://quark.eth/index.txt ("eth" deduced as 
+	// https://quark.w3eth.io/index.txt -> web3://quark.eth/index.txt ("eth" deduced as
 	//   the default domain name service TLD from config)
-	// https://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699.w3eth.io/index.txt -> 
+	// https://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699.w3eth.io/index.txt ->
 	//   web3://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:1/index.txt
 	if hostPartsCount == 3 {
 		if config.DefaultChain == 0 {
