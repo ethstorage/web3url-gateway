@@ -24,7 +24,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		log.Infof("cname is ---> %s", cname)
 		if strings.HasSuffix(cname, ".") {
 			h = cname[:len(cname)-1]
-			w.Header().Set("We3-CNAME", cname)
+			w.Header().Set("Web3-CNAME", cname)
 		}
 
 	}
