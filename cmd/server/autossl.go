@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -42,29 +43,53 @@ var (
 	}
 )
 
+func getCertFromPath(domain, path string) (*tls.Certificate, error) {
+	var (
+		findCert *tls.Certificate = nil
+		findErr                   = fmt.Errorf("certificate file %s invalid", path)
+	)
+	if data, err := os.ReadFile(path); err == nil {
+		if cert, err := tls.X509KeyPair(data, data); err == nil {
+			if len(cert.Certificate) > 0 {
+				if cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0]); err == nil {
+					if cert.Leaf.VerifyHostname(domain) == nil {
+						findCert = &cert
+						findErr = nil
+					}
+				}
+			}
+		}
+	}
+	return findCert, findErr
+}
+
+func domainSysCertPath(domain string) string {
+	return strings.Join([]string{domain, "cert.path"}, "-")
+}
+
 func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 
 	var (
-		findCert *tls.Certificate = nil
-		findErr                   = fmt.Errorf("no certificate found for %s", domain)
+		findCert          *tls.Certificate = nil
+		findErr                            = fmt.Errorf("no certificate found for %s", domain)
+		domainSysCertPath                  = domainSysCertPath(domain)
 	)
+
+	if path, err := cache.Get(context.Background(), domainSysCertPath); err == nil && string(path) != "" {
+		if findCert, findErr = getCertFromPath(domain, string(path)); findCert != nil && findErr == nil {
+			return findCert, findErr
+		} else {
+			cache.Delete(context.Background(), domainSysCertPath)
+		}
+	}
 
 	if config.SystemCertDir != "" {
 		if stat, err := os.Stat(config.SystemCertDir); err == nil && stat.IsDir() {
 			filepath.WalkDir(config.SystemCertDir, func(path string, d os.DirEntry, err error) error {
 				if err == nil {
-					if data, err := os.ReadFile(path); err == nil {
-						if cert, err := tls.X509KeyPair(data, data); err == nil {
-							if len(cert.Certificate) > 0 {
-								if cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0]); err == nil {
-									if cert.Leaf.VerifyHostname(domain) == nil {
-										findCert = &cert
-										findErr = nil
-										return nil
-									}
-								}
-							}
-						}
+					if findCert, findErr = getCertFromPath(domain, path); findCert != nil && findErr == nil {
+						cache.Put(context.Background(), domainSysCertPath, []byte(path))
+						return filepath.SkipDir
 					}
 				}
 				return nil
