@@ -23,6 +23,8 @@ type Web3Config struct {
 	CertificateFile string
 	KeyFile         string
 	RunAsHttp       bool
+	AutoCertEmail   string
+	SystemCertDir   string
 	DefaultChain    int
 	HomePage        string
 	CORS            string

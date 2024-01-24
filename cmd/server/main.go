@@ -254,7 +254,7 @@ func main() {
 		server := &http.Server{
 			Addr: ":https",
 			TLSConfig: &tls.Config{
-				GetCertificate: certManager.GetCertificate,
+				GetCertificate: GetCertificate,
 				NextProtos:     []string{http2.NextProtoTLS, "http/1.1"},
 				MinVersion:     tls.VersionTLS12,
 			},
