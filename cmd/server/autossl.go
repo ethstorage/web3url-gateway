@@ -44,23 +44,39 @@ var (
 )
 
 func getCertFromPath(domain, path string) (*tls.Certificate, error) {
+
 	var (
-		findCert *tls.Certificate = nil
-		findErr                   = fmt.Errorf("certificate file %s invalid", path)
+		err  error
+		data []byte
+		cert tls.Certificate
 	)
-	if data, err := os.ReadFile(path); err == nil {
-		if cert, err := tls.X509KeyPair(data, data); err == nil {
-			if len(cert.Certificate) > 0 {
-				if cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0]); err == nil {
-					if cert.Leaf.VerifyHostname(domain) == nil {
-						findCert = &cert
-						findErr = nil
-					}
-				}
-			}
-		}
+
+	if data, err = os.ReadFile(path); err != nil {
+		return nil, err
 	}
-	return findCert, findErr
+
+	if cert, err = tls.X509KeyPair(data, data); err != nil {
+		return nil, err
+	}
+
+	if len(cert.Certificate) == 0 {
+		return nil, fmt.Errorf("no certificate found in %s", path)
+	}
+
+	if cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0]); err != nil {
+		return nil, err
+	}
+
+	if cert.Leaf.VerifyHostname(domain) != nil {
+		return nil, fmt.Errorf("certificate not match %s", domain)
+
+	}
+
+	if cert.Leaf.NotAfter.Before(cert.Leaf.NotBefore) {
+		return nil, fmt.Errorf("certificate expired %s", domain)
+	}
+
+	return &cert, nil
 }
 
 func domainSysCertPath(domain string) string {
