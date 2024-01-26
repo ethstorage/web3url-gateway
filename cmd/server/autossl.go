@@ -87,32 +87,39 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 
 	var (
 		findCert          *tls.Certificate = nil
-		findErr                            = fmt.Errorf("no certificate found for %s", domain)
-		domainSysCertPath                  = domainSysCertPath(domain)
+		err               error
+		domainSysCertPath = domainSysCertPath(domain)
 	)
 
 	if path, err := cache.Get(context.Background(), domainSysCertPath); err == nil && string(path) != "" {
-		if findCert, findErr = getCertFromPath(domain, string(path)); findCert != nil && findErr == nil {
-			return findCert, findErr
+		if findCert, err = getCertFromPath(domain, string(path)); findCert != nil && err == nil {
+			return findCert, err
 		} else {
 			cache.Delete(context.Background(), domainSysCertPath)
 		}
 	}
 
-	if config.SystemCertDir != "" {
-		if stat, err := os.Stat(config.SystemCertDir); err == nil && stat.IsDir() {
-			filepath.WalkDir(config.SystemCertDir, func(path string, d os.DirEntry, err error) error {
-				if err == nil {
-					if findCert, findErr = getCertFromPath(domain, path); findCert != nil && findErr == nil {
-						cache.Put(context.Background(), domainSysCertPath, []byte(path))
-						return filepath.SkipDir
-					}
-				}
-				return nil
-			})
-		}
+	if config.SystemCertDir == "" {
+		return nil, fmt.Errorf("no system cert dir")
 	}
-	return findCert, findErr
+
+	if stat, err := os.Stat(config.SystemCertDir); err != nil {
+		return nil, err
+	} else if !stat.IsDir() {
+		return nil, fmt.Errorf("system cert dir is not a dir")
+	}
+
+	filepath.WalkDir(config.SystemCertDir, func(path string, d os.DirEntry, err error) error {
+		if err == nil {
+			if findCert, err = getCertFromPath(domain, path); findCert != nil && err == nil {
+				cache.Put(context.Background(), domainSysCertPath, []byte(path))
+				return filepath.SkipDir
+			}
+		}
+		return err
+	})
+
+	return findCert, err
 }
 
 func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
