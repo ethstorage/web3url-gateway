@@ -1,13 +1,15 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
-	"strings"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
@@ -149,28 +151,28 @@ func initConfig() {
 func initWeb3protocolClient() {
 	// Prepare config
 	web3pConfig := web3protocol.Config{
-		Chains: map[int]web3protocol.ChainConfig{},
+		Chains:             map[int]web3protocol.ChainConfig{},
 		DomainNameServices: map[web3protocol.DomainNameService]web3protocol.DomainNameServiceConfig{},
 	}
 
 	for _, chainConfig := range config.ChainConfigs {
 		// Config the chain
 		web3pChainConfig := web3protocol.ChainConfig{
-			ChainId: chainConfig.ChainID,
-			RPC: chainConfig.RPC,
+			ChainId:            chainConfig.ChainID,
+			RPC:                chainConfig.RPC,
 			DomainNameServices: map[web3protocol.DomainNameService]web3protocol.DomainNameServiceChainConfig{},
 		}
 
 		// Config the domain name service in chain, and deduce global infos about the domain name service
 		for suffix, nsConfig := range chainConfig.NSConfig {
 			web3pChainConfig.DomainNameServices[nsConfig.NSType] = web3protocol.DomainNameServiceChainConfig{
-					Id: nsConfig.NSType,
-					ResolverAddress: common.HexToAddress(nsConfig.NSAddr),
-				};
+				Id:              nsConfig.NSType,
+				ResolverAddress: common.HexToAddress(nsConfig.NSAddr),
+			}
 
 			if _, ok := web3pConfig.DomainNameServices[nsConfig.NSType]; !ok {
 				web3pConfig.DomainNameServices[nsConfig.NSType] = web3protocol.DomainNameServiceConfig{
-					Id: nsConfig.NSType,
+					Id:     nsConfig.NSType,
 					Suffix: suffix,
 				}
 			}
@@ -239,8 +241,8 @@ func main() {
 		}
 	})
 
-	log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
-	if config.CertificateFile == "" || config.KeyFile == "" {
+	if config.RunAsHttp {
+		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
 		log.Info("Running server in unsecure mode...")
 		err := http.ListenAndServe(":"+config.ServerPort, nil)
 		if err != nil {
@@ -248,9 +250,25 @@ func main() {
 			return
 		}
 	} else {
-		err := http.ListenAndServeTLS(":"+config.ServerPort, config.CertificateFile, config.KeyFile, nil)
-		if err != nil {
+		log.Infof("Serving on https mode ")
+		server := &http.Server{
+			Addr: ":https",
+			TLSConfig: &tls.Config{
+				GetCertificate: GetCertificate,
+				NextProtos:     []string{http2.NextProtoTLS, "http/1.1"},
+				MinVersion:     tls.VersionTLS12,
+			},
+			MaxHeaderBytes: 32 << 20,
+		}
+
+		go http.ListenAndServe(":http", certManager.HTTPHandler(nil)) // 支持 http-01
+
+		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.Fatalf("Cannot start server: %v\n", err)
 		}
+		// err := http.ListenAndServeTLS(":"+config.ServerPort, config.CertificateFile, config.KeyFile, nil)
+		// if err != nil {
+		// log.Fatalf("Cannot start server: %v\n", err)
+		// }
 	}
 }

@@ -1,9 +1,13 @@
 ServerPort = "80"
+RunAsHttp = false
+AutoCertEmail = ""
+SystemCertDir = ""
 CertificateFile = ""
 KeyFile = ""
 HomePage = "/home.w3q/"
 CORS = "*" # list of domains from which to accept cross origin requests (browser enforced)
 defaultChain = 0
+
 
 # default chain for supported domain
 [nsDefaultChains]
@@ -168,6 +172,6 @@ defaultChain = 0
     "ChainID" = 84531
     "RPC" = "https://goerli.base.org"
 
-    [chainConfigs."3333"]
-    "ChainID" = "3333"
+    [chainConfigs.3333]
+    "ChainID" = 3333
     "RPC" = "http://88.99.30.186:9545"
