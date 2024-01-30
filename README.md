@@ -91,7 +91,7 @@ Example 2: `w3link.io` (for general web3 links)
 The gateway now has the capability to generate domain certificates on-the-fly using `autocert`. 
 However, the wildcard certificates are not supported in this way.
 
-To use a wildcard certificate, we can create it beforehand using [certbot](certbot.eff.org)
+To use a wildcard certificate, we can create it beforehand using [certbot](certbot.eff.org).
 
 The steps are as follows:
 
@@ -102,8 +102,8 @@ snap install --classic certbot
 ln -s /snap/bin/certbot /usr/bin/certbot
 snap set certbot trust-plugin-with-root=ok
 snap install certbot-dns-digitalocean
-
 ```
+Refer to [this instruction](https://certbot.eff.org/instructions?ws=other&os=ubuntufocal&tab=wildcard) for detailed information.
 2. Setup DigitalOcean API credentials used by Certbot
 
 Go to [DigitalOcean website](https://cloud.digitalocean.com/account/api/tokens?i=8b4851&preserveScrollPosition=true) to generate an API token
@@ -121,7 +121,7 @@ chmod 600 /root/.secrets/certbot/digitalocean.ini
 ```
 
 
- 3.  生成证书：
+ 3. create certificate：
 
  ```
  certbot certonly \
