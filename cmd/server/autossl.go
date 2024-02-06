@@ -124,7 +124,7 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 			return nil
 		}
 		cache.Put(context.Background(), domainSysCertPath, []byte(path))
-		return nil
+		return filepath.SkipAll
 	})
 
 	return findCert, err
