@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -110,13 +112,19 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 	}
 
 	filepath.WalkDir(config.SystemCertDir, func(path string, d os.DirEntry, err error) error {
-		if err == nil {
-			if findCert, err = getCertFromPath(domain, path); findCert != nil && err == nil {
-				cache.Put(context.Background(), domainSysCertPath, []byte(path))
-				return filepath.SkipDir
-			}
+		if err != nil {
+			return err
 		}
-		return err
+		if d.IsDir() {
+			return nil
+		}
+		findCert, err = getCertFromPath(domain, path)
+		if err != nil {
+			log.Infof("get cert from path error: %v\n", err)
+			return nil
+		}
+		cache.Put(context.Background(), domainSysCertPath, []byte(path))
+		return nil
 	})
 
 	return findCert, err
