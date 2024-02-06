@@ -104,6 +104,7 @@ snap set certbot trust-plugin-with-root=ok
 snap install certbot-dns-digitalocean
 ```
 Refer to [this instruction](https://certbot.eff.org/instructions?ws=other&os=ubuntufocal&tab=wildcard) for detailed information.
+
 2. Setup DigitalOcean API credentials used by Certbot
 
 Go to [DigitalOcean website](https://cloud.digitalocean.com/account/api/tokens?i=8b4851&preserveScrollPosition=true) to generate an API token
