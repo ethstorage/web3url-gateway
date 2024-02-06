@@ -229,3 +229,7 @@ Check if the renew service is running normally：
 ```
   certbot renew --dry-run
 ```
+
+## W3link.io vs Web3gateway.dev
+
+Currently, the `autocert` module is activated on the `web3gateway.dev` gateway, running the `main` branch. Meanwhile, the `w3link.io` gateway is running code from the `w3link` branch, where the `autocert` service is not utilized.
