@@ -85,3 +85,152 @@ Example 2: `w3link.io` (for general web3 links)
 |534351|Scroll L1 Testnet|scr-testl1|
 |534354|Scroll L2 Testnet|scr-prealpha|
 |84531|Base Goerli Testnet|basegor|
+
+## How to create a wildcard certificate for `w3link.io`
+
+The gateway now has the capability to generate domain certificates on-the-fly using `autocert`. 
+However, the wildcard certificates are not supported in this way.
+
+To use a wildcard certificate, we can create it beforehand using [certbot](certbot.eff.org).
+
+The steps are as follows:
+
+1. Install `certbot` and DNS plugin for DigitalOcean
+
+```
+snap install --classic certbot
+ln -s /snap/bin/certbot /usr/bin/certbot
+snap set certbot trust-plugin-with-root=ok
+snap install certbot-dns-digitalocean
+```
+Refer to [this instruction](https://certbot.eff.org/instructions?ws=other&os=ubuntufocal&tab=wildcard) for detailed information.
+
+2. Setup DigitalOcean API credentials used by Certbot
+
+Go to [DigitalOcean website](https://cloud.digitalocean.com/account/api/tokens?i=8b4851&preserveScrollPosition=true) to generate an API token
+
+Create a file `/root/.secrets/certbot/digitalocean.ini` with the following content:
+```
+# DigitalOcean API credentials used by Certbot
+dns_digitalocean_token = <digitalocean-token>
+```
+
+Authorize permissions to the file:
+
+```
+chmod 600 /root/.secrets/certbot/digitalocean.ini
+```
+
+
+ 3. create certificate：
+
+ ```
+ certbot certonly \
+  --dns-digitalocean \
+  --dns-digitalocean-credentials ~/.secrets/certbot/digitalocean.ini \
+    -d '*.1.w3link.io' \
+    -d '*.10.w3link.io' \
+    -d '*.100001.w3link.io' \
+    -d '*.1088.w3link.io' \
+    -d '*.110001.w3link.io' \
+    -d '*.11155111.w3link.io' \
+    -d '*.137.w3link.io' \
+    -d '*.1402.w3link.io' \
+    -d '*.1666600000.w3link.io' \
+    -d '*.1666700000.w3link.io' \
+    -d '*.250.w3link.io' \
+    -d '*.333.w3link.io' \
+    -d '*.3333.w3link.io' \
+    -d '*.3334.w3link.io' \
+    -d '*.4002.w3link.io' \
+    -d '*.420.w3link.io' \
+    -d '*.42161.w3link.io' \
+    -d '*.421613.w3link.io' \
+    -d '*.42170.w3link.io' \
+    -d '*.43113.w3link.io' \
+    -d '*.43114.w3link.io' \
+    -d '*.5.w3link.io' \
+    -d '*.534351.w3link.io' \
+    -d '*.534354.w3link.io' \
+    -d '*.56.w3link.io' \
+    -d '*.599.w3link.io' \
+    -d '*.80001.w3link.io' \
+    -d '*.84531.w3link.io' \
+    -d '*.9000.w3link.io' \
+    -d '*.9001.w3link.io' \
+    -d '*.97.w3link.io' \
+    -d '*.arb-goerli.w3link.io' \
+    -d '*.arb-nova.w3link.io' \
+    -d '*.arb1.w3link.io' \
+    -d '*.avax.w3link.io' \
+    -d '*.basegor.w3link.io' \
+    -d '*.bnb.w3link.io' \
+    -d '*.bnbt.w3link.io' \
+    -d '*.eth.1.w3link.io' \
+    -d '*.eth.10.w3link.io' \
+    -d '*.eth.11155111.w3link.io' \
+    -d '*.eth.420.w3link.io' \
+    -d '*.eth.42161.w3link.io' \
+    -d '*.eth.421613.w3link.io' \
+    -d '*.eth.5.w3link.io' \
+    -d '*.eth.arb-goerli.w3link.io' \
+    -d '*.eth.arb1.w3link.io' \
+    -d '*.eth.eth.w3link.io' \
+    -d '*.eth.gor.w3link.io' \
+    -d '*.eth.oeth.w3link.io' \
+    -d '*.eth.ogor.w3link.io' \
+    -d '*.eth.sep.w3link.io' \
+    -d '*.eth.w3link.io' \
+    -d '*.evmos-testnet.w3link.io' \
+    -d '*.evmos.w3link.io' \
+    -d '*.ftm.w3link.io' \
+    -d '*.fuji.w3link.io' \
+    -d '*.gor.w3link.io' \
+    -d '*.hmy-b-s0.w3link.io' \
+    -d '*.hmy-s0.w3link.io' \
+    -d '*.matic.w3link.io' \
+    -d '*.maticmum.w3link.io' \
+    -d '*.metis-andromeda.w3link.io' \
+    -d '*.metis-goerli.w3link.io' \
+    -d '*.oeth.w3link.io' \
+    -d '*.ogor.w3link.io' \
+    -d '*.qkc-d-s0.w3link.io' \
+    -d '*.qkc-s0.w3link.io' \
+    -d '*.scr-prealpha.w3link.io' \
+    -d '*.scr-testl1.w3link.io' \
+    -d '*.sep.w3link.io' \
+    -d '*.tftm.w3link.io' \
+    -d '*.w3q-g.w3link.io' \
+    -d '*.w3q.333.w3link.io' \
+    -d '*.w3q.3334.w3link.io' \
+    -d '*.w3q.w3link.io' \
+    -d '*.w3q.w3q-g.w3link.io' \
+    -d '*.zkevmtest.w3link.io' \
+    -d '*.w3link.io' \
+    -d ordinals.btc.w3link.io \
+    -d w3link.io
+
+  ```
+If successful, some messages like the following will appear where you can find the location of the private key and certificates:
+
+```
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/1.w3link.io/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/1.w3link.io/privkey.pem
+This certificate expires on 2024-04-24.
+These files will be updated when the certificate renews.
+Certbot has set up a scheduled task to automatically renew this certificate in the background.
+```
+
+By default, the certificate will be renewed 30 days before expiration. 
+
+
+Check if the renew service is running normally：
+
+```
+  certbot renew --dry-run
+```
+
+## W3link.io vs Web3gateway.dev
+
+Currently, the `autocert` module is activated on the `web3gateway.dev` gateway, running the `main` branch. Meanwhile, the `w3link.io` gateway is running code from the `w3link` branch, where the `autocert` service is not utilized.
