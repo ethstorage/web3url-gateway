@@ -85,6 +85,7 @@ Example 2: `w3link.io` (for general web3 links)
 |534351|Scroll L1 Testnet|scr-testl1|
 |534354|Scroll L2 Testnet|scr-prealpha|
 |84531|Base Goerli Testnet|basegor|
+|1513|Story Protocol Testnet|storyprotocoltest|
 
 ## How to create a wildcard certificate for `w3link.io`
 
