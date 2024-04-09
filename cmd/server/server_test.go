@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+
 	// "fmt"
 	"testing"
 
@@ -25,8 +26,6 @@ func init() {
 
 	initWeb3protocolClient()
 }
-
-
 
 var testURLs = []struct {
 	domain     string
@@ -180,15 +179,17 @@ var w3links = []struct {
 	// {"0xF2Fa1B7C11c33BAC1dB7b037478453289AC90E60.110001.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKCDev\"]", http.StatusOK}, // Disabled due to RPC timeout
 	// {"0xF2Fa1B7C11c33BAC1dB7b037478453289AC90E60.qkc-d-s0.w3link.io", "/greet?returns=(string)", "application/json", "[\"Hello QKCDev\"]", http.StatusOK}, // Disabled due to RPC timeout
 	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.metis-andromeda.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK},
-	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.1088.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK}, 
+	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.1088.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK},
 	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.metis-goerli.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK},
-	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.599.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK}, 
+	{"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000.599.w3link.io", "/name?returns=(string)", "application/json", "[\"Metis Token\"]", http.StatusOK},
 	// {"0x6b57e328a83e91CD7721b06F8C72f4977aD4896D.scr-testl1.w3link.io", "/name?returns=(string)", "application/json", "[\"Scroll Tast1\"]\n", http.StatusOK},
 	// {"0x6b57e328a83e91CD7721b06F8C72f4977aD4896D.534351.w3link.io", "/name?returns=(string)", "application/json", "[\"Scroll Tast1\"]\n", http.StatusOK},
 	// {"0x91034bA7F184C40745321A10e00f4aBC5E0f1bB5.scr-prealpha.w3link.io", "/name?returns=(string)", "application/json", "[\"SCROLLOG\"]\n", http.StatusOK},
 	// {"0x91034bA7F184C40745321A10e00f4aBC5E0f1bB5.534354.w3link.io", "/name?returns=(string)", "application/json", "[\"SCROLLOG\"]\n", http.StatusOK},
-	{"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.84531.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]", http.StatusOK}, 
+	{"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.84531.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]", http.StatusOK},
 	{"0x6bfcc5feef5ce1049e409df0e1072ca988d62612.basegor.w3link.io", "/symbol?returns=(string)", "application/json", "[\"Base\"]", http.StatusOK},
+	{"0x87a9636ab208e6861d0b7c039a14d5af67a337cd.1513.w3link.io", "/name?returns=(string)", "application/json", "[\"Programmable IP License Token\"]", http.StatusOK},
+	{"0x87a9636ab208e6861d0b7c039a14d5af67a337cd.storyprotocoltest.w3link.io", "/name?returns=(string)", "application/json", "[\"Programmable IP License Token\"]", http.StatusOK},
 	{"ordinals.btc.w3link.io", "/number/234524", "text/plain; charset=utf-8", "{\"p\":\"sns\",\"op\":\"reg\",\"name\":\"0278.sats\"}", http.StatusOK},
 	{"ordinals.btc.w3link.io", "/txid/4d4a4a3397c62ae43889d40d7f8410b0209db59d2afba97850b0f6e11c060922i0", "text/plain; charset=utf-8", "{\"p\":\"sns\",\"op\":\"reg\",\"name\":\"0278.sats\"}", http.StatusOK},
 	{"ordinals.btc.w3link.io", "/number1/234524", "", "", http.StatusBadRequest},
@@ -392,7 +393,7 @@ func TestEncoded(t *testing.T) {
 			config.DefaultChain = 1
 			config.NSDefaultChains["eth"] = 1
 			config.NSDefaultChains["w3q"] = 333
-			
+
 			ensConfig := web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS]
 			ensConfig.DefaultChainId = 1
 			web3protocolClient.Config.DomainNameServices[web3protocol.DomainNameServiceENS] = ensConfig
