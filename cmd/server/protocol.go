@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"bytes"
+	"compress/gzip"
+	"io/ioutil"
 
 	log "github.com/sirupsen/logrus"
 
@@ -134,10 +137,18 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
-		outputDataLength += n
 		if n == 0 {
 			break
 		}
+
+		// If the content type is text/html, we do some processing on the data
+		// (e.g. patching the fetch() JS function so that it works with web3:// URLs) 
+		if w.Header().Get("Content-Type") == "text/html" {
+			n = patchHTMLFile(buf, n, w.Header().Get("Content-Encoding"))
+		}
+
+		// Update the total output data length
+		outputDataLength += n
 
 		// Feed the data to the HTTP client
 		_, err = w.Write(buf[:n])
@@ -297,4 +308,126 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	log.Info("=>", p)
 
 	return p, useSubdomain, nil
+}
+
+// If the content type is text/html, we do some processing on the data
+// (e.g. patching the fetch() JS function so that it works with web3:// URLs) 
+// This is not 100% perfect:
+// - This will fail if the content is compressed and spread over several chunks (should be rare)
+func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
+	// Create a new buffer of length n, and copy the data into it
+	alteredBuf := make([]byte, n)
+	copy(alteredBuf, buf[:n])
+	
+	// If contentEncoding is "gzip", then first decompress the data
+	if contentEncoding == "gzip" {
+		gzipReader, err := gzip.NewReader(bytes.NewReader(alteredBuf))
+		if err != nil {
+			log.Infof("patchHtmlFile: Cannot initiate gzip decompression: %v\n", err)
+			return n
+		}
+		alteredBuf, err = ioutil.ReadAll(gzipReader);
+		if err != nil {
+			log.Infof("patchHtmlFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
+			return n
+		}
+	}
+
+	// Look for the "<head>" tag, and insert the patch right after it
+	headTagIndex := strings.Index(string(alteredBuf), "<head>")
+	if headTagIndex == -1 {
+		return n
+	}
+	
+	// Insert the patch right after the "<head>" tag
+	patch := []byte(`
+		<script>
+			(function() {
+				const originalFetch = fetch;
+				fetch = function(input, init) {
+					
+					// Web3:// URL to Gateway URL convertor
+					const convertWeb3UrlToGatewayUrl = function(web3Url) {
+						// Parse the URL
+						let matchResult = web3Url.match(/^(?<protocol>[^:]+):\/\/(?<hostname>[^:/?]+)(:(?<chainId>[1-9][0-9]*))?(?<path>.*)?$/)
+						if(matchResult == null) {
+							// Invalid web3:// URL
+							return null;
+						}
+						let urlMainParts = matchResult.groups
+				
+						// Check protocol name
+						if(["web3", "w3"].includes(urlMainParts.protocol) == false) {
+							// Bad protocol name"
+							return null;
+						}
+				
+						// Get subdomain components
+						let gateway = window.location.hostname.split('.').slice(-2).join('.') + (window.location.port ? ':' + window.location.port : '');
+						let subDomains = []
+						// Is the contract an ethereum address?
+						if(/^0x[0-9a-fA-F]{40}$/.test(urlMainParts.hostname)) {
+							subDomains.push(urlMainParts.hostname)
+							if(urlMainParts.chainId !== undefined) {
+								subDomains.push(urlMainParts.chainId)
+							}
+							else {
+								// gateway = "w3eth.io"
+								subDomains.push(1);
+							}
+						}
+						// It is a domain name
+						else {
+							// ENS domains on mainnet have a shortcut
+							if(urlMainParts.hostname.endsWith('.eth') && urlMainParts.chainId === undefined) {
+								// gateway = "w3eth.io"
+								// subDomains.push(urlMainParts.hostname.slice(0, -4))
+								subDomains.push(urlMainParts.hostname)
+								subDomains.push(1)
+							}
+							else {
+								subDomains.push(urlMainParts.hostname)
+								if(urlMainParts.chainId !== undefined) {
+									subDomains.push(urlMainParts.chainId)
+								}
+							}
+						}
+				
+						let gatewayUrl = window.location.protocol + "//" + subDomains.join(".") + "." + gateway + (urlMainParts.path ?? "")
+						return gatewayUrl;
+					}
+
+					// Process absolute web3:// URLS: convert them into gateway HTTP RULS
+					if (typeof input === 'string' && input.startsWith('web3://')) {
+						const convertedUrl = convertWeb3UrlToGatewayUrl(input);
+						if(convertedUrl) {
+							console.log('Gateway fetch() wrapper: Converted ' + input + ' to ' + convertedUrl);
+							input = convertedUrl;
+						}
+					}
+
+					// Pipe through the original fetch function
+					return originalFetch(input, init);
+				};
+			})();
+		</script>
+	`)
+	alteredBuf = append(
+		alteredBuf[:headTagIndex+len("<head>")], 
+		append(patch, alteredBuf[headTagIndex+len("<head")+1:len(alteredBuf)]...)...)
+
+	// If contentEncoding is "gzip", then recompress the data
+	if contentEncoding == "gzip" {
+		var compressedBuf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&compressedBuf)
+		gzipWriter.Write(alteredBuf)
+		gzipWriter.Close()
+		alteredBuf = compressedBuf.Bytes()
+	}
+
+	// Finally: copy the altered data back into the original buffer and update n
+	copy(buf, alteredBuf)
+	n = len(alteredBuf)
+
+	return n
 }
