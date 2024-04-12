@@ -142,7 +142,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// If the content type is text/html, we do some processing on the data
-		// (e.g. patching the fetch() JS function so that it works with web3:// URLs) 
+		// - patching the fetch() JS function so that it works with web3:// URLs
+		// - Handling <a> links to absolute web3:// URLs
 		if w.Header().Get("Content-Type") == "text/html" {
 			n = patchHTMLFile(buf, n, w.Header().Get("Content-Encoding"))
 		}
@@ -203,7 +204,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 
 	hostParts := strings.Split(host, ".")
 	hostPartsCount := len(hostParts)
-	if hostPartsCount > 5 {
+	if hostPartsCount > 6 {
 		log.Info("subdomain too long")
 		return "", false, fmt.Errorf("invalid subdomain")
 	}
@@ -305,13 +306,37 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		}
 		useSubdomain = true
 	}
+
+	// https://[web3-host-subdomain].[web3-host-name].[web3-host-tld].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
+	// Examples:
+	// https://dblog.dblog.eth.11155111.w3link.io/ -> web3://dblog.dblog.eth:11155111/
+	if hostPartsCount == 6 {
+		if config.DefaultChain > 0 {
+			log.Info("no tld should be provided when default chain is specified")
+			return "", false, fmt.Errorf("invalid subdomain")
+		}
+
+		name := hostParts[0] + "." + hostParts[1] + "." + hostParts[2]
+		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
+		full := hostChangeChainShortNameToId(name + ":" + hostParts[3])
+
+		if strings.Index(path, "/"+name+"/") == 0 {
+			// append chain short name to hosted dweb files
+			p = strings.Replace(path, "/"+name+"/", "/"+full+"/", 1)
+		} else if !strings.Contains(path, "/"+name+"/") {
+			p = "/" + full + path
+		}
+		useSubdomain = true
+	}
+
 	log.Info("=>", p)
 
 	return p, useSubdomain, nil
 }
 
 // If the content type is text/html, we do some processing on the data
-// (e.g. patching the fetch() JS function so that it works with web3:// URLs) 
+// - patching the fetch() JS function so that it works with web3:// URLs
+// - Handling <a> links to absolute web3:// URLs
 // This is not 100% perfect:
 // - This will fail if the content is compressed and spread over several chunks (should be rare)
 func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
@@ -343,60 +368,61 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 	patch := []byte(`
 		<script>
 			(function() {
-				const originalFetch = fetch;
-				fetch = function(input, init) {
-					
-					// Web3:// URL to Gateway URL convertor
-					const convertWeb3UrlToGatewayUrl = function(web3Url) {
-						// Parse the URL
-						let matchResult = web3Url.match(/^(?<protocol>[^:]+):\/\/(?<hostname>[^:/?]+)(:(?<chainId>[1-9][0-9]*))?(?<path>.*)?$/)
-						if(matchResult == null) {
-							// Invalid web3:// URL
-							return null;
+				// Web3:// URL to Gateway URL convertor
+				const convertWeb3UrlToGatewayUrl = function(web3Url) {
+					// Parse the URL
+					let matchResult = web3Url.match(/^(?<protocol>[^:]+):\/\/(?<hostname>[^:/?]+)(:(?<chainId>[1-9][0-9]*))?(?<path>.*)?$/)
+					if(matchResult == null) {
+						// Invalid web3:// URL
+						return null;
+					}
+					let urlMainParts = matchResult.groups
+			
+					// Check protocol name
+					if(["web3", "w3"].includes(urlMainParts.protocol) == false) {
+						// Bad protocol name"
+						return null;
+					}
+			
+					// Get subdomain components
+					let gateway = window.location.hostname.split('.').slice(-2).join('.') + (window.location.port ? ':' + window.location.port : '');
+					let subDomains = []
+					// Is the contract an ethereum address?
+					if(/^0x[0-9a-fA-F]{40}$/.test(urlMainParts.hostname)) {
+						subDomains.push(urlMainParts.hostname)
+						if(urlMainParts.chainId !== undefined) {
+							subDomains.push(urlMainParts.chainId)
 						}
-						let urlMainParts = matchResult.groups
-				
-						// Check protocol name
-						if(["web3", "w3"].includes(urlMainParts.protocol) == false) {
-							// Bad protocol name"
-							return null;
+						else {
+							// gateway = "w3eth.io"
+							subDomains.push(1);
 						}
-				
-						// Get subdomain components
-						let gateway = window.location.hostname.split('.').slice(-2).join('.') + (window.location.port ? ':' + window.location.port : '');
-						let subDomains = []
-						// Is the contract an ethereum address?
-						if(/^0x[0-9a-fA-F]{40}$/.test(urlMainParts.hostname)) {
+					}
+					// It is a domain name
+					else {
+						// ENS domains on mainnet have a shortcut
+						if(urlMainParts.hostname.endsWith('.eth') && urlMainParts.chainId === undefined) {
+							// gateway = "w3eth.io"
+							// subDomains.push(urlMainParts.hostname.slice(0, -4))
+							subDomains.push(urlMainParts.hostname)
+							subDomains.push(1)
+						}
+						else {
 							subDomains.push(urlMainParts.hostname)
 							if(urlMainParts.chainId !== undefined) {
 								subDomains.push(urlMainParts.chainId)
 							}
-							else {
-								// gateway = "w3eth.io"
-								subDomains.push(1);
-							}
 						}
-						// It is a domain name
-						else {
-							// ENS domains on mainnet have a shortcut
-							if(urlMainParts.hostname.endsWith('.eth') && urlMainParts.chainId === undefined) {
-								// gateway = "w3eth.io"
-								// subDomains.push(urlMainParts.hostname.slice(0, -4))
-								subDomains.push(urlMainParts.hostname)
-								subDomains.push(1)
-							}
-							else {
-								subDomains.push(urlMainParts.hostname)
-								if(urlMainParts.chainId !== undefined) {
-									subDomains.push(urlMainParts.chainId)
-								}
-							}
-						}
-				
-						let gatewayUrl = window.location.protocol + "//" + subDomains.join(".") + "." + gateway + (urlMainParts.path ?? "")
-						return gatewayUrl;
 					}
+			
+					let gatewayUrl = window.location.protocol + "//" + subDomains.join(".") + "." + gateway + (urlMainParts.path ?? "")
+					return gatewayUrl;
+				}
 
+
+				// Wrap the fetch() function to convert web3:// URLs into gateway URLs
+				const originalFetch = fetch;
+				fetch = function(input, init) {
 					// Process absolute web3:// URLS: convert them into gateway HTTP RULS
 					if (typeof input === 'string' && input.startsWith('web3://')) {
 						const convertedUrl = convertWeb3UrlToGatewayUrl(input);
@@ -409,6 +435,21 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 					// Pipe through the original fetch function
 					return originalFetch(input, init);
 				};
+
+
+				// Listen for clicks on <a> tags, and convert web3:// URLs into gateway URLs
+				document.addEventListener('click', function(event) {
+					if(event.target.tagName === 'A' && event.target.href.startsWith('web3://')) {
+						event.preventDefault();
+						const convertedUrl = convertWeb3UrlToGatewayUrl(event.target.href);
+						if(convertedUrl == null) {
+							console.log("A tag click wrapper: Unable to convert web3:// URL: " + event.target.href);
+							return;
+						}
+						console.log('A tag click wrapper: Converted ' + event.target.href + ' to ' + convertedUrl);
+						window.location.href = convertedUrl;
+					}
+				});
 			})();
 		</script>
 	`)
