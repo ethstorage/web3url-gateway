@@ -45,6 +45,7 @@ defaultChain = 0
 "scr-testl1" = 534351
 "scr-prealpha" = 534354
 "basegor" = 84531
+"storyprotocoltest" = 1513
 
 [chainConfigs]
     [chainConfigs.3334]
@@ -174,6 +175,10 @@ defaultChain = 0
     [chainConfigs.84531]
     "ChainID" = 84531
     "RPC" = "https://goerli.base.org"
+
+    [chainConfigs.1513]
+    "ChainID" = 1513
+    "RPC" = "https://story-network.rpc.caldera.xyz/http"
 
     [chainConfigs.3333]
     "ChainID" = 3333
