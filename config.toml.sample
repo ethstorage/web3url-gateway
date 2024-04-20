@@ -72,6 +72,9 @@ defaultChain = 0
     [chainConfigs.11155111]
     "ChainID" = 11155111
     "RPC" = "https://sepolia.infura.io/v3/************"
+    [chainConfigs.11155111.NSConfig."eth"]
+        "NSType" = "ens"
+        "NSAddr" = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
 
     [chainConfigs.10]
     "ChainID" = 10
