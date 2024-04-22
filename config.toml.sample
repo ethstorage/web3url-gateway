@@ -46,6 +46,7 @@ defaultChain = 0
 "scr-prealpha" = 534354
 "basegor" = 84531
 "storyprotocoltest" = 1513
+"es-t" = 3333
 
 [chainConfigs]
     [chainConfigs.3334]
