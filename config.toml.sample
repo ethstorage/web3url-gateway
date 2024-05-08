@@ -16,6 +16,7 @@ defaultChain = 0
 
 # support chain name convention
 [name2chain]
+"es-t" = 3333
 "w3q-g" = 3334
 "eth" = 1
 "gor" = 5
