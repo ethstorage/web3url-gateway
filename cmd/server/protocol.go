@@ -144,7 +144,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// If the content type is text/html, we do some processing on the data
 		// - patching the fetch() JS function so that it works with web3:// URLs
 		// - Handling <a> links to absolute web3:// URLs
-		if w.Header().Get("Content-Type") == "text/html" {
+		if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") {
 			n = patchHTMLFile(buf, n, w.Header().Get("Content-Encoding"))
 		}
 
