@@ -45,6 +45,7 @@ defaultChain = 0
 "metis-goerli" = 599
 "scr-testl1" = 534351
 "scr-prealpha" = 534354
+"base" = 8453
 "basegor" = 84531
 "storyprotocoltest" = 1513
 
@@ -176,6 +177,10 @@ defaultChain = 0
     [chainConfigs.84531]
     "ChainID" = 84531
     "RPC" = "https://goerli.base.org"
+
+    [chainConfigs.8453]
+    "ChainID" = 8453
+    "RPC" = "https://developer-access-mainnet.base.org"
 
     [chainConfigs.1513]
     "ChainID" = 1513
