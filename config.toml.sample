@@ -47,6 +47,7 @@ defaultChain = 0
 "scr-prealpha" = 534354
 "base" = 8453
 "basegor" = 84531
+"basesep" = 84532
 "storyprotocoltest" = 1513
 
 [chainConfigs]
@@ -177,6 +178,10 @@ defaultChain = 0
     [chainConfigs.84531]
     "ChainID" = 84531
     "RPC" = "https://goerli.base.org"
+
+    [chainConfigs.84532]
+    "ChainID" = 84532
+    "RPC" = "https://sepolia.base.org"
 
     [chainConfigs.8453]
     "ChainID" = 8453
