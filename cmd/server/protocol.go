@@ -449,7 +449,13 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 							return;
 						}
 						console.log('Gateway A tag click wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-						window.location.href = convertedUrl;
+						// If the A tag has a target="_blank" attribute, open the URL in a new tab
+						if(closestATag.target === '_blank') {
+							window.open(convertedUrl, '_blank');
+						}
+						else {
+							window.location.href = convertedUrl;
+						}
 					}
 				});
 
