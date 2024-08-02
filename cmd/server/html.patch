@@ -104,7 +104,7 @@
         // Insertion of nodes with the src attribute (img, iframe, audio, ...)
         if(mutation.type === 'childList') {
           mutation.addedNodes.forEach(function(addedNode) {
-            // Look at node and all its children for IFRAME and IMG tags with web3:// URLs
+            // Look at node and all its children for tags with web3:// URLs in their src attribute
             if(addedNode.nodeType != 1) {
               return;
             }
