@@ -358,13 +358,13 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 		}
 	}
 
-	// Look for the "<head>" tag, and insert the patch right after it
-	headTagIndex := strings.Index(string(alteredBuf), "<head>")
-	if headTagIndex == -1 {
+	// Look for the "<body>" tag, and insert the patch right after it
+	bodyTagIndex := strings.Index(string(alteredBuf), "<body>")
+	if bodyTagIndex == -1 {
 		return n
 	}
 	
-	// Insert the patch right after the "<head>" tag
+	// Insert the patch right after the "<body>" tag
 	patch := []byte(`
 		<script>
 			(function() {
@@ -439,23 +439,65 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 
 				// Listen for clicks on <a> tags, and convert web3:// URLs into gateway URLs
 				document.addEventListener('click', function(event) {
-					if(event.target.tagName === 'A' && event.target.href.startsWith('web3://')) {
+					const closestATag = event.target.closest('a');
+					if(closestATag && closestATag.href.startsWith('web3://')) {
 						event.preventDefault();
-						const convertedUrl = convertWeb3UrlToGatewayUrl(event.target.href);
+						const targetUrl = closestATag.href;
+						const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
 						if(convertedUrl == null) {
-							console.log("A tag click wrapper: Unable to convert web3:// URL: " + event.target.href);
+							console.log("Gateway A tag click wrapper: Unable to convert web3:// URL: " + targetUrl);
 							return;
 						}
-						console.log('A tag click wrapper: Converted ' + event.target.href + ' to ' + convertedUrl);
-						window.location.href = convertedUrl;
+						console.log('Gateway A tag click wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+						// If the A tag has a target="_blank" attribute, open the URL in a new tab
+						if(closestATag.target === '_blank') {
+							window.open(convertedUrl, '_blank');
+						}
+						else {
+							window.location.href = convertedUrl;
+						}
 					}
 				});
+
+
+				// Listen for iframe addition to the DOM, and src attribute change, and convert web3:// URLs into gateway URLs
+				const observer = new MutationObserver(function(mutations) {
+					mutations.forEach(function(mutation) {
+						if(mutation.type === 'childList') {
+							mutation.addedNodes.forEach(function(node) {
+								if(node.tagName === 'IFRAME' && node.src.startsWith('web3://')) {
+									const targetUrl = node.src;
+									const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+									if(convertedUrl == null) {
+										console.log("Gateway iframe injection wrapper: Unable to convert web3:// URL: " + targetUrl);
+										return;
+									}
+									console.log('Gateway iframe injection wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+									node.src = convertedUrl;
+								}
+							});
+						}
+						else if(mutation.type === 'attributes' && mutation.attributeName === 'src') {
+							if(mutation.target.tagName === 'IFRAME' && mutation.target.src.startsWith('web3://')) {
+								const targetUrl = mutation.target.src;
+								const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+								if(convertedUrl == null) {
+									console.log("Gateway iframe src change wrapper: Unable to convert web3:// URL: " + targetUrl);
+									return;
+								}
+								console.log('Gateway iframe src change wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+								mutation.target.src = convertedUrl;
+							}
+						}
+					});
+				});
+				observer.observe(document.querySelector("body"), {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
 			})();
 		</script>
 	`)
 	alteredBuf = append(
-		alteredBuf[:headTagIndex+len("<head>")], 
-		append(patch, alteredBuf[headTagIndex+len("<head")+1:len(alteredBuf)]...)...)
+		alteredBuf[:bodyTagIndex+len("<body>")], 
+		append(patch, alteredBuf[bodyTagIndex+len("<body")+1:len(alteredBuf)]...)...)
 
 	// If contentEncoding is "gzip", then recompress the data
 	if contentEncoding == "gzip" {
