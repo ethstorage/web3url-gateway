@@ -1,0 +1,144 @@
+<script>
+  /** 
+   * Patch by web3url-gateway : Convert web3:// URLs into gateway URLs in various places
+   */
+  (function() {
+
+    // Web3:// URL to Gateway URL convertor
+    const convertWeb3UrlToGatewayUrl = function(web3Url) {
+      // Parse the URL
+      let matchResult = web3Url.match(/^(?<protocol>[^:]+):\/\/(?<hostname>[^:/?]+)(:(?<chainId>[1-9][0-9]*))?(?<path>.*)?$/)
+      if(matchResult == null) {
+        // Invalid web3:// URL
+        return null;
+      }
+      let urlMainParts = matchResult.groups
+  
+      // Check protocol name
+      if(["web3", "w3"].includes(urlMainParts.protocol) == false) {
+        // Bad protocol name"
+        return null;
+      }
+  
+      // Get subdomain components
+      let gateway = window.location.hostname.split('.').slice(-2).join('.') + (window.location.port ? ':' + window.location.port : '');
+      let subDomains = []
+      // Is the contract an ethereum address?
+      if(/^0x[0-9a-fA-F]{40}$/.test(urlMainParts.hostname)) {
+        subDomains.push(urlMainParts.hostname)
+        if(urlMainParts.chainId !== undefined) {
+          subDomains.push(urlMainParts.chainId)
+        }
+        else {
+          // gateway = "w3eth.io"
+          subDomains.push(1);
+        }
+      }
+      // It is a domain name
+      else {
+        // ENS domains on mainnet have a shortcut
+        if(urlMainParts.hostname.endsWith('.eth') && urlMainParts.chainId === undefined) {
+          // gateway = "w3eth.io"
+          // subDomains.push(urlMainParts.hostname.slice(0, -4))
+          subDomains.push(urlMainParts.hostname)
+          subDomains.push(1)
+        }
+        else {
+          subDomains.push(urlMainParts.hostname)
+          if(urlMainParts.chainId !== undefined) {
+            subDomains.push(urlMainParts.chainId)
+          }
+        }
+      }
+  
+      let gatewayUrl = window.location.protocol + "//" + subDomains.join(".") + "." + gateway + (urlMainParts.path ?? "")
+      return gatewayUrl;
+    }
+
+
+    // Wrap the fetch() function to convert web3:// URLs into gateway URLs
+    const originalFetch = fetch;
+    fetch = function(input, init) {
+      // Process absolute web3:// URLS: convert them into gateway HTTP RULS
+      if (typeof input === 'string' && input.startsWith('web3://')) {
+        const convertedUrl = convertWeb3UrlToGatewayUrl(input);
+        if(convertedUrl == null) {
+          console.error("Gateway fetch() wrapper: Unable to convert web3:// URL: " + input);
+          return;
+        }
+        console.log('Gateway fetch() wrapper: Converted ' + input + ' to ' + convertedUrl);
+        input = convertedUrl;
+      }
+
+      // Pipe through the original fetch function
+      return originalFetch(input, init);
+    };
+
+
+    // Listen for clicks on <a> tags, and convert web3:// URLs into gateway URLs
+    document.addEventListener('click', function(event) {
+      const closestATag = event.target.closest('a');
+      if(closestATag && closestATag.href.startsWith('web3://')) {
+        event.preventDefault();
+        const targetUrl = closestATag.href;
+        const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+        if(convertedUrl == null) {
+          console.error("Gateway A tag click wrapper: Unable to convert web3:// URL: " + targetUrl);
+          return;
+        }
+        console.log('Gateway A tag click wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+        // If the A tag has a target="_blank" attribute, open the URL in a new tab
+        if(closestATag.target === '_blank') {
+          window.open(convertedUrl, '_blank');
+        }
+        else {
+          window.location.href = convertedUrl;
+        }
+      }
+    });
+
+
+    // Listen for nodes with src attribute insertion to the DOM, and src attribute change, and convert web3:// URLs into gateway URLs
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        // Insertion of nodes with the src attribute (img, iframe, audio, ...)
+        if(mutation.type === 'childList') {
+          mutation.addedNodes.forEach(function(addedNode) {
+            // Look at node and all its children for tags with web3:// URLs in their src attribute
+            if(addedNode.nodeType != 1) {
+              return;
+            }
+            const nodes = [...addedNode.querySelectorAll('*[src^="web3://"]')];
+            if(addedNode.hasAttribute('src') && addedNode.src.startsWith('web3://')) {
+              nodes.push(addedNode);
+            }
+            nodes.forEach(function(node) {
+              const targetUrl = node.src;
+              const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+              if(convertedUrl == null) {
+                console.error("Gateway " + node.tagName + " injection wrapper: Unable to convert web3:// URL: " + targetUrl);
+                return;
+              }
+              console.log('Gateway ' + node.tagName + ' injection wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+              node.src = convertedUrl;
+            });
+          });
+        }
+        // Edition of a src attribute of a node
+        else if(mutation.type === 'attributes' && mutation.attributeName === 'src') {
+          if(mutation.target.src.startsWith('web3://')) {
+            const targetUrl = mutation.target.src;
+            const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+            if(convertedUrl == null) {
+              console.error("Gateway " + mutation.target.tagName + " src change wrapper: Unable to convert web3:// URL: " + targetUrl);
+              return;
+            }
+            console.log('Gateway ' + mutation.target.tagName + ' src change wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+            mutation.target.src = convertedUrl;
+          }
+        }
+      });
+    });
+    observer.observe(document.querySelector("body"), {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
+  })();
+</script>

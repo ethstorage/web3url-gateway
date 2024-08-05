@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io/ioutil"
+	_ "embed"
 
 	log "github.com/sirupsen/logrus"
 
@@ -339,6 +340,8 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 // - Handling <a> links to absolute web3:// URLs
 // This is not 100% perfect:
 // - This will fail if the content is compressed and spread over several chunks (should be rare)
+//go:embed html.patch
+var htmlPatch []byte
 func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 	// Create a new buffer of length n, and copy the data into it
 	alteredBuf := make([]byte, n)
@@ -365,139 +368,9 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 	}
 	
 	// Insert the patch right after the "<body>" tag
-	patch := []byte(`
-		<script>
-			(function() {
-				// Web3:// URL to Gateway URL convertor
-				const convertWeb3UrlToGatewayUrl = function(web3Url) {
-					// Parse the URL
-					let matchResult = web3Url.match(/^(?<protocol>[^:]+):\/\/(?<hostname>[^:/?]+)(:(?<chainId>[1-9][0-9]*))?(?<path>.*)?$/)
-					if(matchResult == null) {
-						// Invalid web3:// URL
-						return null;
-					}
-					let urlMainParts = matchResult.groups
-			
-					// Check protocol name
-					if(["web3", "w3"].includes(urlMainParts.protocol) == false) {
-						// Bad protocol name"
-						return null;
-					}
-			
-					// Get subdomain components
-					let gateway = window.location.hostname.split('.').slice(-2).join('.') + (window.location.port ? ':' + window.location.port : '');
-					let subDomains = []
-					// Is the contract an ethereum address?
-					if(/^0x[0-9a-fA-F]{40}$/.test(urlMainParts.hostname)) {
-						subDomains.push(urlMainParts.hostname)
-						if(urlMainParts.chainId !== undefined) {
-							subDomains.push(urlMainParts.chainId)
-						}
-						else {
-							// gateway = "w3eth.io"
-							subDomains.push(1);
-						}
-					}
-					// It is a domain name
-					else {
-						// ENS domains on mainnet have a shortcut
-						if(urlMainParts.hostname.endsWith('.eth') && urlMainParts.chainId === undefined) {
-							// gateway = "w3eth.io"
-							// subDomains.push(urlMainParts.hostname.slice(0, -4))
-							subDomains.push(urlMainParts.hostname)
-							subDomains.push(1)
-						}
-						else {
-							subDomains.push(urlMainParts.hostname)
-							if(urlMainParts.chainId !== undefined) {
-								subDomains.push(urlMainParts.chainId)
-							}
-						}
-					}
-			
-					let gatewayUrl = window.location.protocol + "//" + subDomains.join(".") + "." + gateway + (urlMainParts.path ?? "")
-					return gatewayUrl;
-				}
-
-
-				// Wrap the fetch() function to convert web3:// URLs into gateway URLs
-				const originalFetch = fetch;
-				fetch = function(input, init) {
-					// Process absolute web3:// URLS: convert them into gateway HTTP RULS
-					if (typeof input === 'string' && input.startsWith('web3://')) {
-						const convertedUrl = convertWeb3UrlToGatewayUrl(input);
-						if(convertedUrl) {
-							console.log('Gateway fetch() wrapper: Converted ' + input + ' to ' + convertedUrl);
-							input = convertedUrl;
-						}
-					}
-
-					// Pipe through the original fetch function
-					return originalFetch(input, init);
-				};
-
-
-				// Listen for clicks on <a> tags, and convert web3:// URLs into gateway URLs
-				document.addEventListener('click', function(event) {
-					const closestATag = event.target.closest('a');
-					if(closestATag && closestATag.href.startsWith('web3://')) {
-						event.preventDefault();
-						const targetUrl = closestATag.href;
-						const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
-						if(convertedUrl == null) {
-							console.log("Gateway A tag click wrapper: Unable to convert web3:// URL: " + targetUrl);
-							return;
-						}
-						console.log('Gateway A tag click wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-						// If the A tag has a target="_blank" attribute, open the URL in a new tab
-						if(closestATag.target === '_blank') {
-							window.open(convertedUrl, '_blank');
-						}
-						else {
-							window.location.href = convertedUrl;
-						}
-					}
-				});
-
-
-				// Listen for iframe addition to the DOM, and src attribute change, and convert web3:// URLs into gateway URLs
-				const observer = new MutationObserver(function(mutations) {
-					mutations.forEach(function(mutation) {
-						if(mutation.type === 'childList') {
-							mutation.addedNodes.forEach(function(node) {
-								if(node.tagName === 'IFRAME' && node.src.startsWith('web3://')) {
-									const targetUrl = node.src;
-									const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
-									if(convertedUrl == null) {
-										console.log("Gateway iframe injection wrapper: Unable to convert web3:// URL: " + targetUrl);
-										return;
-									}
-									console.log('Gateway iframe injection wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-									node.src = convertedUrl;
-								}
-							});
-						}
-						else if(mutation.type === 'attributes' && mutation.attributeName === 'src') {
-							if(mutation.target.tagName === 'IFRAME' && mutation.target.src.startsWith('web3://')) {
-								const targetUrl = mutation.target.src;
-								const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
-								if(convertedUrl == null) {
-									console.log("Gateway iframe src change wrapper: Unable to convert web3:// URL: " + targetUrl);
-									return;
-								}
-								console.log('Gateway iframe src change wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-								mutation.target.src = convertedUrl;
-							}
-						}
-					});
-				});
-				observer.observe(document.querySelector("body"), {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
-			})();
-		</script>
-	`)
 	alteredBuf = append(
 		alteredBuf[:bodyTagIndex+len("<body>")], 
-		append(patch, alteredBuf[bodyTagIndex+len("<body")+1:len(alteredBuf)]...)...)
+		append(htmlPatch, alteredBuf[bodyTagIndex+len("<body")+1:len(alteredBuf)]...)...)
 
 	// If contentEncoding is "gzip", then recompress the data
 	if contentEncoding == "gzip" {
