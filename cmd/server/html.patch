@@ -98,47 +98,40 @@
     });
 
 
-    // Listen for nodes with src attribute insertion to the DOM, and src attribute change, and convert web3:// URLs into gateway URLs
-    const observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        // Insertion of nodes with the src attribute (img, iframe, audio, ...)
-        if(mutation.type === 'childList') {
-          mutation.addedNodes.forEach(function(addedNode) {
-            // Look at node and all its children for tags with web3:// URLs in their src attribute
-            if(addedNode.nodeType != 1) {
-              return;
-            }
-            const nodes = [...addedNode.querySelectorAll('*[src^="web3://"]')];
-            if(addedNode.hasAttribute('src') && addedNode.src.startsWith('web3://')) {
-              nodes.push(addedNode);
-            }
-            nodes.forEach(function(node) {
-              const targetUrl = node.src;
-              const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
-              if(convertedUrl == null) {
-                console.error("Gateway " + node.tagName + " injection wrapper: Unable to convert web3:// URL: " + targetUrl);
-                return;
-              }
-              console.log('Gateway ' + node.tagName + ' injection wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-              node.src = convertedUrl;
-            });
-          });
-        }
-        // Edition of a src attribute of a node
-        else if(mutation.type === 'attributes' && mutation.attributeName === 'src') {
-          if(mutation.target.src.startsWith('web3://')) {
-            const targetUrl = mutation.target.src;
-            const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+    // All tags with a attribute that can get an URL: override the setting of the attribute to convert web3:// URLs into gateway URLs
+    const elementsWithUrlAttr = [
+      {element: HTMLAnchorElement, attrName: 'href'}, // <a>
+      {element: HTMLLinkElement, attrName: 'href'}, // <link>
+      {element: HTMLAreaElement, attrName: 'href'}, // <area>
+      {element: HTMLImageElement, attrName: 'src'}, // <img>
+      {element: HTMLScriptElement, attrName: 'src'}, // <script>
+      {element: HTMLIFrameElement, attrName: 'src'}, // <iframe>
+      // {tag: HTMLAudioElement, attr: 'src'}, // <audio>
+      // {tag: HTMLVideoElement, attr: 'src'}, // <video>
+      {element: HTMLSourceElement, attrName: 'src'}, // <source>
+      {element: HTMLEmbedElement, attrName: 'src'}, // <embed>
+      {element: HTMLInputElement, attrName: 'src'}, // <input type="image">
+    ];
+    elementsWithUrlAttr.forEach(function(elementWithUrlAttr) {
+      const originalAttrSetter = Object.getOwnPropertyDescriptor(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName).set;
+      Object.defineProperty(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName, {
+        set: function(attrValue) {
+          if(attrValue.startsWith('web3://')) {
+            const convertedUrl = convertWeb3UrlToGatewayUrl(attrValue);
             if(convertedUrl == null) {
-              console.error("Gateway " + mutation.target.tagName + " src change wrapper: Unable to convert web3:// URL: " + targetUrl);
+              console.error("Gateway " + elementWithUrlAttr.element.name + " " + elementWithUrlAttr.attrName + " setter wrapper: Unable to convert web3:// URL: " + attrValue);
+              originalAttrSetter.call(this, attrValue);
               return;
             }
-            console.log('Gateway ' + mutation.target.tagName + ' src change wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-            mutation.target.src = convertedUrl;
+            console.log('Gateway ' + elementWithUrlAttr.element.name + ' ' + elementWithUrlAttr.attrName + ' setter wrapper: Converted ' + attrValue + ' to ' + convertedUrl);
+            originalAttrSetter.call(this, convertedUrl);
+          }
+          else {
+            originalAttrSetter.call(this, attrValue);
           }
         }
       });
     });
-    observer.observe(document.querySelector("body"), {childList: true, subtree: true, attributes: true, attributeFilter: ['src']});
+
   })();
 </script>
