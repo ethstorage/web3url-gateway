@@ -48,16 +48,19 @@ var (
 func getCertFromPath(domain, path string) (*tls.Certificate, error) {
 
 	var (
-		err  error
-		data []byte
-		cert tls.Certificate
+		err       error
+		data, key []byte
+		cert      tls.Certificate
 	)
 
 	if data, err = os.ReadFile(path); err != nil {
 		return nil, err
 	}
+	if key, err = os.ReadFile(config.KeyFile); err != nil {
+		return nil, err
 
-	if cert, err = tls.X509KeyPair(data, data); err != nil {
+	}
+	if cert, err = tls.X509KeyPair(data, key); err != nil {
 		return nil, err
 	}
 
