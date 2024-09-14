@@ -23,6 +23,12 @@ import (
 
 func handle(w http.ResponseWriter, req *http.Request) {
 
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start).Milliseconds()
+		log.Infof(">>>>>>>>>>>%s totally took %dms", req.URL.Path, elapsed)
+	}()
+
 	h := req.Host
 
 	if cname, err := net.LookupCNAME(h); err == nil {
