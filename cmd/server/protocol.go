@@ -73,7 +73,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
 	if err != nil {
-		log.Errorf("FetchUrl error: %v", err)
+		log.Errorf("FetchUrl error: %v, url=%s", err, web3Url)
 		respondWithErrorPage(w, err)
 		return
 	}
@@ -153,7 +153,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Fetch data from web3protocol-go
 		n, err := fetchedWeb3Url.Output.Read(buf)
 		if err != nil && err != io.EOF {
-			log.Errorf("Cannot read from web3protocol-go: %v\n", err)
+			log.Errorf("Cannot read from web3protocol-go: %v", err)
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
@@ -174,7 +174,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Feed the data to the HTTP client
 		_, err = w.Write(buf[:n])
 		if err != nil {
-			log.Errorf("Cannot write to client: %v\n", err)
+			log.Errorf("Cannot write to client: %v", err)
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
