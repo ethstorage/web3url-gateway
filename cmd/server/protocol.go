@@ -34,7 +34,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	h := req.Host
 
 	if cname, err := net.LookupCNAME(h); err == nil {
-		log.Infof("cname is ---> %s", cname)
+		// log.Infof("cname is ---> %s", cname)
 		if strings.HasSuffix(cname, ".") {
 			h = cname[:len(cname)-1]
 			w.Header().Set("Web3-CNAME", cname)
@@ -206,7 +206,7 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 // 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io
 // quark.w3q.w3q-g.w3link.io
 func handleSubdomain(host string, path string) (p string, useSubdomain bool, err error) {
-	log.Info(host + path)
+	// log.Info(host + path)
 
 	// Remove port from end of host
 	if strings.Index(host, ":") > 0 {
@@ -344,7 +344,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		useSubdomain = true
 	}
 
-	log.Info("=>", p)
+	// log.Info("=>", p)
 
 	return p, useSubdomain, nil
 }
