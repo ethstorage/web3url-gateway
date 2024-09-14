@@ -26,7 +26,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	start0 := time.Now()
 	defer func() {
 		elapsed := time.Since(start0).Milliseconds()
-		if strings.Contains(req.URL.Path, ".webm") || strings.Contains(req.URL.Path, ".wasm") {
+		if strings.Contains(req.URL.Path, ".webm") || strings.Contains(req.URL.Path, ".wasm") || strings.Contains(req.URL.Path, "76c8e558") || strings.Contains(req.URL.Path, "00833fa6.301e5a03") {
 			log.Infof(">>>>>>>>>>>%s totally took %dms", req.Host+req.URL.Path, elapsed)
 		}
 	}()
@@ -76,7 +76,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	elapsed := time.Since(start).Milliseconds()
-	if strings.Contains(web3Url, ".webm") || strings.Contains(web3Url, ".wasm") {
+	if strings.Contains(web3Url, ".webm") || strings.Contains(web3Url, ".wasm") || strings.Contains(web3Url, "76c8e558") || strings.Contains(web3Url, "00833fa6.301e5a03") {
 		log.Infof(">>>>>>>>>>>fetching %s took %dms", web3Url, elapsed)
 	}
 
@@ -283,7 +283,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io/index.txt -> web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/index.txt
 	if hostPartsCount == 4 {
 		if !common.IsHexAddress(hostParts[0]) {
-			log.Info("invalid contract address")
+			log.Infof("invalid contract address: %s", hostParts[0])
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
 
