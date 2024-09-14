@@ -26,7 +26,9 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	start0 := time.Now()
 	defer func() {
 		elapsed := time.Since(start0).Milliseconds()
-		log.Infof(">>>>>>>>>>>%s totally took %dms", req.Host+req.URL.Path, elapsed)
+		if strings.Contains(req.URL.Path, ".webm") || strings.Contains(req.URL.Path, ".wasm") {
+			log.Infof(">>>>>>>>>>>%s totally took %dms", req.Host+req.URL.Path, elapsed)
+		}
 	}()
 
 	h := req.Host
@@ -74,7 +76,9 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	elapsed := time.Since(start).Milliseconds()
-	log.Infof(">>>>>>>>>>>fetching %s took %dms", web3Url, elapsed)
+	if strings.Contains(web3Url, ".webm") || strings.Contains(web3Url, ".wasm") {
+		log.Infof(">>>>>>>>>>>fetching %s took %dms", web3Url, elapsed)
+	}
 
 	// Send the HTTP headers returned by the protocol
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
