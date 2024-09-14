@@ -66,7 +66,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		web3Url += "?" + req.URL.RawQuery
 	}
 
-	log.Infof("web3url : %s", web3Url)
+	// log.Infof("web3url : %s", web3Url)
 
 	// Fetch the web3 URL
 	start := time.Now()
