@@ -52,6 +52,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Convert the subdomain and path to a web3:// URL (without "web3:/" prefix and the query)
 	p, _, er := handleSubdomain(h, path)
 	if er != nil {
+		log.Errorf("handleSubdomain error: %v", er)
 		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, er.Error()})
 		return
 	}
@@ -72,6 +73,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
 	if err != nil {
+		log.Errorf("FetchUrl error: %v", err)
 		respondWithErrorPage(w, err)
 		return
 	}
@@ -115,6 +117,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		for i, methodArgValue := range parsedWeb3Url.MethodArgValues {
 			formattedValue, err := web3protocol.JsonEncodeAbiTypeValue(parsedWeb3Url.MethodArgs[i], methodArgValue)
 			if err != nil {
+				log.Errorf("JsonEncodeAbiTypeValue error: %v", err)
 				respondWithErrorPage(w, err)
 				return
 			}
@@ -122,6 +125,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		}
 		jsonEncodedMethodArgValues, err := json.Marshal(formattedMethodArgValues)
 		if err != nil {
+			log.Errorf("json.Marshal error: %v", err)
 			respondWithErrorPage(w, err)
 			return
 		}
@@ -149,6 +153,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Fetch data from web3protocol-go
 		n, err := fetchedWeb3Url.Output.Read(buf)
 		if err != nil && err != io.EOF {
+			log.Errorf("Cannot read from web3protocol-go: %v\n", err)
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
@@ -169,10 +174,14 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Feed the data to the HTTP client
 		_, err = w.Write(buf[:n])
 		if err != nil {
+			log.Errorf("Cannot write to client: %v\n", err)
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
 
+		if strings.Contains(req.URL.Path, ".webm") || strings.Contains(req.URL.Path, ".wasm") || strings.Contains(req.URL.Path, "76c8e558") || strings.Contains(req.URL.Path, "00833fa6.301e5a03") {
+			log.Infof("Handle %s successfully! Total length of output data: %d", req.Host+req.URL.Path, outputDataLength)
+		}
 		// Flush it so that it gets sent right away, as a chunk
 		// (This is still an HTTP 1.1 server, so it's using Transfer-encoding: chunked)
 		if f, ok := w.(http.Flusher); ok {
