@@ -23,9 +23,9 @@ import (
 
 func handle(w http.ResponseWriter, req *http.Request) {
 
-	start := time.Now()
+	start0 := time.Now()
 	defer func() {
-		elapsed := time.Since(start).Milliseconds()
+		elapsed := time.Since(start0).Milliseconds()
 		log.Infof(">>>>>>>>>>>%s totally took %dms", req.URL.Path, elapsed)
 	}()
 
