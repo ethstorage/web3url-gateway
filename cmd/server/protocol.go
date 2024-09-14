@@ -1,17 +1,18 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
-	"bytes"
-	"compress/gzip"
-	"io/ioutil"
-	_ "embed"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -60,11 +61,14 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	log.Infof("web3url : %s", web3Url)
 
 	// Fetch the web3 URL
+	start := time.Now()
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
 	if err != nil {
 		respondWithErrorPage(w, err)
 		return
 	}
+	elapsed := time.Since(start).Milliseconds()
+	log.Infof(">>>>>>>>>>>fetching %s took %dms", web3Url, elapsed)
 
 	// Send the HTTP headers returned by the protocol
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
@@ -340,13 +344,15 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 // - Handling <a> links to absolute web3:// URLs
 // This is not 100% perfect:
 // - This will fail if the content is compressed and spread over several chunks (should be rare)
+//
 //go:embed html.patch
 var htmlPatch []byte
-func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
+
+func patchHTMLFile(buf []byte, n int, contentEncoding string) int {
 	// Create a new buffer of length n, and copy the data into it
 	alteredBuf := make([]byte, n)
 	copy(alteredBuf, buf[:n])
-	
+
 	// If contentEncoding is "gzip", then first decompress the data
 	if contentEncoding == "gzip" {
 		gzipReader, err := gzip.NewReader(bytes.NewReader(alteredBuf))
@@ -354,7 +360,7 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 			log.Infof("patchHtmlFile: Cannot initiate gzip decompression: %v\n", err)
 			return n
 		}
-		alteredBuf, err = ioutil.ReadAll(gzipReader);
+		alteredBuf, err = ioutil.ReadAll(gzipReader)
 		if err != nil {
 			log.Infof("patchHtmlFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
 			return n
@@ -366,10 +372,10 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 	if bodyTagIndex == -1 {
 		return n
 	}
-	
+
 	// Insert the patch right after the "<body>" tag
 	alteredBuf = append(
-		alteredBuf[:bodyTagIndex+len("<body>")], 
+		alteredBuf[:bodyTagIndex+len("<body>")],
 		append(htmlPatch, alteredBuf[bodyTagIndex+len("<body")+1:len(alteredBuf)]...)...)
 
 	// If contentEncoding is "gzip", then recompress the data
