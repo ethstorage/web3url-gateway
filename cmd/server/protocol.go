@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -22,14 +21,6 @@ import (
 )
 
 func handle(w http.ResponseWriter, req *http.Request) {
-
-	start0 := time.Now()
-	defer func() {
-		elapsed := time.Since(start0).Milliseconds()
-		if strings.Contains(req.URL.Path, ".webm") || strings.Contains(req.URL.Path, ".wasm") || strings.Contains(req.URL.Path, "76c8e558") || strings.Contains(req.URL.Path, "00833fa6.301e5a03") {
-			log.Infof(">>>>>>>>>>>%s totally took %dms", req.Host+req.URL.Path, elapsed)
-		}
-	}()
 
 	h := req.Host
 
@@ -52,7 +43,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Convert the subdomain and path to a web3:// URL (without "web3:/" prefix and the query)
 	p, _, er := handleSubdomain(h, path)
 	if er != nil {
-		log.Errorf("handleSubdomain error: %v", er)
+		log.Errorf("handleSubdomain error: %v, path=%s", er, path)
 		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, er.Error()})
 		return
 	}
@@ -70,16 +61,11 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// log.Infof("web3url : %s", web3Url)
 
 	// Fetch the web3 URL
-	start := time.Now()
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
 	if err != nil {
 		log.Errorf("FetchUrl error: %v, url=%s", err, web3Url)
 		respondWithErrorPage(w, err)
 		return
-	}
-	elapsed := time.Since(start).Milliseconds()
-	if strings.Contains(web3Url, ".webm") || strings.Contains(web3Url, ".wasm") || strings.Contains(web3Url, "76c8e558") || strings.Contains(web3Url, "00833fa6.301e5a03") {
-		log.Infof(">>>>>>>>>>>fetching %s took %dms", web3Url, elapsed)
 	}
 
 	// Send the HTTP headers returned by the protocol
@@ -153,7 +139,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Fetch data from web3protocol-go
 		n, err := fetchedWeb3Url.Output.Read(buf)
 		if err != nil && err != io.EOF {
-			log.Errorf("Cannot read from web3protocol-go: %v", err)
+			log.Errorf("Cannot read from web3protocol output: %v", err)
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
@@ -179,9 +165,6 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		if strings.Contains(req.URL.Path, ".webm") || strings.Contains(req.URL.Path, ".wasm") || strings.Contains(req.URL.Path, "76c8e558") || strings.Contains(req.URL.Path, "00833fa6.301e5a03") {
-			log.Infof("Handle %s successfully! Total length of output data: %d", req.Host+req.URL.Path, outputDataLength)
-		}
 		// Flush it so that it gets sent right away, as a chunk
 		// (This is still an HTTP 1.1 server, so it's using Transfer-encoding: chunked)
 		if f, ok := w.(http.Flusher); ok {
@@ -229,7 +212,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	hostParts := strings.Split(host, ".")
 	hostPartsCount := len(hostParts)
 	if hostPartsCount > 6 {
-		log.Info("subdomain too long")
+		log.Error("subdomain too long")
 		return "", false, fmt.Errorf("invalid subdomain")
 	}
 
@@ -273,7 +256,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 			//e.g. quark.w3eth.io
 			suffix, err := getDefaultNSSuffix()
 			if err != nil {
-				log.Info(err.Error())
+				log.Error(err.Error())
 				return "", false, fmt.Errorf("invalid subdomain")
 			}
 			name := hostParts[0] + "." + suffix
@@ -292,7 +275,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io/index.txt -> web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/index.txt
 	if hostPartsCount == 4 {
 		if !common.IsHexAddress(hostParts[0]) {
-			log.Infof("invalid contract address: %s", hostParts[0])
+			log.Errorf("invalid contract address: %s", hostParts[0])
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
 
@@ -314,7 +297,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	// https://quark.w3q.w3q-g.w3link.io/index.txt -> web3://quark.w3q:3334/index.txt
 	if hostPartsCount == 5 {
 		if config.DefaultChain > 0 {
-			log.Info("no tld should be provided when default chain is specified")
+			log.Error("no tld should be provided when default chain is specified")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
 
@@ -336,7 +319,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	// https://dblog.dblog.eth.11155111.w3link.io/ -> web3://dblog.dblog.eth:11155111/
 	if hostPartsCount == 6 {
 		if config.DefaultChain > 0 {
-			log.Info("no tld should be provided when default chain is specified")
+			log.Error("no tld should be provided when default chain is specified")
 			return "", false, fmt.Errorf("invalid subdomain")
 		}
 
