@@ -43,7 +43,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Convert the subdomain and path to a web3:// URL (without "web3:/" prefix and the query)
 	p, _, er := handleSubdomain(h, path)
 	if er != nil {
-		log.Errorf("handleSubdomain error: %v, path=%s", er, path)
+		log.Errorf("handleSubdomain error: %v, url=%s", er, h+path)
 		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, er.Error()})
 		return
 	}
@@ -160,7 +160,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Feed the data to the HTTP client
 		_, err = w.Write(buf[:n])
 		if err != nil {
-			log.Errorf("Cannot write to client: %v", err)
+			log.Errorf("Cannot write to client: %s: %v", web3Url, err)
 			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
 			return
 		}
@@ -188,7 +188,8 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 	w.WriteHeader(httpCode)
 	_, e := fmt.Fprintf(w, "<html><h1>%d: %s</h1>%v<html/>", httpCode, http.StatusText(httpCode), err.Error())
 	if e != nil {
-		log.Errorf("Cannot write error page: %v\n", e)
+		// ignore e as is always 'broke pipe'
+		log.Errorf("Cannot write error page: httpCode=%d error=%v\n", httpCode, err.Error())
 		return
 	}
 }
