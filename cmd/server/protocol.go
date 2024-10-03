@@ -11,6 +11,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io/ioutil"
+	"bufio"
+	"time"
 	_ "embed"
 
 	log "github.com/sirupsen/logrus"
@@ -19,6 +21,32 @@ import (
 
 	"github.com/web3-protocol/web3protocol-go"
 )
+
+// We act as a proxy following (at least part of) the standard HTTP cache spec
+// When we receive a request, we first check if we have the page in cache.
+type PageCacheKey struct {
+	// The web3 URL
+	Web3Url string
+	// In standard HTTP, the cache key also includes the request headers values specified
+	// in the Vary response header. 
+	// Here, we only take into account the "Accept-Encoding" header, because we know the
+	// others headers have no effect on the response.
+	AcceptEncodingHeader string
+}
+
+type PageCacheEntry struct {
+	// The ETag of the cached data
+	ETag string
+
+	// The cached data
+	HttpCode int
+	HttpHeaders map[string]string
+	Body []byte
+
+	// The time at which the cache entry was created
+	CreationTime time.Time
+}
+
 
 func handle(w http.ResponseWriter, req *http.Request) {
 
@@ -59,10 +87,57 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 	log.Infof("web3url : %s", web3Url)
 
+	// Get a map[string]string of the HTTP headers
+	reqHttpHeaders := make(map[string]string)
+	for headerName, headerValues := range req.Header {
+		reqHttpHeaders[headerName] = strings.Join(headerValues, ", ")
+	}
+
+	// If the client does not have a cache invalidation header, and 
+	// we have this URL cached, we inject its caching headers to the request given to the 
+	// web3protocol client
+	cacheInvalidationHeadersSetFromCache := false
+	cacheEntry, cacheEntryPresent := pageCache.Get(PageCacheKey{
+		Web3Url: web3Url,
+		AcceptEncodingHeader: req.Header.Get("Accept-Encoding"),
+	});
+	if req.Header.Get("If-None-Match") == "" && cacheEntryPresent {
+		reqHttpHeaders["If-None-Match"] = cacheEntry.ETag
+		cacheInvalidationHeadersSetFromCache = true
+	}
+
 	// Fetch the web3 URL
-	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
+	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url, reqHttpHeaders)
 	if err != nil {
 		respondWithErrorPage(w, err)
+		return
+	}
+
+	// If cache invalidation headers where set from cache, and the response is 304, we can return 
+	// the cached page
+	if cacheInvalidationHeadersSetFromCache && fetchedWeb3Url.HttpCode == 304 {
+		// Send the HTTP headers returned by the protocol
+		for httpHeaderName, httpHeaderValue := range cacheEntry.HttpHeaders {
+			w.Header().Set(httpHeaderName, httpHeaderValue)
+		}
+		// Add a extra header indicating that it was served from cache
+		w.Header().Set("Web3urlgateway-Cache-Status", "HIT")
+		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
+		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+		// it will add his own Content-Type: text/xml; charset=utf-8
+		if w.Header().Get("Content-Type") == "" {
+			// Best thing would be to remove the content-type header, but looks like we can
+			// only set it to empty. This code looks weird but it works.
+			w.Header().Set("Content-Type", "")
+		}
+		// Send the HTTP code
+		w.WriteHeader(cacheEntry.HttpCode)
+		// Send the output
+		_, err = w.Write(cacheEntry.Body)
+		if err != nil {
+			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			return
+		}
 		return
 	}
 
@@ -70,6 +145,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
 		w.Header().Set(httpHeaderName, httpHeaderValue)
 	}
+	// Add a extra header indicating that it was not served from cache
+	w.Header().Set("Web3urlgateway-Cache-Status", "MISS")
 	// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
 	// it will add his own Content-Type: text/xml; charset=utf-8
 	if w.Header().Get("Content-Type") == "" {
@@ -127,6 +204,14 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Send the HTTP code
 	w.WriteHeader(fetchedWeb3Url.HttpCode)
 
+	// Determine if we should cache the page
+	willCacheResponse := false
+	var cacheResponse bytes.Buffer
+	cacheResponseWriter := bufio.NewWriter(&cacheResponse)
+	if fetchedWeb3Url.HttpCode == 200 && w.Header().Get("ETag") != "" {
+		willCacheResponse = true
+	}
+
 	// Send the output
 	// We receive it chunk by chunk from web3protocol-go. Usually there is only a single chunk.
 	outputDataLength := 0
@@ -159,11 +244,44 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		// Feed the data to the cache, if enabled
+		// If output data length is above the limit, we don't cache
+		if willCacheResponse && outputDataLength > config.PageCache.MaxEntrySize {
+			willCacheResponse = false
+		}
+		if willCacheResponse {
+			_, err = cacheResponseWriter.Write(buf[:n])
+			if err != nil {
+				respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+				return
+			}
+		}
+
 		// Flush it so that it gets sent right away, as a chunk
 		// (This is still an HTTP 1.1 server, so it's using Transfer-encoding: chunked)
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
+	}
+
+	// Save the cache entry
+	if willCacheResponse {
+		newCacheEntry := PageCacheEntry{
+			ETag: w.Header().Get("ETag"),
+			HttpCode: fetchedWeb3Url.HttpCode,
+			HttpHeaders: make(map[string]string),
+			Body: cacheResponse.Bytes(),
+			CreationTime: time.Now(),
+		}
+		for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
+			newCacheEntry.HttpHeaders[httpHeaderName] = httpHeaderValue
+		}
+
+		// Add the cache entry
+		pageCache.Add(PageCacheKey{
+			Web3Url: web3Url,
+			AcceptEncodingHeader: req.Header.Get("Accept-Encoding"),
+		}, newCacheEntry)
 	}
 
 	// Stats

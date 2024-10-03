@@ -8,6 +8,16 @@ HomePage = "/home.w3q/"
 CORS = "*" # list of domains from which to accept cross origin requests (browser enforced)
 defaultChain = 0
 
+# Page cache configuration
+# Ensure you have maxEntries * maxEntrySize available RAM
+[pageCache]
+enabled = true
+# Max number of entries in the cache. 0 means: default value of 1000 used
+maxEntries = 1000
+# Max size of an entry in the cache in bytes.
+maxEntrySize = 1000000 # 1MB
+# Page cache TTL in seconds. 0 means: unlimited
+cacheDuration = 86400 # 1 day
 
 # default chain for supported domain
 [nsDefaultChains]

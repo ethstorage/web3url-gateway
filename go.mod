@@ -4,8 +4,9 @@ go 1.20
 
 require (
 	github.com/ethereum/go-ethereum v1.12.2
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
-	github.com/web3-protocol/web3protocol-go v0.2.3
+	github.com/web3-protocol/web3protocol-go v0.2.5
 	golang.org/x/net v0.16.0
 )
 
@@ -52,7 +53,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
