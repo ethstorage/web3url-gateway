@@ -266,6 +266,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 	// Save the cache entry
 	if willCacheResponse {
+		cacheResponseWriter.Flush()
+
 		newCacheEntry := PageCacheEntry{
 			ETag: w.Header().Get("ETag"),
 			HttpCode: fetchedWeb3Url.HttpCode,
