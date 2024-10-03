@@ -280,10 +280,17 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// Add the cache entry
-		pageCache.Add(PageCacheKey{
+		pageCacheKey := PageCacheKey{
 			Web3Url: web3Url,
 			AcceptEncodingHeader: req.Header.Get("Accept-Encoding"),
-		}, newCacheEntry)
+		}
+		pageCache.Add(pageCacheKey, newCacheEntry)
+
+		log.WithFields(log.Fields{
+			"domain": "web3urlGateway",
+			"etag": newCacheEntry.ETag,
+			"vary-headers": pageCacheKey.AcceptEncodingHeader,
+		}).Infof("Added page cache entry for %s", web3Url)
 	}
 
 	// Stats
