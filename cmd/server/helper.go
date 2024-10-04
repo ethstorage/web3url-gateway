@@ -39,6 +39,7 @@ type PageCacheConfig struct {
 	MaxEntries int
 	MaxEntrySize int // In bytes
 	CacheDuration int // In seconds
+	ImmutableUrlRegexps []string
 }
 
 type NameServiceInfo struct {

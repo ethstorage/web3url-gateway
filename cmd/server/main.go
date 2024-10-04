@@ -221,9 +221,7 @@ func initWeb3protocolClient() {
 	web3protocolClient.Logger.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
 
 	// Init the LRU page cache
-	if config.PageCache.Enabled {
-		pageCache = golanglru2.NewLRU[PageCacheKey,PageCacheEntry](config.PageCache.MaxEntries, nil, time.Duration(config.PageCache.CacheDuration) * time.Second)
-	}
+	pageCache = golanglru2.NewLRU[PageCacheKey,PageCacheEntry](config.PageCache.MaxEntries, nil, time.Duration(config.PageCache.CacheDuration) * time.Second)
 }
 
 func initStats() {
