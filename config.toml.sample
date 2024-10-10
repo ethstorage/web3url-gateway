@@ -31,6 +31,10 @@ immutableUrlRegexps = []
 [name2chain]
 "es-t" = 3333
 "w3q-g" = 3334
+"esl2-d" = 3335
+"esl2-t" = 3336
+"wsc-t" = 43069
+"wsc-d" = 42069
 "eth" = 1
 "gor" = 5
 "sep" = 11155111
@@ -209,7 +213,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.3333]
     "ChainID" = 3333
-    "RPC" = "http://88.99.30.186:9545"
+    "RPC" = "http://65.108.236.27:9540"
 
     [chainConfigs.2710]
     "ChainID" = 2710
@@ -222,3 +226,19 @@ immutableUrlRegexps = []
     [chainConfigs.17000]
     "ChainID" = 17000
     "RPC" = "https://holesky.drpc.org"
+
+    [chainConfigs.3335]
+    "ChainID" = 3335
+    "RPC" = "http://65.108.230.142:9545"
+
+    [chainConfigs.3336]
+    "ChainID" = 3336
+    "RPC" = "http://65.109.115.36:9540"
+
+    [chainConfigs.42069]
+    "ChainID" = 42069
+    "RPC" = "http://142.132.154.16:8545"
+
+    [chainConfigs.43069]
+    "ChainID" = 43069
+    "RPC" = "http://65.109.20.29:8545"
