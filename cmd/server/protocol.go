@@ -342,9 +342,10 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			logFields["etag"] = newCacheEntry.ETag
 		}
 		log.WithFields(logFields).Infof("Added page cache entry for %s", web3Url)
-	// If we got a HTTP 200 code, we don't cache the page, there was previously a cache entry,
-	// and the cache entry was of type PageCacheEntryTypeHttpCaching, we remove it from the cache
-	} else if fetchedWeb3Url.HttpCode == 200 && cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeHttpCaching {
+	// If we know we will not cache this page, and we got a HTTP code different than 304 (Not modified), 
+	// and if there was previously a cache entry of type PageCacheEntryTypeHttpCaching, 
+	// we remove it from the cache
+	} else if fetchedWeb3Url.HttpCode != 304 && cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeHttpCaching {
 		pageCache.Remove(pageCacheKey)
 		log.WithFields(log.Fields{
 			"domain": "web3urlGateway",
