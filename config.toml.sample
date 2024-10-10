@@ -8,6 +8,19 @@ HomePage = "/home.w3q/"
 CORS = "*" # list of domains from which to accept cross origin requests (browser enforced)
 defaultChain = 0
 
+# Page cache : Standard HTTP caching and a list of immutable URLs
+# Ensure you have maxEntries * maxEntrySize available RAM
+[pageCache]
+enabled = true
+# Max number of entries in the cache. 0 means: default value of 1000 used
+maxEntries = 1000
+# Max size of an entry in the cache in bytes.
+maxEntrySize = 1000000 # 1MB
+# Page cache TTL in seconds. 0 means: unlimited
+cacheDuration = 86400 # 1 day
+# A list of web3:// regexp URLs that are manually marked as immutable and can be cached indefinitely
+# Example : [ "web3://0x2279b7a0a67db372996a5fab50d91eaa73d2ebe6:31337/detailedToken/.*" ]
+immutableUrlRegexps = []
 
 # default chain for supported domain
 [nsDefaultChains]

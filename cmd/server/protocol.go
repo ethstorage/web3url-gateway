@@ -11,6 +11,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io/ioutil"
+	"bufio"
+	"time"
+	"regexp"
 	_ "embed"
 
 	log "github.com/sirupsen/logrus"
@@ -19,6 +22,41 @@ import (
 
 	"github.com/web3-protocol/web3protocol-go"
 )
+
+// We act as a proxy implementing part of the standard HTTP cache spec
+// When we receive a request, we first check if we have the page in cache.
+type PageCacheKey struct {
+	// The web3 URL
+	Web3Url string
+	// In standard HTTP, the cache key also includes the request headers values specified
+	// in the Vary response header. 
+	// Here, we only take into account the "Accept-Encoding" header, because we know the
+	// others headers have no effect on the response.
+	AcceptEncodingHeader string
+}
+type PageCacheEntryType string
+const (
+	// The cache entry is for standard HTTP caching (ETag, etc.)
+	PageCacheEntryTypeHttpCaching PageCacheEntryType = "httpCaching"
+	// The cache entry is for a URL that was marked as immutable in the configuration
+	PageCacheEntryTypeImmutableUrl PageCacheEntryType = "immutableUrl"
+)
+type PageCacheEntry struct {
+	// The type of the cache entry
+	Type PageCacheEntryType
+
+	// The ETag of the cached data
+	ETag string
+
+	// The cached data
+	HttpCode int
+	HttpHeaders map[string]string
+	Body []byte
+
+	// The time at which the cache entry was created
+	CreationTime time.Time
+}
+
 
 func handle(w http.ResponseWriter, req *http.Request) {
 
@@ -43,26 +81,101 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Convert the subdomain and path to a web3:// URL (without "web3:/" prefix and the query)
 	p, _, er := handleSubdomain(h, path)
 	if er != nil {
+		log.Errorf("%s%s => Error converting subdomain: %s", h, req.URL.String(), er)
 		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, er.Error()})
 		return
 	}
-	if p == "/" {
-		http.Redirect(w, req, config.HomePage, http.StatusFound)
-		return
-	}
-
 	// Make it a full web3 URL
 	web3Url := "web3:/" + p
 	if len(req.URL.RawQuery) > 0 {
 		web3Url += "?" + req.URL.RawQuery
 	}
+	log.Infof("%s%s => %s", h, req.URL.String(), web3Url)
 
-	log.Infof("web3url : %s", web3Url)
+	if p == "/" {
+		http.Redirect(w, req, config.HomePage, http.StatusFound)
+		return
+	}
+
+	// Get a map[string]string of the HTTP headers
+	reqHttpHeaders := make(map[string]string)
+	for headerName, headerValues := range req.Header {
+		reqHttpHeaders[headerName] = strings.Join(headerValues, ", ")
+	}
+
+	// Check if the page is in cache
+	pageCacheKey := PageCacheKey{
+		Web3Url: web3Url,
+		AcceptEncodingHeader: req.Header.Get("Accept-Encoding"),
+	}
+	cacheEntry, cacheEntryPresent := pageCache.Get(pageCacheKey);
+	// If the cache enry is present and is an immutable URL, we can return it right away
+	if cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeImmutableUrl {
+		// Send the HTTP headers returned by the protocol
+		for httpHeaderName, httpHeaderValue := range cacheEntry.HttpHeaders {
+			w.Header().Set(httpHeaderName, httpHeaderValue)
+		}
+		// Add a extra header indicating that it was served from cache
+		w.Header().Set("Web3urlgateway-Cache-Status", "hit")
+		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
+		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+		// it will add his own Content-Type: text/xml; charset=utf-8
+		if w.Header().Get("Content-Type") == "" {
+			// Best thing would be to remove the content-type header, but looks like we can
+			// only set it to empty. This code looks weird but it works.
+			w.Header().Set("Content-Type", "")
+		}
+		// Send the HTTP code
+		w.WriteHeader(cacheEntry.HttpCode)
+		// Send the output
+		_, err := w.Write(cacheEntry.Body)
+		if err != nil {
+			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			return
+		}
+		return
+	}
+	// If the client does not have a cache invalidation header, and 
+	// we have this URL cached, we inject its caching headers to the request given to the 
+	// web3protocol client
+	cacheInvalidationHeadersSetFromCache := false
+	if req.Header.Get("If-None-Match") == "" && cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeHttpCaching {
+		reqHttpHeaders["If-None-Match"] = cacheEntry.ETag
+		cacheInvalidationHeadersSetFromCache = true
+	}
 
 	// Fetch the web3 URL
-	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url)
+	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url, reqHttpHeaders)
 	if err != nil {
 		respondWithErrorPage(w, err)
+		return
+	}
+
+	// If cache invalidation headers where set from cache, and the response is 304, we can return 
+	// the cached page
+	if cacheInvalidationHeadersSetFromCache && fetchedWeb3Url.HttpCode == 304 {
+		// Send the HTTP headers returned by the protocol
+		for httpHeaderName, httpHeaderValue := range cacheEntry.HttpHeaders {
+			w.Header().Set(httpHeaderName, httpHeaderValue)
+		}
+		// Add a extra header indicating that it was served from cache
+		w.Header().Set("Web3urlgateway-Cache-Status", "hit")
+		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
+		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+		// it will add his own Content-Type: text/xml; charset=utf-8
+		if w.Header().Get("Content-Type") == "" {
+			// Best thing would be to remove the content-type header, but looks like we can
+			// only set it to empty. This code looks weird but it works.
+			w.Header().Set("Content-Type", "")
+		}
+		// Send the HTTP code
+		w.WriteHeader(cacheEntry.HttpCode)
+		// Send the output
+		_, err = w.Write(cacheEntry.Body)
+		if err != nil {
+			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			return
+		}
 		return
 	}
 
@@ -70,6 +183,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
 		w.Header().Set(httpHeaderName, httpHeaderValue)
 	}
+	// Add a extra header indicating that it was not served from cache
+	w.Header().Set("Web3urlgateway-Cache-Status", "miss")
 	// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
 	// it will add his own Content-Type: text/xml; charset=utf-8
 	if w.Header().Get("Content-Type") == "" {
@@ -127,6 +242,24 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Send the HTTP code
 	w.WriteHeader(fetchedWeb3Url.HttpCode)
 
+	// Determine if we should cache the page
+	var willCacheResponseAsType PageCacheEntryType
+	var cacheResponse bytes.Buffer
+	cacheResponseWriter := bufio.NewWriter(&cacheResponse)
+	if config.PageCache.Enabled && fetchedWeb3Url.HttpCode == 200 {
+		// Check if the URL is marked as immutable
+		for _, immutableUrlRegexp := range config.PageCache.ImmutableUrlRegexps {
+			if matched, _ := regexp.MatchString(immutableUrlRegexp, web3Url); matched {
+				willCacheResponseAsType = PageCacheEntryTypeImmutableUrl
+				break
+			}
+		}
+		// If the URL is not immutable, we check if we should cache it as a standard HTTP cache
+		if willCacheResponseAsType == "" && w.Header().Get("ETag") != "" {
+			willCacheResponseAsType = PageCacheEntryTypeHttpCaching
+		}
+	}
+
 	// Send the output
 	// We receive it chunk by chunk from web3protocol-go. Usually there is only a single chunk.
 	outputDataLength := 0
@@ -159,11 +292,66 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		// Feed the data to the cache, if enabled
+		// If output data length is above the limit, we don't cache
+		if willCacheResponseAsType != "" && outputDataLength > config.PageCache.MaxEntrySize {
+			willCacheResponseAsType = ""
+		}
+		if willCacheResponseAsType != "" {
+			_, err = cacheResponseWriter.Write(buf[:n])
+			if err != nil {
+				respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+				return
+			}
+		}
+
 		// Flush it so that it gets sent right away, as a chunk
 		// (This is still an HTTP 1.1 server, so it's using Transfer-encoding: chunked)
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
+	}
+
+	// Save the cache entry
+	if willCacheResponseAsType != "" {
+		cacheResponseWriter.Flush()
+
+		newCacheEntry := PageCacheEntry{
+			Type: willCacheResponseAsType,
+			HttpCode: fetchedWeb3Url.HttpCode,
+			HttpHeaders: make(map[string]string),
+			Body: cacheResponse.Bytes(),
+			CreationTime: time.Now(),
+		}
+		if willCacheResponseAsType == PageCacheEntryTypeHttpCaching {
+			newCacheEntry.ETag = w.Header().Get("ETag")
+		}
+		for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
+			newCacheEntry.HttpHeaders[httpHeaderName] = httpHeaderValue
+		}
+
+		// Add the cache entry
+		pageCache.Add(pageCacheKey, newCacheEntry)
+
+		logFields := log.Fields{
+			"domain": "web3urlGateway",
+			"vary-headers": pageCacheKey.AcceptEncodingHeader,
+			"type": string(willCacheResponseAsType),
+		}
+		if willCacheResponseAsType == PageCacheEntryTypeHttpCaching {
+			logFields["etag"] = newCacheEntry.ETag
+		}
+		log.WithFields(logFields).Infof("Added page cache entry for %s", web3Url)
+	// If we got a HTTP 200 code, we don't cache the page, there was previously a cache entry,
+	// and the cache entry was of type PageCacheEntryTypeHttpCaching, we remove it from the cache
+	} else if fetchedWeb3Url.HttpCode == 200 && cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeHttpCaching {
+		pageCache.Remove(pageCacheKey)
+		log.WithFields(log.Fields{
+			"domain": "web3urlGateway",
+			"vary-headers": req.Header.Get("Accept-Encoding"),
+			"type": string(PageCacheEntryTypeHttpCaching),
+			"etag": cacheEntry.ETag,
+		}).Infof("Removed page cache entry for %s", web3Url)
 	}
 
 	// Stats
@@ -192,8 +380,6 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 // 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io
 // quark.w3q.w3q-g.w3link.io
 func handleSubdomain(host string, path string) (p string, useSubdomain bool, err error) {
-	log.Info(host + path)
-
 	// Remove port from end of host
 	if strings.Index(host, ":") > 0 {
 		host = host[0:strings.Index(host, ":")]
@@ -329,8 +515,6 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		}
 		useSubdomain = true
 	}
-
-	log.Info("=>", p)
 
 	return p, useSubdomain, nil
 }

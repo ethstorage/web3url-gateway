@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
-
 	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/web3-protocol/web3protocol-go"
+	golanglru2 "github.com/hashicorp/golang-lru/v2/expirable"
 )
 
 var (
@@ -35,6 +35,7 @@ var (
 	nsInfos, chainInfos, nsChains arrayFlags
 	config                        Web3Config
 	web3protocolClient            *web3protocol.Client
+	pageCache                     *golanglru2.LRU[PageCacheKey,PageCacheEntry]
 	majorVersion                  = "0"
 	minorVersion                  = "2"
 	patchVersion                  = "0"
@@ -91,6 +92,10 @@ func initConfig() {
 	}
 	if cors.set {
 		config.CORS = cors.value
+	}
+	// Page cache size: not use the default of unlimited, will only end in crashed servers
+	if config.PageCache.MaxEntries == 0 {
+		config.PageCache.MaxEntries = 1000
 	}
 	for _, c := range chainInfos {
 		ss := strings.Split(c, ",")
@@ -210,6 +215,13 @@ func initWeb3protocolClient() {
 
 	// Create the web3:// client
 	web3protocolClient = web3protocol.NewClient(&web3pConfig)
+
+	// Set the verbosity level
+	web3protocolClient.Logger.SetLevel(log.Level(config.Verbosity))
+	web3protocolClient.Logger.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
+
+	// Init the LRU page cache
+	pageCache = golanglru2.NewLRU[PageCacheKey,PageCacheEntry](config.PageCache.MaxEntries, nil, time.Duration(config.PageCache.CacheDuration) * time.Second)
 }
 
 func initStats() {

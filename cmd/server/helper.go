@@ -28,9 +28,18 @@ type Web3Config struct {
 	DefaultChain    int
 	HomePage        string
 	CORS            string
+	PageCache       PageCacheConfig
 	NSDefaultChains map[string]int
 	Name2Chain      map[string]int
 	ChainConfigs    map[int]ChainConfig
+}
+
+type PageCacheConfig struct {
+	Enabled bool
+	MaxEntries int
+	MaxEntrySize int // In bytes
+	CacheDuration int // In seconds
+	ImmutableUrlRegexps []string
 }
 
 type NameServiceInfo struct {
