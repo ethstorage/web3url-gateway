@@ -67,7 +67,6 @@ immutableUrlRegexps = []
 "basesep" = 84532
 "storyprotocoltest" = 1513
 "tmorph" = 2710
-"esl2-t" = 3336
 "holesky" = 17000
 
 [chainConfigs]
@@ -218,10 +217,6 @@ immutableUrlRegexps = []
     [chainConfigs.2710]
     "ChainID" = 2710
     "RPC" = "https://rpc-testnet.morphl2.io"
-
-    [chainConfigs.3336]
-    "ChainID" = 3336
-    "RPC" = "http://65.109.115.36:9540"
 
     [chainConfigs.17000]
     "ChainID" = 17000
