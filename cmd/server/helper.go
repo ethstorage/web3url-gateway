@@ -10,11 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethstorage/web3protocol-go"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/naoina/toml"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/web3-protocol/web3protocol-go"
 )
 
 type Web3Config struct {
@@ -35,10 +34,10 @@ type Web3Config struct {
 }
 
 type PageCacheConfig struct {
-	Enabled bool
-	MaxEntries int
-	MaxEntrySize int // In bytes
-	CacheDuration int // In seconds
+	Enabled             bool
+	MaxEntries          int
+	MaxEntrySize        int // In bytes
+	CacheDuration       int // In seconds
 	ImmutableUrlRegexps []string
 }
 

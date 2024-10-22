@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/web3-protocol/web3protocol-go"
+	"github.com/ethstorage/web3protocol-go"
 )
 
 func init() {

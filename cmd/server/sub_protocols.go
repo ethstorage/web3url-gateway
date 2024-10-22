@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/web3-protocol/web3protocol-go"
+	"github.com/ethstorage/web3protocol-go"
 )
 
 // https://ordinals.btc.w3link.io/txid/83997e2cfad159dd6f1fde263d0dbca88879e747c6ccf2b7fcfc0f5638c17511i0
