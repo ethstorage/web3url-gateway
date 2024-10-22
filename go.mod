@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/ethereum/go-ethereum v1.12.2
-	github.com/ethstorage/web3protocol-go v0.0.0-20241022084632-0bf7bb810fe6
+	github.com/ethstorage/web3protocol-go v0.0.0-20241022100135-6924d82b4d27
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
 	golang.org/x/net v0.16.0
