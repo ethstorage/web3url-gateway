@@ -50,6 +50,8 @@ type NameServiceInfo struct {
 type ChainConfig struct {
 	ChainID  int
 	RPC      string
+	RPCMaxConcurrentRequests int
+	SystemRPC string
 	NSConfig map[string]NameServiceInfo
 }
 

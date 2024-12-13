@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -17,12 +18,12 @@ import (
 func handleOrdinals(w http.ResponseWriter, req *http.Request, path string) {
 	temp := strings.Split(path, "/")
 	if len(temp) != 3 || (temp[1] != "txid" && temp[1] != "number") {
-		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, "invalid ordinals query"})
+		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: errors.New("invalid ordinals query")})
 		return
 	}
 	ocontent, otype, oerr := getInscription(temp[2])
 	if oerr != nil {
-		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, oerr.Error()})
+		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: oerr})
 		return
 	}
 	if otype != "" {
@@ -30,7 +31,7 @@ func handleOrdinals(w http.ResponseWriter, req *http.Request, path string) {
 	}
 	_, e := w.Write(ocontent)
 	if e != nil {
-		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, e.Error()})
+		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: e})
 		return
 	}
 
