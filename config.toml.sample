@@ -33,6 +33,7 @@ immutableUrlRegexps = []
 "w3q-g" = 3334
 "esl2-d" = 3335
 "esl2-t" = 3336
+"es-d" = 3337
 "wsc-t" = 43069
 "wsc-d" = 42069
 "eth" = 1
@@ -229,6 +230,10 @@ immutableUrlRegexps = []
     [chainConfigs.3336]
     "ChainID" = 3336
     "RPC" = "http://65.109.115.36:9540"
+    
+    [chainConfigs.3337]
+    "ChainID" = 3337
+    "RPC" = "http://65.109.115.36:9596"
 
     [chainConfigs.42069]
     "ChainID" = 42069
