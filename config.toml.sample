@@ -34,15 +34,11 @@ immutableUrlRegexps = []
 "esl2-d" = 3335
 "esl2-t" = 3336
 "es-d" = 3337
-"wsc-t" = 43069
 "wsc-d" = 42069
 "eth" = 1
-"gor" = 5
 "sep" = 11155111
 "oeth" = 10
 "arb1" = 42161
-"ogor" = 420
-"arb-goerli" = 421613
 "evmos" = 9001
 "evmos-testnet" = 9000
 "arb-nova" = 42170
@@ -60,11 +56,9 @@ immutableUrlRegexps = []
 "qkc-s0" = 100001
 "qkc-d-s0" = 110001
 "metis-andromeda" = 1088
-"metis-goerli" = 599
 "scr-testl1" = 534351
 "scr-prealpha" = 534354
 "base" = 8453
-"basegor" = 84531
 "basesep" = 84532
 "storyprotocoltest" = 1513
 "tmorph" = 2710
@@ -85,13 +79,6 @@ immutableUrlRegexps = []
         "NSType" = "ens"
         "NSAddr" = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
 
-    [chainConfigs.5]
-    "ChainID" = 5
-    "RPC" = "https://goerli.infura.io/v3/************"
-    [chainConfigs.5.NSConfig."eth"]
-        "NSType" = "ens"
-        "NSAddr" = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
-
     [chainConfigs.11155111]
     "ChainID" = 11155111
     "RPC" = "https://sepolia.infura.io/v3/************"
@@ -106,14 +93,6 @@ immutableUrlRegexps = []
     [chainConfigs.42161]
     "ChainID" = 42161
     "RPC" = "https://arbitrum-mainnet.infura.io/v3/************"
-
-    [chainConfigs.420]
-    "ChainID" = 420
-    "RPC" = "https://optimism-goerli.infura.io/v3/************"
-
-    [chainConfigs.421613]
-    "ChainID" = 421613
-    "RPC" = "https://arbitrum-goerli.infura.io/v3/************"
 
     [chainConfigs.9001]
     "ChainID" = 9001
@@ -183,10 +162,6 @@ immutableUrlRegexps = []
     "ChainID" = 1088
     "RPC" = "https://andromeda.metis.io/?owner=1088"
 
-    [chainConfigs.599]
-    "ChainID" = 599
-    "RPC" = "https://goerli.gateway.metisdevops.link"
-
     [chainConfigs.534351]
     "ChainID" = 534351
     "RPC" = "https://prealpha-rpc.scroll.io/l1"
@@ -194,10 +169,6 @@ immutableUrlRegexps = []
     [chainConfigs.534354]
     "ChainID" = 534354
     "RPC" = "https://prealpha-rpc.scroll.io/l2"
-
-    [chainConfigs.84531]
-    "ChainID" = 84531
-    "RPC" = "https://goerli.base.org"
 
     [chainConfigs.84532]
     "ChainID" = 84532
@@ -225,7 +196,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.3335]
     "ChainID" = 3335
-    "RPC" = "http://65.108.230.142:9545"
+    "RPC" = "http://5.9.87.214:8545"
 
     [chainConfigs.3336]
     "ChainID" = 3336
@@ -238,7 +209,3 @@ immutableUrlRegexps = []
     [chainConfigs.42069]
     "ChainID" = 42069
     "RPC" = "http://142.132.154.16:8545"
-
-    [chainConfigs.43069]
-    "ChainID" = 43069
-    "RPC" = "http://65.109.20.29:8545"
