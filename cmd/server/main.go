@@ -164,7 +164,11 @@ func initWeb3protocolClient() {
 		// Config the chain
 		web3pChainConfig := web3protocol.ChainConfig{
 			ChainId:            chainConfig.ChainID,
-			RPC:                chainConfig.RPC,
+			RPC: web3protocol.ChainRPCConfig {
+				Url: chainConfig.RPC,
+				MaxConcurrentRequests: chainConfig.RPCMaxConcurrentRequests,
+			},
+			SystemRPC: chainConfig.SystemRPC,
 			DomainNameServices: map[web3protocol.DomainNameService]web3protocol.DomainNameServiceChainConfig{},
 		}
 

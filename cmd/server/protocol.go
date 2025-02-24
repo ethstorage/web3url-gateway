@@ -82,7 +82,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	p, _, er := handleSubdomain(h, path)
 	if er != nil {
 		log.Errorf("%s%s => Error converting subdomain: %s", h, req.URL.String(), er)
-		respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, er.Error()})
+		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: er})
 		return
 	}
 	// Make it a full web3 URL
@@ -130,7 +130,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Send the output
 		_, err := w.Write(cacheEntry.Body)
 		if err != nil {
-			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 			return
 		}
 		return
@@ -173,7 +173,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Send the output
 		_, err = w.Write(cacheEntry.Body)
 		if err != nil {
-			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 			return
 		}
 		return
@@ -268,7 +268,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Fetch data from web3protocol-go
 		n, err := fetchedWeb3Url.Output.Read(buf)
 		if err != nil && err != io.EOF {
-			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 			return
 		}
 		if n == 0 {
@@ -288,7 +288,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Feed the data to the HTTP client
 		_, err = w.Write(buf[:n])
 		if err != nil {
-			respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 			return
 		}
 
@@ -300,7 +300,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		if willCacheResponseAsType != "" {
 			_, err = cacheResponseWriter.Write(buf[:n])
 			if err != nil {
-				respondWithErrorPage(w, &web3protocol.ErrorWithHttpCode{http.StatusBadRequest, err.Error()})
+				respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 				return
 			}
 		}
@@ -337,6 +337,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			"domain": "web3urlGateway",
 			"vary-headers": pageCacheKey.AcceptEncodingHeader,
 			"type": string(willCacheResponseAsType),
+			"size": len(newCacheEntry.Body),
 		}
 		if willCacheResponseAsType == PageCacheEntryTypeHttpCaching {
 			logFields["etag"] = newCacheEntry.ETag
@@ -364,8 +365,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 func respondWithErrorPage(w http.ResponseWriter, err error) {
 	httpCode := 400
 	switch err.(type) {
-	case *web3protocol.ErrorWithHttpCode:
-		httpCode = err.(*web3protocol.ErrorWithHttpCode).HttpCode
+	case *web3protocol.Web3ProtocolError:
+		httpCode = err.(*web3protocol.Web3ProtocolError).HttpCode
 	}
 
 	w.WriteHeader(httpCode)
