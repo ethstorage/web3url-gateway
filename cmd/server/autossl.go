@@ -138,7 +138,7 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	log.Warnf("GetCertificate: %s\n", hello.ServerName)
 	// validate the server name
-	_, _, er := handleSubdomain(hello.ServerName, "")
+	_, _, er := handleSubdomain(hello.ServerName, "/")
 	if er != nil {
 		log.Errorf("Invalid subdomain: %s", hello.ServerName)
 		return nil, &web3protocol.Web3ProtocolError{HttpCode: http.StatusBadRequest, Err: er}
