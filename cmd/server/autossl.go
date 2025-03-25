@@ -134,8 +134,16 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 }
 
 func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	log.Warnf("GetCertificate: %s\n", hello.ServerName)
 	if cert, err := tryFindSystemCertificate(hello.ServerName); err == nil && cert != nil {
+		log.Warnf("found system certificate: %s\n", hello.ServerName)
 		return cert, nil
 	}
-	return certManager.GetCertificate(hello)
+	cert, err := certManager.GetCertificate(hello)
+	if err != nil {
+		log.Errorf("autocert: get certificate error: %v\n", err)
+		return nil, err
+	}
+	log.Warnf("autocert: get certificate: %s\n", hello.ServerName)
+	return cert, nil
 }
