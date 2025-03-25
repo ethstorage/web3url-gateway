@@ -75,6 +75,12 @@ immutableUrlRegexps = []
     [chainConfigs.1]
     "ChainID" = 1
     "RPC" = "https://mainnet.infura.io/v3/************"
+    # The maximum number of concurrent requests to the RPC. Default is 5, tuning this may
+    # help to prevent too much 429 Too Many Connection errors.
+    "RPCMaxConcurrentRequests" = 5
+    # System RPC is the RPC used by system workers (such as ERC-7774 cache event tracking)
+    # It should be different of the main RPC. If empty, will use the main RPC.
+    "SystemRPC" = "https://another.rpc"
     [chainConfigs.1.NSConfig."eth"]
         "NSType" = "ens"
         "NSAddr" = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
