@@ -1,20 +1,20 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"compress/gzip"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
-	"bytes"
-	"compress/gzip"
-	"io/ioutil"
-	"bufio"
 	"time"
-	"regexp"
-	_ "embed"
 
 	log "github.com/sirupsen/logrus"
 
@@ -29,18 +29,20 @@ type PageCacheKey struct {
 	// The web3 URL
 	Web3Url string
 	// In standard HTTP, the cache key also includes the request headers values specified
-	// in the Vary response header. 
+	// in the Vary response header.
 	// Here, we only take into account the "Accept-Encoding" header, because we know the
 	// others headers have no effect on the response.
 	AcceptEncodingHeader string
 }
 type PageCacheEntryType string
+
 const (
 	// The cache entry is for standard HTTP caching (ETag, etc.)
 	PageCacheEntryTypeHttpCaching PageCacheEntryType = "httpCaching"
 	// The cache entry is for a URL that was marked as immutable in the configuration
 	PageCacheEntryTypeImmutableUrl PageCacheEntryType = "immutableUrl"
 )
+
 type PageCacheEntry struct {
 	// The type of the cache entry
 	Type PageCacheEntryType
@@ -49,14 +51,13 @@ type PageCacheEntry struct {
 	ETag string
 
 	// The cached data
-	HttpCode int
+	HttpCode    int
 	HttpHeaders map[string]string
-	Body []byte
+	Body        []byte
 
 	// The time at which the cache entry was created
 	CreationTime time.Time
 }
-
 
 func handle(w http.ResponseWriter, req *http.Request) {
 
@@ -105,10 +106,10 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 	// Check if the page is in cache
 	pageCacheKey := PageCacheKey{
-		Web3Url: web3Url,
+		Web3Url:              web3Url,
 		AcceptEncodingHeader: req.Header.Get("Accept-Encoding"),
 	}
-	cacheEntry, cacheEntryPresent := pageCache.Get(pageCacheKey);
+	cacheEntry, cacheEntryPresent := pageCache.Get(pageCacheKey)
 	// If the cache enry is present and is an immutable URL, we can return it right away
 	if cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeImmutableUrl {
 		// Send the HTTP headers returned by the protocol
@@ -135,8 +136,8 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	}
-	// If the client does not have a cache invalidation header, and 
-	// we have this URL cached, we inject its caching headers to the request given to the 
+	// If the client does not have a cache invalidation header, and
+	// we have this URL cached, we inject its caching headers to the request given to the
 	// web3protocol client
 	cacheInvalidationHeadersSetFromCache := false
 	if req.Header.Get("If-None-Match") == "" && cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeHttpCaching {
@@ -151,7 +152,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// If cache invalidation headers where set from cache, and the response is 304, we can return 
+	// If cache invalidation headers where set from cache, and the response is 304, we can return
 	// the cached page
 	if cacheInvalidationHeadersSetFromCache && fetchedWeb3Url.HttpCode == 304 {
 		// Send the HTTP headers returned by the protocol
@@ -317,10 +318,10 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		cacheResponseWriter.Flush()
 
 		newCacheEntry := PageCacheEntry{
-			Type: willCacheResponseAsType,
-			HttpCode: fetchedWeb3Url.HttpCode,
-			HttpHeaders: make(map[string]string),
-			Body: cacheResponse.Bytes(),
+			Type:         willCacheResponseAsType,
+			HttpCode:     fetchedWeb3Url.HttpCode,
+			HttpHeaders:  make(map[string]string),
+			Body:         cacheResponse.Bytes(),
 			CreationTime: time.Now(),
 		}
 		if willCacheResponseAsType == PageCacheEntryTypeHttpCaching {
@@ -334,25 +335,25 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		pageCache.Add(pageCacheKey, newCacheEntry)
 
 		logFields := log.Fields{
-			"domain": "web3urlGateway",
+			"domain":       "web3urlGateway",
 			"vary-headers": pageCacheKey.AcceptEncodingHeader,
-			"type": string(willCacheResponseAsType),
-			"size": len(newCacheEntry.Body),
+			"type":         string(willCacheResponseAsType),
+			"size":         len(newCacheEntry.Body),
 		}
 		if willCacheResponseAsType == PageCacheEntryTypeHttpCaching {
 			logFields["etag"] = newCacheEntry.ETag
 		}
 		log.WithFields(logFields).Infof("Added page cache entry for %s", web3Url)
-	// If we know we will not cache this page, and we got a HTTP code different than 304 (Not modified), 
-	// and if there was previously a cache entry of type PageCacheEntryTypeHttpCaching, 
-	// we remove it from the cache
+		// If we know we will not cache this page, and we got a HTTP code different than 304 (Not modified),
+		// and if there was previously a cache entry of type PageCacheEntryTypeHttpCaching,
+		// we remove it from the cache
 	} else if fetchedWeb3Url.HttpCode != 304 && cacheEntryPresent && cacheEntry.Type == PageCacheEntryTypeHttpCaching {
 		pageCache.Remove(pageCacheKey)
 		log.WithFields(log.Fields{
-			"domain": "web3urlGateway",
+			"domain":       "web3urlGateway",
 			"vary-headers": req.Header.Get("Accept-Encoding"),
-			"type": string(PageCacheEntryTypeHttpCaching),
-			"etag": cacheEntry.ETag,
+			"type":         string(PageCacheEntryTypeHttpCaching),
+			"etag":         cacheEntry.ETag,
 		}).Infof("Removed page cache entry for %s", web3Url)
 	}
 
@@ -465,7 +466,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		full := hostChangeChainShortNameToId(hostParts[0] + ":" + hostParts[1])
 
 		pp := strings.Split(path, "/")
-		if strings.HasSuffix(pp[1], ".w3q") || strings.HasSuffix(pp[1], ".eth") {
+		if len(pp) > 1 && (strings.HasSuffix(pp[1], ".w3q") || strings.HasSuffix(pp[1], ".eth")) {
 			p = strings.Replace(path, pp[1], full, 1)
 		} else {
 			p = "/" + full + path
@@ -526,13 +527,15 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 // - Handling <a> links to absolute web3:// URLs
 // This is not 100% perfect:
 // - This will fail if the content is compressed and spread over several chunks (should be rare)
+//
 //go:embed html.patch
 var htmlPatch []byte
-func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
+
+func patchHTMLFile(buf []byte, n int, contentEncoding string) int {
 	// Create a new buffer of length n, and copy the data into it
 	alteredBuf := make([]byte, n)
 	copy(alteredBuf, buf[:n])
-	
+
 	// If contentEncoding is "gzip", then first decompress the data
 	if contentEncoding == "gzip" {
 		gzipReader, err := gzip.NewReader(bytes.NewReader(alteredBuf))
@@ -540,7 +543,7 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 			log.Infof("patchHtmlFile: Cannot initiate gzip decompression: %v\n", err)
 			return n
 		}
-		alteredBuf, err = ioutil.ReadAll(gzipReader);
+		alteredBuf, err = ioutil.ReadAll(gzipReader)
 		if err != nil {
 			log.Infof("patchHtmlFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
 			return n
@@ -552,10 +555,10 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) (int) {
 	if bodyTagIndex == -1 {
 		return n
 	}
-	
+
 	// Insert the patch right after the "<body>" tag
 	alteredBuf = append(
-		alteredBuf[:bodyTagIndex+len("<body>")], 
+		alteredBuf[:bodyTagIndex+len("<body>")],
 		append(htmlPatch, alteredBuf[bodyTagIndex+len("<body")+1:len(alteredBuf)]...)...)
 
 	// If contentEncoding is "gzip", then recompress the data
