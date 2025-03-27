@@ -464,13 +464,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 
 		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
 		full := hostChangeChainShortNameToId(hostParts[0] + ":" + hostParts[1])
-
-		pp := strings.Split(path, "/")
-		if len(pp) > 1 && (strings.HasSuffix(pp[1], ".w3q") || strings.HasSuffix(pp[1], ".eth")) {
-			p = strings.Replace(path, pp[1], full, 1)
-		} else {
-			p = "/" + full + path
-		}
+		p = "/" + full + path
 		useSubdomain = true
 	}
 
