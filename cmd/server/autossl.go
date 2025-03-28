@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/web3-protocol/web3protocol-go"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -134,8 +136,23 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 }
 
 func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	log.Infof("TLS: getting certificate for %s\n", hello.ServerName)
+	// pre-check the server name
+	_, _, er := handleSubdomain(hello.ServerName, "/")
+	if er != nil {
+		log.Errorf("Invalid subdomain: %s\n", hello.ServerName)
+		return nil, &web3protocol.Web3ProtocolError{HttpCode: http.StatusBadRequest, Err: er}
+	}
+
 	if cert, err := tryFindSystemCertificate(hello.ServerName); err == nil && cert != nil {
+		log.Infof("Found system certificate: %s\n", hello.ServerName)
 		return cert, nil
 	}
-	return certManager.GetCertificate(hello)
+	cert, err := certManager.GetCertificate(hello)
+	if err != nil {
+		log.Errorf("Autocert: get certificate error: %v\n", err)
+		return nil, err
+	}
+	log.Infof("Autocert: got certificate: %s\n", hello.ServerName)
+	return cert, nil
 }
