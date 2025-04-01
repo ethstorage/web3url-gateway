@@ -140,7 +140,6 @@ chmod 600 /root/.secrets/certbot/digitalocean.ini
   -d '*.250.web3gateway.dev' \
   -d '*.333.web3gateway.dev' \
   -d '*.3333.web3gateway.dev' \
-  -d '*.3334.web3gateway.dev' \
   -d '*.4002.web3gateway.dev' \
   -d '*.420.web3gateway.dev' \
   -d '*.42161.web3gateway.dev' \
