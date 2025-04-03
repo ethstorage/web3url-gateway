@@ -4,7 +4,7 @@ AutoCertEmail = ""
 SystemCertDir = ""
 CertificateFile = ""
 KeyFile = ""
-HomePage = "/home.w3q/"
+HomePage = "/web3url.eth/"
 CORS = "*" # list of domains from which to accept cross origin requests (browser enforced)
 defaultChain = 0
 
@@ -24,13 +24,11 @@ immutableUrlRegexps = []
 
 # default chain for supported domain
 [nsDefaultChains]
-"w3q" = 333
 "eth" = 1
 
 # support chain name convention
 [name2chain]
 "es-t" = 3333
-"w3q-g" = 3334
 "qkcl2-b" = 3335
 "esl2-t" = 3336
 "es-d" = 3337
@@ -65,13 +63,6 @@ immutableUrlRegexps = []
 "holesky" = 17000
 
 [chainConfigs]
-    [chainConfigs.3334]
-    "ChainID" = 3334
-    "RPC" = "https://galileo.web3q.io:8545"
-    [chainConfigs.3334.NSConfig."w3q"]
-        "NSType" = "w3ns"
-        "NSAddr" = "0xD379B91ac6a93AF106802EB076d16A54E3519CED"
-
     [chainConfigs.1]
     "ChainID" = 1
     "RPC" = "https://mainnet.infura.io/v3/************"
