@@ -22,11 +22,6 @@ and make changes of your own.
 
 ## Run all tests
 
-1. Start a test server
-```sh
-./run_test.sh
-```
-2. Then in another CLI, run 
 ```sh
  make test
 ```
