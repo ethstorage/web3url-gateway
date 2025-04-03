@@ -380,8 +380,8 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 
 // process request with contract info in subdomain:
 // e.g.,
-// 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io
-// quark.w3q.w3q-g.w3link.io
+// https://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656.w3eth.io/view/2
+// web3url.eth.1.w3link.io
 func handleSubdomain(host string, path string) (p string, useSubdomain bool, err error) {
 	// Remove port from end of host
 	if strings.Index(host, ":") > 0 {
@@ -403,9 +403,8 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 
 	// https://[gateway-host].[gateway-tld]/[web3-hex-address | web3-host]
 	// Examples:
-	// https://localhost/quark.w3q/index.txt -> web3://quark.w3q/index.txt
-	// https://w3eth.io/quark.w3q/index.txt -> web3://quark.w3q/index.txt
-	// https://w3bnb.io/0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699/index.txt (with defaultChain = 56) -> web3://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:56/index.txt
+	// https://w3link.io/usdc.eth/balanceOf/vitalik.eth?returns=(uint256) -> web3://usdc.eth:1/balanceOf/vitalik.eth?returns=(uint256)
+	// https://0x2f7696d4284358a2e8fdb4df772dad60c2c8fbad.3333.w3link.io/hello.txt -> web3://0x2f7696d4284358a2e8fdb4df772dad60c2c8fbad:3333/hello.txt
 	if hostPartsCount <= 2 {
 		pathParts := strings.Split(p, "/")
 		// If no chain id, and we have a defaultChain : set it
@@ -415,28 +414,23 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
 		pathParts[1] = hostChangeChainShortNameToId(pathParts[1])
 		p = strings.Join(pathParts, "/")
-
-		// back compatible with hosted dweb files
-		if strings.HasSuffix(strings.Split(p, "/")[1], ".w3q") {
-			p = strings.Replace(p, ".w3q/", ".w3q:3334/", 1)
-		}
 	}
 
 	// https://[web3-hex-address | web3-host-name].[gateway-host].[gateway-tld]
 	// These URLs require a default chain specified in config. Examples, with default chain id == 1:
-	// https://quark.w3eth.io/index.txt -> web3://quark.eth/index.txt ("eth" deduced as
-	//   the default domain name service TLD from config)
-	// https://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699.w3eth.io/index.txt ->
-	//   web3://0x90560AD4A95147a00Ef17A3cC48b4Ef337a5E699:1/index.txt
+	// https://terraformnavigator.w3eth.io/view/2 -> web3://terraformnavigator.eth/view/2
+	// ("eth" deduced as the default domain name service TLD from config)
+	// https://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656.w3eth.io/view/2 ->
+	//   web3://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656:1/view/2
 	if hostPartsCount == 3 {
 		if config.DefaultChain == 0 {
 			return "", false, fmt.Errorf("default chain is not specified")
 		}
 		if common.IsHexAddress(hostParts[0]) {
-			//e.g. 0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io/name?returns=(string)
+			//e.g. https://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656.w3eth.io/view/2
 			p = "/" + hostParts[0] + ":" + strconv.Itoa(config.DefaultChain) + path
 		} else {
-			//e.g. quark.w3eth.io
+			//e.g. https://terraformnavigator.w3eth.io/view/2
 			suffix, err := getDefaultNSSuffix()
 			if err != nil {
 				log.Info(err.Error())
@@ -454,8 +448,10 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 
 	// https://[web3-hex-address].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
 	// Examples:
-	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io/index.txt -> web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/index.txt
-	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io/index.txt -> web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/index.txt
+	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io/name?returns=(string) ->
+	// 	web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/name?returns=(string)
+	// https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io/name?returns=(string)->
+	// 	web3://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5:11155111/name?returns=(string)
 	if hostPartsCount == 4 {
 		if !common.IsHexAddress(hostParts[0]) {
 			log.Info("invalid contract address")
@@ -470,8 +466,10 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 
 	// https://[web3-host-name].[web3-host-tld].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
 	// Examples:
-	// https://quark.w3q.3334.w3link.io/index.txt -> web3://quark.w3q:3334/index.txt
-	// https://quark.w3q.w3q-g.w3link.io/index.txt -> web3://quark.w3q:3334/index.txt
+	// https://usdc.eth.1.web3gateway.dev/balanceOf/vitalik.eth?returns=(uint256)
+	//  -> web3://usdc.eth:1/balanceOf/vitalik.eth?returns=(uint256)
+	// https://usdc.eth.eth.web3gateway.dev/balanceOf/vitalik.eth?returns=(uint256)
+	//  -> web3://usdc.eth:eth/balanceOf/vitalik.eth?returns=(uint256)
 	if hostPartsCount == 5 {
 		if config.DefaultChain > 0 {
 			log.Info("no tld should be provided when default chain is specified")

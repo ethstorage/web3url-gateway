@@ -40,15 +40,14 @@ Example 1: `w3eth.io` (handles ENS on Ethereum mainnet only)
 ./server \
   -port xx \
   -defaultChain 1 \
-  -homePage https://w3url.w3eth.io/ \
+  -homePage https://web3url.w3eth.io/ \
   -dbToken xxxxxx
 ```
 
 Example 2: `w3link.io` (for general web3 links)
 ```
 ./server \
-  -setNSChain w3q,333 \
-  -homePage https://w3url.eth.1.w3link.io/ \
+  -homePage https://web3url.eth.1.w3link.io/ \
   -dbToken xxxxxx
 ```
 
@@ -56,7 +55,6 @@ Example 2: `w3link.io` (for general web3 links)
 
 |ChainID|Chain Name|Short Name|
 |----|----|----|
-|3334|Web3Q Galileo|w3q-g|
 |1|Ethereum Mainnet|eth|
 |5|Ethereum Testnet Goerli|gor|
 |11155111|Ethereum Testnet Sepolia|sep|
@@ -125,100 +123,89 @@ chmod 600 /root/.secrets/certbot/digitalocean.ini
 
  3. create certificate：
 
- ```
- certbot certonly \
-  --dns-digitalocean \
-  --dns-digitalocean-credentials ~/.secrets/certbot/digitalocean.ini \
-    -d '*.1.w3link.io' \
-    -d '*.10.w3link.io' \
-    -d '*.100001.w3link.io' \
-    -d '*.1088.w3link.io' \
-    -d '*.110001.w3link.io' \
-    -d '*.11155111.w3link.io' \
-    -d '*.137.w3link.io' \
-    -d '*.1402.w3link.io' \
-    -d '*.1666600000.w3link.io' \
-    -d '*.1666700000.w3link.io' \
-    -d '*.250.w3link.io' \
-    -d '*.333.w3link.io' \
-    -d '*.3333.w3link.io' \
-    -d '*.3334.w3link.io' \
-    -d '*.4002.w3link.io' \
-    -d '*.420.w3link.io' \
-    -d '*.42161.w3link.io' \
-    -d '*.421613.w3link.io' \
-    -d '*.42170.w3link.io' \
-    -d '*.43113.w3link.io' \
-    -d '*.43114.w3link.io' \
-    -d '*.5.w3link.io' \
-    -d '*.534351.w3link.io' \
-    -d '*.534354.w3link.io' \
-    -d '*.56.w3link.io' \
-    -d '*.599.w3link.io' \
-    -d '*.80001.w3link.io' \
-    -d '*.84531.w3link.io' \
-    -d '*.9000.w3link.io' \
-    -d '*.9001.w3link.io' \
-    -d '*.97.w3link.io' \
-    -d '*.arb-goerli.w3link.io' \
-    -d '*.arb-nova.w3link.io' \
-    -d '*.arb1.w3link.io' \
-    -d '*.avax.w3link.io' \
-    -d '*.basegor.w3link.io' \
-    -d '*.bnb.w3link.io' \
-    -d '*.bnbt.w3link.io' \
-    -d '*.eth.1.w3link.io' \
-    -d '*.eth.10.w3link.io' \
-    -d '*.eth.11155111.w3link.io' \
-    -d '*.eth.420.w3link.io' \
-    -d '*.eth.42161.w3link.io' \
-    -d '*.eth.421613.w3link.io' \
-    -d '*.eth.5.w3link.io' \
-    -d '*.eth.arb-goerli.w3link.io' \
-    -d '*.eth.arb1.w3link.io' \
-    -d '*.eth.eth.w3link.io' \
-    -d '*.eth.gor.w3link.io' \
-    -d '*.eth.oeth.w3link.io' \
-    -d '*.eth.ogor.w3link.io' \
-    -d '*.eth.sep.w3link.io' \
-    -d '*.eth.w3link.io' \
-    -d '*.evmos-testnet.w3link.io' \
-    -d '*.evmos.w3link.io' \
-    -d '*.ftm.w3link.io' \
-    -d '*.fuji.w3link.io' \
-    -d '*.gor.w3link.io' \
-    -d '*.hmy-b-s0.w3link.io' \
-    -d '*.hmy-s0.w3link.io' \
-    -d '*.matic.w3link.io' \
-    -d '*.maticmum.w3link.io' \
-    -d '*.metis-andromeda.w3link.io' \
-    -d '*.metis-goerli.w3link.io' \
-    -d '*.oeth.w3link.io' \
-    -d '*.ogor.w3link.io' \
-    -d '*.qkc-d-s0.w3link.io' \
-    -d '*.qkc-s0.w3link.io' \
-    -d '*.scr-prealpha.w3link.io' \
-    -d '*.scr-testl1.w3link.io' \
-    -d '*.sep.w3link.io' \
-    -d '*.tftm.w3link.io' \
-    -d '*.w3q-g.w3link.io' \
-    -d '*.w3q.333.w3link.io' \
-    -d '*.w3q.3334.w3link.io' \
-    -d '*.w3q.w3link.io' \
-    -d '*.w3q.w3q-g.w3link.io' \
-    -d '*.zkevmtest.w3link.io' \
-    -d '*.w3link.io' \
-    -d ordinals.btc.w3link.io \
-    -d w3link.io
-
-  ```
+ ```bash
+ certbot certonly --dns-digitalocean \
+  --dns-digitalocean-credentials \
+  ~/.secrets/certbot/digitalocean.ini \
+  -d '*.1.web3gateway.dev' \
+  -d '*.10.web3gateway.dev' \
+  -d '*.100001.web3gateway.dev' \
+  -d '*.1088.web3gateway.dev' \
+  -d '*.110001.web3gateway.dev' \
+  -d '*.11155111.web3gateway.dev' \
+  -d '*.137.web3gateway.dev' \
+  -d '*.1402.web3gateway.dev' \
+  -d '*.1666600000.web3gateway.dev' \
+  -d '*.1666700000.web3gateway.dev' \
+  -d '*.250.web3gateway.dev' \
+  -d '*.333.web3gateway.dev' \
+  -d '*.3333.web3gateway.dev' \
+  -d '*.4002.web3gateway.dev' \
+  -d '*.420.web3gateway.dev' \
+  -d '*.42161.web3gateway.dev' \
+  -d '*.421613.web3gateway.dev' \
+  -d '*.42170.web3gateway.dev' \
+  -d '*.43113.web3gateway.dev' \
+  -d '*.43114.web3gateway.dev' \
+  -d '*.534351.web3gateway.dev' \
+  -d '*.534354.web3gateway.dev' \
+  -d '*.56.web3gateway.dev' \
+  -d '*.80001.web3gateway.dev' \
+  -d '*.9000.web3gateway.dev' \
+  -d '*.9001.web3gateway.dev' \
+  -d '*.97.web3gateway.dev' \
+  -d '*.arb-nova.web3gateway.dev' \
+  -d '*.arb1.web3gateway.dev' \
+  -d '*.avax.web3gateway.dev' \
+  -d '*.bnb.web3gateway.dev' \
+  -d '*.bnbt.web3gateway.dev' \
+  -d '*.eth.1.web3gateway.dev' \
+  -d '*.eth.10.web3gateway.dev' \
+  -d '*.eth.11155111.web3gateway.dev' \
+  -d '*.eth.42161.web3gateway.dev' \
+  -d '*.eth.arb1.web3gateway.dev' \
+  -d '*.eth.eth.web3gateway.dev' \
+  -d '*.eth.oeth.web3gateway.dev' \
+  -d '*.eth.sep.web3gateway.dev' \
+  -d '*.eth.web3gateway.dev' \
+  -d '*.evmos-testnet.web3gateway.dev' \
+  -d '*.evmos.web3gateway.dev' \
+  -d '*.ftm.web3gateway.dev' \
+  -d '*.fuji.web3gateway.dev' \
+  -d '*.hmy-b-s0.web3gateway.dev' \
+  -d '*.hmy-s0.web3gateway.dev' \
+  -d '*.matic.web3gateway.dev' \
+  -d '*.maticmum.web3gateway.dev' \
+  -d '*.metis-andromeda.web3gateway.dev' \
+  -d '*.oeth.web3gateway.dev' \
+  -d '*.qkc-d-s0.web3gateway.dev' \
+  -d '*.qkc-s0.web3gateway.dev' \
+  -d '*.scr-prealpha.web3gateway.dev' \
+  -d '*.scr-testl1.web3gateway.dev' \
+  -d '*.sep.web3gateway.dev' \
+  -d '*.tftm.web3gateway.dev' \
+  -d '*.zkevmtest.web3gateway.dev' \
+  -d '*.web3gateway.dev' \
+  -d ordinals.btc.web3gateway.dev  
+  -d web3gateway.dev  
+  -d '*.storyprotocoltest.web3gateway.dev' \
+  -d '*.1513.web3gateway.dev' \
+  -d '*.holesky.web3gateway.dev' \
+  -d '*.17000.web3gateway.dev' \
+  -d '*.base.web3gateway.dev' \
+  -d '*.8453.web3gateway.dev' \
+  -d '*.es-d.web3gateway.dev' \
+  -d '*.3337.web3gateway.dev' \
+  -d '*.esl2-d.web3gateway.dev' \
+  -d '*.3335.web3gateway.dev'
+```
 If successful, some messages like the following will appear where you can find the location of the private key and certificates:
 
 ```
 Successfully received certificate.
-Certificate is saved at: /etc/letsencrypt/live/1.w3link.io/fullchain.pem
-Key is saved at:         /etc/letsencrypt/live/1.w3link.io/privkey.pem
-This certificate expires on 2024-04-24.
+Certificate is saved at: /etc/letsencrypt/live/1.web3gateway.dev/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/1.web3gateway.dev/privkey.pem
+This certificate expires on 2024-12-11.
 These files will be updated when the certificate renews.
 Certbot has set up a scheduled task to automatically renew this certificate in the background.
 ```
