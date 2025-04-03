@@ -26,10 +26,8 @@ var w3links = []struct {
 	expect     string
 	statusCode int
 }{
-	// contract address
 	{"0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Ether\"]", http.StatusOK},
 	{"0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io", "/name?returns=(string)", "application/json", "[\"Wrapped Ether\"]", http.StatusOK},
-	// l2
 	{"0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.arb1.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]", http.StatusOK},
 	{"0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.42161.w3link.io", "/name?returns=(string)", "application/json", "[\"USD Coin (Arb1)\"]", http.StatusOK},
 	{"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1.oeth.w3link.io", "/name?returns=(string)", "application/json", "[\"Dai Stablecoin\"]", http.StatusOK},
