@@ -85,7 +85,9 @@ immutableUrlRegexps = []
 
     [chainConfigs.10]
     "ChainID" = 10
-    "RPC" = "https://optimism-mainnet.infura.io/v3/************"
+
+    "RPC" = "https://endpoints.omniatech.io/v1/op/mainnet/public"
+    "SystemRPC" = "https://optimism-mainnet.infura.io/v3/************"
 
     [chainConfigs.42161]
     "ChainID" = 42161
@@ -109,7 +111,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.97]
     "ChainID" = 97
-    "RPC" = "https://data-seed-prebsc-2-s2.binance.org:8545"
+    "RPC" = "https://bsc-testnet-rpc.publicnode.com"
 
     [chainConfigs.43114]
     "ChainID" = 43114
@@ -121,11 +123,11 @@ immutableUrlRegexps = []
 
     [chainConfigs.250]
     "ChainID" = 250
-    "RPC" = "https://rpc.ankr.com/fantom"
+    "RPC" = "https://rpc3.fantom.network"
 
     [chainConfigs.4002]
     "ChainID" = 4002
-    "RPC" = "https://rpc.ankr.com/fantom_testnet"
+    "RPC" = "https://rpc.testnet.fantom.network"
 
     [chainConfigs.1666600000]
     "ChainID" = 1666600000
@@ -177,7 +179,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.1513]
     "ChainID" = 1513
-    "RPC" = "https://story-network.rpc.caldera.xyz/http"
+    "RPC" = "https://evm-rpc-story.josephtran.xyz"
 
     [chainConfigs.3333]
     "ChainID" = 3333
