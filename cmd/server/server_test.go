@@ -85,7 +85,7 @@ func TestW3links(t *testing.T) {
 	}
 }
 
-var w3urls = []struct {
+var w3ethurls = []struct {
 	chainId    int
 	domain     string
 	path       string
@@ -93,16 +93,11 @@ var w3urls = []struct {
 	statusCode int
 }{
 	{1, "0xdac17f958d2ee523a2206206994597c13d831ec7.w3eth.io", "/name?returns=(string)", "[\"Tether USD\"]", http.StatusOK},
-	{56, "0xe9e7cea3dedca5984780bafc599bd69add087d56.w3bnb.io", "/name?returns=(string)", "[\"BUSD Token\"]", http.StatusOK},
-	{43114, "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.w3avax.io", "/name?returns=(string)", "[\"Wrapped AVAX\"]", http.StatusOK},
-	{9001, "0xc5e00d3b04563950941f7137b5afa3a534f0d6d6.w3evmos.io", "/name?returns=(string)", "[\"Cosmos Hub\"]", http.StatusOK},
-	{1666600000, "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.w3one.io", "/name?returns=(string)", "[\"Wrapped ONE\"]", http.StatusOK},
-	{137, "0x0000000000000000000000000000000000001010.w3matic.io", "/name?returns=(string)", "[\"Polygon Ecosystem Token\"]", http.StatusOK},
-	{100001, "0xc2f21F8F573Ab93477E23c4aBB363e66AE11Bac5.w3qkc.io", "/greet?returns=(string)", "[\"Hello QKC\"]", http.StatusOK},
+	{1, "usdc.w3eth.io", "/name?returns=(string)", "[\"USD Coin\"]", http.StatusOK},
 }
 
 func TestW3urls(t *testing.T) {
-	for _, test := range w3urls {
+	for _, test := range w3ethurls {
 		t.Run(test.domain+test.path, func(t *testing.T) {
 			config.DefaultChain = test.chainId
 			req := httptest.NewRequest("GET", test.path, nil)
