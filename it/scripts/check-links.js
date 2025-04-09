@@ -3,10 +3,7 @@ const fs = require('fs');
 
 async function checkLink(url) {
   try {
-    const response = await fetch(url, {
-      method: 'HEAD',
-      timeout: 30000
-    });
+    const response = await fetch(url);
     
     if (!response.ok) {
       throw new Error(`HTTP status ${response.status}`);
