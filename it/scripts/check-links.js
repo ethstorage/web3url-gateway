@@ -17,8 +17,8 @@ async function checkLink(url) {
   }
 }
 
-async function checkAllLinks() {
-  const linksData = JSON.parse(fs.readFileSync('../data/links.json'));
+async function checkAllLinks(dataPath) {
+  const linksData = JSON.parse(fs.readFileSync(dataPath));
   const results = await Promise.all(linksData.links.map(checkLink));
   const failures = results.filter(r => !r.success);
   

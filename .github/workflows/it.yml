@@ -28,7 +28,7 @@ jobs:
           const core = require('@actions/core');
           
           async function run() {
-            const results = await checkAllLinks();
+            const results = await checkAllLinks('./it/data/links.json');
             if (!results.success) {
               core.setFailed('Link check failed');
               core.setOutput('failures', JSON.stringify(results.failures));
