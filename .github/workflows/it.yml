@@ -28,7 +28,8 @@ jobs:
         run: |
           node << 'EOF'
           import { checkAllLinks } from './it/scripts/check-links.mjs';
-          import { core } from '@actions/core';
+          import pkg from '@actions/core';
+          const { core } = pkg;
 
           async function run() {
             const results = await checkAllLinks('./it/data/links.json');
