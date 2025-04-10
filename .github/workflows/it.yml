@@ -1,6 +1,7 @@
 name: Link Checker
 
 on:
+  push: {}
   schedule:
     - cron: "0 * * * *" # Hourly
   workflow_dispatch: # Manual trigger
@@ -8,7 +9,6 @@ on:
 jobs:
   check-links:
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/check-link'
 
     steps:
       - uses: actions/checkout@v4
