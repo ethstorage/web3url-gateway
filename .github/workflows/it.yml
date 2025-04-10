@@ -19,13 +19,16 @@ jobs:
           
       - name: Install dependencies
         run: npm install node-fetch @actions/core @actions/github
-        
+
+      - name: Load environment variables
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
       - name: Check Links
         id: link-check
         run: |
           node << 'EOF'
-          const { checkAllLinks } = require('./it/scripts/check-links.js');
-          const core = require('@actions/core');
+          import { checkAllLinks } from './check-links.mjs';
+          import {core} from '@actions/core';
           
           async function run() {
             const results = await checkAllLinks('./it/data/links.json');

@@ -1,10 +1,10 @@
-const fetch = require('node-fetch');
-const fs = require('fs');
+import { readFileSync } from 'fs';
+import fetch from 'node-fetch';
 
 async function checkLink(url) {
   try {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP status ${response.status}`);
     }
@@ -13,12 +13,11 @@ async function checkLink(url) {
     return { url, error: error.message, success: false };
   }
 }
-
-async function checkAllLinks(dataPath) {
-  const linksData = JSON.parse(fs.readFileSync(dataPath));
+export async function checkAllLinks(dataPath) {
+  const linksData = JSON.parse(readFileSync(dataPath));
   const results = await Promise.all(linksData.links.map(checkLink));
   const failures = results.filter(r => !r.success);
-  
+
   return {
     success: failures.length === 0,
     results,
@@ -26,4 +25,4 @@ async function checkAllLinks(dataPath) {
   };
 }
 
-module.exports = { checkAllLinks };
+
