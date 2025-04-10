@@ -44,11 +44,11 @@ jobs:
 
       - name: Send Failure Email
         if: failure()
-        # uses: dawidd6/action-send-mail@v3 
+        # uses: dawidd6/action-send-mail@v3
         run: |
           echo "Sending failure email"
-          echo "SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}"
-          echo "SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}"
+          echo "SMTP_USERNAME: ${{ secrets.SMTP_USERNAME != ''}}"
+          echo "SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD != ''}}"
         # with:
         #   server_address: smtp.gmail.com
         #   server_port: 465
