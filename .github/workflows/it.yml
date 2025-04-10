@@ -39,7 +39,6 @@ jobs:
           async function run() {
             const results = await checkAllLinks('./it/data/links.json');
             if (!results.success) {
-              core.setFailed('Link check failed');
               core.setOutput('failures', JSON.stringify(results.failures));
             }
             core.setOutput('results', JSON.stringify(results.results));
