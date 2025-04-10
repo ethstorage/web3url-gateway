@@ -47,6 +47,11 @@ jobs:
         uses: dawidd6/action-send-mail@v3
         env:
           ACTIONS_STEP_DEBUG: true
+        run: |
+          echo "Sending failure email"
+          echo "SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}"
+          echo "SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}"
+
         with:
           server_address: smtp.gmail.com
           server_port: 465
