@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 async function checkLink(url) {
   try {
     const response = await fetch(url);
-
+    console.log(url, ":", response.statusText);
     if (!response.ok) {
       throw new Error(`HTTP status ${response.status}`);
     }
