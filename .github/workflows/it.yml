@@ -1,5 +1,6 @@
 name: Link Checker
-
+env:
+  ACTIONS_STEP_DEBUG: true
 on:
   push: {}
   schedule:
@@ -11,6 +12,12 @@ jobs:
     runs-on: self-hosted
 
     steps:
+      - name: Debug Env
+        run: |
+          echo "Runner OS: $RUNNER_OS"
+          echo "Workspace: $GITHUB_WORKSPACE"
+          ls -al $GITHUB_WORKSPACE
+      
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
