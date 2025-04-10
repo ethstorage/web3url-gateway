@@ -44,22 +44,18 @@ jobs:
 
       - name: Send Failure Email
         if: failure()
-        # uses: dawidd6/action-send-mail@v3
-        run: |
-          echo "Sending failure email"
-          echo "SMTP_USERNAME: ${{ secrets.SMTP_USERNAME != ''}}"
-          echo "SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD != ''}}"
-        # with:
-        #   server_address: smtp.gmail.com
-        #   server_port: 465
-        #   username: ${{ secrets.SMTP_USERNAME }}
-        #   password: ${{ secrets.SMTP_PASSWORD }}
-        #   subject: "❌ Web3Gateway Link Check Failed"
-        #   body: |
-        #     The following links failed:
-        #     ${{ steps.link-check.outputs.failures }}
-        #   to: ${{ secrets.NOTIFICATION_EMAIL }}
-        #   from: Web3Gateway Link Checker
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "❌ Web3Gateway Link Check Failed"
+          body: |
+            The following links failed:
+            ${{ steps.link-check.outputs.failures }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Web3Gateway Link Checker
 
       - name: Send Daily Success Email
         if: success() && github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
