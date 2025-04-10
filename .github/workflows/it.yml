@@ -20,8 +20,8 @@ jobs:
       - name: Install dependencies
         run: npm install node-fetch @actions/core @actions/github
 
-      # - name: Load environment variables
-      #   run: echo "${{ secrets.ENV_FILE }}" > .env
+      - name: Load environment variables
+        run: echo "${{ secrets.ENV_FILE }}" > .env
 
       - name: Check Links
         id: link-check
@@ -45,17 +45,19 @@ jobs:
       - name: Send Failure Email
         if: failure()
         uses: dawidd6/action-send-mail@v3
+        env:
+          ACTIONS_STEP_DEBUG: true
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{secrets.SMTP_USERNAME}}
           password: ${{secrets.SMTP_PASSWORD}}
-          subject: "❌ Link Check Failed"
+          subject: "❌ Web3Gateway Link Check Failed"
           body: |
             The following links failed:
             ${{ steps.link-check.outputs.failures }}
           to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Link Checker
+          from: Web3Gateway Link Checker
 
       - name: Send Daily Success Email
         if: success() && github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
@@ -65,9 +67,9 @@ jobs:
           server_port: 465
           username: ${{secrets.SMTP_USERNAME}}
           password: ${{secrets.SMTP_PASSWORD}}
-          subject: "✅ Daily Link Check Successful"
+          subject: "✅ Web3Gateway Daily Link Check Successful"
           body: |
             All links are healthy:
             ${{ steps.link-check.outputs.results }}
           to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Link Checker
+          from: Web3Gateway Link Checker
