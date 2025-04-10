@@ -27,7 +27,7 @@ jobs:
         id: link-check
         run: |
           node << 'EOF'
-          import { checkAllLinks } from './check-links.mjs';
+          import { checkAllLinks } from '.it/scripts/check-links.mjs';
           import {core} from '@actions/core';
           
           async function run() {
