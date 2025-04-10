@@ -18,7 +18,7 @@ jobs:
           echo "Runner OS: $RUNNER_OS"
           echo "Workspace: $GITHUB_WORKSPACE"
           ls -al $GITHUB_WORKSPACE
-      
+
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -48,7 +48,7 @@ jobs:
           EOF
 
       - name: Send Failure Email
-        if: failure()
+        if: ${{ steps.link-check.outputs.failures != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
