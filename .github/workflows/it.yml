@@ -10,7 +10,7 @@ on:
 
 jobs:
   check-links:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Debug Env
