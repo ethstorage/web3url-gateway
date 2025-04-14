@@ -26,11 +26,13 @@ jobs:
         id: link-check
         run: |
           node << 'EOF'
-          import { checkAllLinks } from './it/scripts/check-links.mjs';
           import core from '@actions/core';
+          import { checkAllLinks } from './it/scripts/check-links.mjs';
+          import { links } from './it/data/links.mjs';          
+
 
           async function run() {
-            const results = await checkAllLinks('./it/data/links.json');
+            const results = await checkAllLinks(links);
             if (!results.success) {
               core.setOutput('failures', JSON.stringify(results.failures));
             }
