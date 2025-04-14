@@ -116,17 +116,17 @@
       const originalAttrSetter = Object.getOwnPropertyDescriptor(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName).set;
       Object.defineProperty(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName, {
         set: function(attrValue) {
-          if(attrValue.startsWith('web3://')) {
-            const convertedUrl = convertWeb3UrlToGatewayUrl(attrValue);
-            if(convertedUrl == null) {
+          const value = String(attrValue);
+          if (value.startsWith('web3://')) {
+            const convertedUrl = convertWeb3UrlToGatewayUrl(value);
+            if (!convertedUrl) {
               console.error("Gateway " + elementWithUrlAttr.element.name + " " + elementWithUrlAttr.attrName + " setter wrapper: Unable to convert web3:// URL: " + attrValue);
-              originalAttrSetter.call(this, attrValue);
+              originalAttrSetter.call(this, value);
               return;
             }
             console.log('Gateway ' + elementWithUrlAttr.element.name + ' ' + elementWithUrlAttr.attrName + ' setter wrapper: Converted ' + attrValue + ' to ' + convertedUrl);
             originalAttrSetter.call(this, convertedUrl);
-          }
-          else {
+          } else {
             originalAttrSetter.call(this, attrValue);
           }
         }
