@@ -1,0 +1,73 @@
+name: Link Checker
+env:
+  ACTIONS_RUNNER_DEBUG: true
+  ACTIONS_STEP_DEBUG: true
+on:
+  push: {}
+  schedule:
+    - cron: "0 */4 * * *" # Every 4 hours
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install dependencies
+        run: npm install node-fetch @actions/core @actions/github
+
+      - name: Check Links
+        id: link-check
+        run: |
+          node << 'EOF'
+          import core from '@actions/core';
+          import { checkAllLinks } from './it/scripts/check-links.mjs';
+          import { links } from './it/data/links.mjs';          
+
+
+          async function run() {
+            const results = await checkAllLinks(links);
+            if (!results.success) {
+              core.setOutput('failures', JSON.stringify(results.failures));
+            }
+            core.setOutput('results', JSON.stringify(results.results));
+          }
+
+          run();
+          EOF
+
+      - name: Send Failure Email
+        if: ${{ steps.link-check.outputs.failures != '' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "❌ Web3Gateway Links Failure"
+          body: |
+            The following links failed:
+            ${{ steps.link-check.outputs.failures }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Web3Gateway
+
+      - name: Send Daily Success Email
+        if: success() && github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{secrets.SMTP_USERNAME}}
+          password: ${{secrets.SMTP_PASSWORD}}
+          subject: "✅ Web3Gateway Links Daily Check Successful"
+          body: |
+            All links are healthy:
+            ${{ steps.link-check.outputs.results }}
+          to: ${{secrets.NOTIFICATION_EMAIL}}
+          from: Web3Gateway

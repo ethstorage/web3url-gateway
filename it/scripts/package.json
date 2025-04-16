@@ -1,0 +1,16 @@
+{
+  "name": "gateway-it",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "type": "module",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "https": "^1.0.0",
+    "node-fetch": "^3.3.2"
+  }
+}

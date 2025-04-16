@@ -91,7 +91,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.42161]
     "ChainID" = 42161
-    "RPC" = "https://arbitrum-mainnet.infura.io/v3/************"
+    "RPC" = "https://arbitrum.meowrpc.com"
 
     [chainConfigs.9001]
     "ChainID" = 9001
@@ -123,7 +123,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.250]
     "ChainID" = 250
-    "RPC" = "https://rpc3.fantom.network"
+    "RPC" = "https://fantom-pokt.nodies.app"
 
     [chainConfigs.4002]
     "ChainID" = 4002
