@@ -6,6 +6,8 @@ on:
   push: {}
   schedule:
     - cron: "0 */4 * * *" # Every 4 hours
+    - cron: "0 13 * * *"  # Every day at 1 PM
+
   workflow_dispatch: # Manual trigger
 
 jobs:
@@ -57,7 +59,7 @@ jobs:
           from: Web3Gateway
 
       - name: Send Daily Success Email
-        if: success() && github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
+        if: ${{ steps.link-check.outputs.failures == '' && github.event.schedule == '0 13 * * *'}}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
