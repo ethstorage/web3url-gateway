@@ -1,4 +1,4 @@
-name: Link Checker
+name: Web3 URL Link Checker
 env:
   ACTIONS_RUNNER_DEBUG: true
   ACTIONS_STEP_DEBUG: true
@@ -6,6 +6,8 @@ on:
   push: {}
   schedule:
     - cron: "0 */4 * * *" # Every 4 hours
+    - cron: "0 2 * * *"  # Every day at 10 AM UTC+8
+
   workflow_dispatch: # Manual trigger
 
 jobs:
@@ -28,15 +30,20 @@ jobs:
           node << 'EOF'
           import core from '@actions/core';
           import { checkAllLinks } from './it/scripts/check-links.mjs';
-          import { links } from './it/data/links.mjs';          
-
+          import { links } from './it/data/links.mjs';
 
           async function run() {
             const results = await checkAllLinks(links);
             if (!results.success) {
-              core.setOutput('failures', JSON.stringify(results.failures));
+              const formattedFailures = results.failures.map(failure => 
+                `- URL: ${failure.url} Error: ${failure.error}\n`
+              ).join('\n');
+              core.setOutput('failures', formattedFailures);
             }
-            core.setOutput('results', JSON.stringify(results.results));
+            const formattedResults = results.results.map(result => 
+              `- URL: ${result.url} Success: ${result.success}`
+            ).join('\n');
+            core.setOutput('results', formattedResults);
           }
 
           run();
@@ -58,14 +65,14 @@ jobs:
           from: Web3Gateway
 
       - name: Send Daily Success Email
-        if: success() && github.event_name == 'schedule' && github.event.schedule == '0 0 * * *'
+        if: ${{ (steps.link-check.outputs.failures == '' && github.event.schedule == '0 2 * * *' ) || (github.event_name == 'workflow_dispatch') }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{secrets.SMTP_USERNAME}}
           password: ${{secrets.SMTP_PASSWORD}}
-          subject: "✅ Web3Gateway Links Daily Check Successful"
+          subject: "✅ Web3Gateway Links Check Successful"
           body: |
             All links are healthy:
             ${{ steps.link-check.outputs.results }}
