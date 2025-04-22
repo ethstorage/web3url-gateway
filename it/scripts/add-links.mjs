@@ -2,11 +2,11 @@ import dotenv from "dotenv";
 import { FlatDirectory } from "ethstorage-sdk";
 dotenv.config();
 
-export async function addLinks(pk) {
+export async function addLinks() {
     console.log("Adding new links...");
     const flatDirectory = await FlatDirectory.create({
         rpc: "https://rpc.beta.testnet.l2.quarkchain.io:8545",
-        privateKey: pk || process.env.PRIVATE_KEY,
+        privateKey: process.env.PRIVATE_KEY,
     });
     const contractAddress = await flatDirectory.deploy();
 

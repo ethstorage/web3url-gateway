@@ -6,7 +6,7 @@ on:
   push: {}
   schedule:
     - cron: "0 */4 * * *" # Every 4 hours
-    - cron: "0 2 * * *"  # Every day at 10 AM UTC+8
+    - cron: "0 2 * * *" # Every day at 10 AM UTC+8
 
   workflow_dispatch: # Manual trigger
 
@@ -28,6 +28,8 @@ jobs:
 
       - name: Check Links
         id: link-check
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
           node << 'EOF'
           import core from '@actions/core';
@@ -36,7 +38,7 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            const newLinks = await addLinks(${{ secrets.PRIVATE_KEY }});
+            const newLinks = await addLinks();
             const allLinks = [...links, ...newLinks];
             const results = await checkAllLinks(allLinks);
             if (!results.success) {
