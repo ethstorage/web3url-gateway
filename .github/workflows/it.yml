@@ -36,7 +36,7 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            const newLinks = await addLinks(secrets.PRIVATE_KEY);
+            const newLinks = await addLinks(${{ secrets.PRIVATE_KEY }});
             const allLinks = [...links, ...newLinks];
             const results = await checkAllLinks(allLinks);
             if (!results.success) {
