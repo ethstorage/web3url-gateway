@@ -4,9 +4,11 @@ dotenv.config();
 
 export async function addLinks() {
     console.log("Adding new links...");
-    console.log("len(pk)", process.env.PRIVATE_KEY.length);
+    if (!process.env.PRIVATE_KEY || process.env.PRIVATE_KEY.length === 0) {
+        throw new Error("PRIVATE_KEY is not set.");
+    }
     const flatDirectory = await FlatDirectory.create({
-        rpc: "https://rpc.beta.testnet.l2.quarkchain.io:8545",
+        rpc: "http://5.9.87.214:8545",
         privateKey: process.env.PRIVATE_KEY,
     });
     const contractAddress = await flatDirectory.deploy();
