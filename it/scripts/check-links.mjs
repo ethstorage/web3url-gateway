@@ -20,6 +20,7 @@ async function checkLink(url) {
 export async function checkAllLinks(links) {
   const all = await Promise.all(links.map(checkLink));
   const failures = all.filter(r => !r.success);
+  console.log('totally checked links:', all.length, 'failed:', failures.length);
   return {
     all,
     failures
