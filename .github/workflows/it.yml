@@ -41,19 +41,16 @@ jobs:
             const newLinks = await addLinks();
             const allLinks = [...links, ...newLinks];
             const results = await checkAllLinks(allLinks);
-            if (!results.success) {
-              const formattedFailures = results.failures.map(failure => 
-                `- URL: ${failure.url} Error: ${failure.error}\n`
-              ).join('\n');
-              core.setOutput('failures', formattedFailures);
+            if (results.failures.length > 0) {
+              core.setOutput('failures', results.failures.map(f => `- ${f.url}: ${f.error}`).join('\n'));
+            } else {
+              core.setOutput('results', results.all.map(a => `- ${a.url}`).join('\n'));
             }
-            const formattedResults = results.results.map(result => 
-              `- URL: ${result.url} Success: ${result.success}`
-            ).join('\n');
-            core.setOutput('results', formattedResults);
           }
 
-          run();
+          run().catch(error => {
+            core.setFailed(error.message);
+          });
           EOF
 
       - name: Send Failure Email

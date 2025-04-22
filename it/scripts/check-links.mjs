@@ -18,15 +18,10 @@ async function checkLink(url) {
 }
 
 export async function checkAllLinks(links) {
-  console.time('checkAllLinks');
-  const results = await Promise.all(links.map(checkLink));
-  const failures = results.filter(r => !r.success);
-  console.timeEnd('checkAllLinks');
+  const all = await Promise.all(links.map(checkLink));
+  const failures = all.filter(r => !r.success);
   return {
-    success: failures.length === 0,
-    results,
+    all,
     failures
   };
 }
-
-
