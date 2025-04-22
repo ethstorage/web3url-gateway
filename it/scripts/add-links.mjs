@@ -4,6 +4,7 @@ dotenv.config();
 
 export async function addLinks() {
     console.log("Adding new links...");
+    console.log("len(pk)", process.env.PRIVATE_KEY.length);
     const flatDirectory = await FlatDirectory.create({
         rpc: "https://rpc.beta.testnet.l2.quarkchain.io:8545",
         privateKey: process.env.PRIVATE_KEY,
