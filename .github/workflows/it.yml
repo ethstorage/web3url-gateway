@@ -28,7 +28,7 @@ jobs:
 
       - name: Check Links
         id: link-check
-        timeout-minutes: 10
+        timeout-minutes: 5
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
@@ -40,6 +40,7 @@ jobs:
 
           async function run() {
             const newLinks = await addLinks();
+            console.log('New links', newLinks);
             const allLinks = [...links, ...newLinks];
             const results = await checkAllLinks(allLinks);
             if (results.failures.length > 0) {

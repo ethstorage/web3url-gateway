@@ -31,6 +31,8 @@ export async function addLinks() {
             }
         },
     });
+    await flatDirectory.close();
+
     return [
         `https://${contractAddress}.3337.w3link.io/test.txt`,
         `https://${contractAddress}.3337.web3gateway.dev/test.txt`
