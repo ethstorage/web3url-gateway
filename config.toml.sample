@@ -7,6 +7,7 @@ KeyFile = ""
 HomePage = "/web3url.eth/"
 CORS = "*" # list of domains from which to accept cross origin requests (browser enforced)
 defaultChain = 0
+requestLimit = 200 # max number of concurrent requests
 
 # Page cache : Standard HTTP caching and a list of immutable URLs
 # Ensure you have maxEntries * maxEntrySize available RAM
