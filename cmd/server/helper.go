@@ -189,6 +189,8 @@ func hostChangeChainShortNameToId(host string) string {
 
 func requestLimiter(next http.Handler) http.Handler {
 	var semaphore = make(chan struct{}, config.RequestLimit)
+	log.Infof("Request limit: %v\n", config.RequestLimit)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case semaphore <- struct{}{}: // Acquire a slot

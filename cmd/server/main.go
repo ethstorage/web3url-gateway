@@ -95,15 +95,13 @@ func initConfig() {
 	if cors.set {
 		config.CORS = cors.value
 	}
-	if requestLimit.set {
-		limit, err := strconv.Atoi(requestLimit.value)
-		if err != nil {
-			log.Fatalf("Unable to parse %v as an integer\n", requestLimit.value)
-			return
-		}
-		config.RequestLimit = limit
+	limit, err := strconv.Atoi(requestLimit.value)
+	if err != nil {
+		log.Fatalf("Unable to parse %v as an integer\n", requestLimit.value)
+		return
 	}
-	log.Infof("Request limit: %v\n", config.RequestLimit)
+	config.RequestLimit = limit
+
 	// Page cache size: not use the default of unlimited, will only end in crashed servers
 	if config.PageCache.MaxEntries == 0 {
 		config.PageCache.MaxEntries = 1000
