@@ -10,6 +10,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "ethstorage-sdk": "^3.1.0",
     "https": "^1.0.0",
     "node-fetch": "^3.3.2"
   }

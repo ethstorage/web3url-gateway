@@ -6,7 +6,7 @@ on:
   push: {}
   schedule:
     - cron: "0 */4 * * *" # Every 4 hours
-    - cron: "0 2 * * *"  # Every day at 10 AM UTC+8
+    - cron: "0 2 * * *" # Every day at 10 AM UTC+8
 
   workflow_dispatch: # Manual trigger
 
@@ -22,59 +22,55 @@ jobs:
           node-version: "20.x"
 
       - name: Install dependencies
-        run: npm install node-fetch @actions/core @actions/github
+        run: |
+          npm install node-fetch @actions/core @actions/github
+          npm install ethstorage-sdk
 
       - name: Check Links
         id: link-check
+        timeout-minutes: 5
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
           node << 'EOF'
           import core from '@actions/core';
           import { checkAllLinks } from './it/scripts/check-links.mjs';
           import { links } from './it/data/links.mjs';
+          import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            const results = await checkAllLinks(links);
-            if (!results.success) {
-              const formattedFailures = results.failures.map(failure => 
-                `- URL: ${failure.url} Error: ${failure.error}\n`
-              ).join('\n');
-              core.setOutput('failures', formattedFailures);
+            const newLinks = await addLinks();
+            console.log('New links', newLinks);
+            const allLinks = [...links, ...newLinks];
+            const results = await checkAllLinks(allLinks);
+            if (results.failures.length > 0) {
+              core.setOutput('failures', results.failures.map(f => `- ${f.url}: ${f.error}`).join('\n'));
+            } else {
+              core.setOutput('results', results.all.map(a => `- ${a.url}`).join('\n'));
             }
-            const formattedResults = results.results.map(result => 
-              `- URL: ${result.url} Success: ${result.success}`
-            ).join('\n');
-            core.setOutput('results', formattedResults);
           }
 
-          run();
+          await run().catch(error => {
+            core.setFailed(error.message);
+          });
           EOF
 
       - name: Send Failure Email
         if: ${{ steps.link-check.outputs.failures != '' }}
-        uses: dawidd6/action-send-mail@v3
+        uses: ./.github/workflows/notify.yml
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
           body: |
             The following links failed:
             ${{ steps.link-check.outputs.failures }}
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: Web3Gateway
+          secrets: inherit
 
       - name: Send Daily Success Email
         if: ${{ (steps.link-check.outputs.failures == '' && github.event.schedule == '0 2 * * *' ) || (github.event_name == 'workflow_dispatch') }}
-        uses: dawidd6/action-send-mail@v3
+        uses: ./.github/workflows/notify.yml
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{secrets.SMTP_USERNAME}}
-          password: ${{secrets.SMTP_PASSWORD}}
           subject: "✅ Web3Gateway Links Check Successful"
           body: |
             All links are healthy:
             ${{ steps.link-check.outputs.results }}
-          to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Web3Gateway
+          secrets: inherit

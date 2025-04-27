@@ -5,7 +5,7 @@ async function checkLink(url) {
   try {
     const response = await fetch(url, {
       agent: new https.Agent({ rejectUnauthorized: false }),
-      signal: AbortSignal.timeout(30000), 
+      signal: AbortSignal.timeout(30000),
     });
     console.log(url, ":", response.statusText);
     if (!response.ok) {
@@ -17,16 +17,13 @@ async function checkLink(url) {
     return { url, error: error.message, success: false };
   }
 }
+
 export async function checkAllLinks(links) {
-  console.time('checkAllLinks'); 
-  const results = await Promise.all(links.map(checkLink));
-  const failures = results.filter(r => !r.success);
-  console.timeEnd('checkAllLinks');
+  const all = await Promise.all(links.map(checkLink));
+  const failures = all.filter(r => !r.success);
+  console.log('totally checked links:', all.length, 'failed:', failures.length);
   return {
-    success: failures.length === 0,
-    results,
+    all,
     failures
   };
 }
-
-
