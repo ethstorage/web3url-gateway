@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"net"
@@ -364,17 +365,24 @@ func handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func respondWithErrorPage(w http.ResponseWriter, err error) {
-	httpCode := 400
-	switch err.(type) {
-	case *web3protocol.Web3ProtocolError:
-		httpCode = err.(*web3protocol.Web3ProtocolError).HttpCode
+	httpCode := http.StatusBadRequest // Default to 400
+	if web3Err, ok := err.(*web3protocol.Web3ProtocolError); ok {
+		httpCode = web3Err.HttpCode
 	}
 
-	w.WriteHeader(httpCode)
-	_, e := fmt.Fprintf(w, "<html><h1>%d: %s</h1>%v<html/>", httpCode, http.StatusText(httpCode), err.Error())
-	if e != nil {
-		log.Errorf("Cannot write error page: %v\n", e)
-		return
+	// Check if headers have already been sent
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(httpCode)
+	} else {
+		log.Warnf("Headers already sent, skipping WriteHeader for error: %v", err)
+	}
+
+	escapedErrorMessage := html.EscapeString(err.Error())
+	_, writeErr := fmt.Fprintf(w, "<html><head><title>Error</title></head><body><h1>%d: %s</h1><p>%s</p></body></html>",
+		httpCode, http.StatusText(httpCode), escapedErrorMessage)
+	if writeErr != nil {
+		log.Errorf("Cannot write error page: %v", writeErr)
 	}
 }
 
