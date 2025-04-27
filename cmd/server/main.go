@@ -96,7 +96,7 @@ func initConfig() {
 		config.CORS = cors.value
 	}
 	if requestLimit.set {
-		limit, err := strconv.Atoi(defaultChain.value)
+		limit, err := strconv.Atoi(requestLimit.value)
 		if err != nil {
 			log.Fatalf("Unable to parse %v as an integer\n", requestLimit.value)
 			return
