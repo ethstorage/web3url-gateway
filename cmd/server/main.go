@@ -257,10 +257,11 @@ func main() {
 		}
 	})
 
+	limitedHandler := requestLimiter(http.DefaultServeMux)
 	if config.RunAsHttp {
 		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
 		log.Info("Running server in unsecure mode...")
-		err := http.ListenAndServe(":"+config.ServerPort, nil)
+		err := http.ListenAndServe(":"+config.ServerPort, limitedHandler)
 		if err != nil {
 			log.Fatalf("Cannot start server: %v\n", err)
 			return
@@ -275,9 +276,10 @@ func main() {
 				MinVersion:     tls.VersionTLS12,
 			},
 			MaxHeaderBytes: 32 << 20,
+			Handler:        limitedHandler,
 		}
 
-		go http.ListenAndServe(":http", certManager.HTTPHandler(nil)) // 支持 http-01
+		go http.ListenAndServe(":http", certManager.HTTPHandler(nil)) // support http-01
 
 		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.Fatalf("Cannot start server: %v\n", err)
