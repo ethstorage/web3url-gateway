@@ -33,6 +33,7 @@ type Web3Config struct {
 	NSDefaultChains map[string]int
 	Name2Chain      map[string]int
 	ChainConfigs    map[int]ChainConfig
+	RequestLimit    int
 }
 
 type PageCacheConfig struct {
@@ -186,10 +187,8 @@ func hostChangeChainShortNameToId(host string) string {
 	return hostParts[0] + ":" + chainId
 }
 
-const maxConcurrentRequests = 1 // Maximum number of concurrent requests
-var semaphore = make(chan struct{}, maxConcurrentRequests)
-
 func requestLimiter(next http.Handler) http.Handler {
+	var semaphore = make(chan struct{}, config.RequestLimit)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case semaphore <- struct{}{}: // Acquire a slot

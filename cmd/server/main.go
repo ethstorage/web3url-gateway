@@ -32,6 +32,7 @@ var (
 	defaultChain                  = stringFlags{value: "1"}
 	homePage                      = stringFlags{value: "/web3url.eth/"}
 	cors                          = stringFlags{value: "*"}
+	requestLimit                  = stringFlags{value: "200"}
 	nsInfos, chainInfos, nsChains arrayFlags
 	config                        Web3Config
 	web3protocolClient            *web3protocol.Client
@@ -57,6 +58,7 @@ func initConfig() {
 	flag.Var(&defaultChain, "defaultChain", "default chain id")
 	flag.Var(&homePage, "homePage", "home page address")
 	flag.Var(&cors, "cors", "comma separated list of domains from which to accept cross origin requests")
+	flag.Var(&requestLimit, "requestLimit", "max number of concurrent requests")
 	flag.Parse()
 
 	// read from config file
@@ -93,6 +95,15 @@ func initConfig() {
 	if cors.set {
 		config.CORS = cors.value
 	}
+	if requestLimit.set {
+		limit, err := strconv.Atoi(defaultChain.value)
+		if err != nil {
+			log.Fatalf("Unable to parse %v as an integer\n", requestLimit.value)
+			return
+		}
+		config.RequestLimit = limit
+	}
+	log.Infof("Request limit: %v\n", config.RequestLimit)
 	// Page cache size: not use the default of unlimited, will only end in crashed servers
 	if config.PageCache.MaxEntries == 0 {
 		config.PageCache.MaxEntries = 1000
