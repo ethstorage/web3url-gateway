@@ -9,7 +9,8 @@ async function checkLink(url) {
     });
     console.log(url, ":", response.statusText);
     if (!response.ok) {
-      throw new Error(`HTTP status ${response.status}`);
+      const errorMessage = await response.text();
+      throw new Error(`HTTP status ${response.status}: ${errorMessage}`);
     }
     return { url, status: response.status, success: true };
   } catch (error) {
