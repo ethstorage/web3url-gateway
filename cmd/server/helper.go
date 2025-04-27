@@ -186,7 +186,7 @@ func hostChangeChainShortNameToId(host string) string {
 	return hostParts[0] + ":" + chainId
 }
 
-const maxConcurrentRequests = 100 // Maximum number of concurrent requests
+const maxConcurrentRequests = 1 // Maximum number of concurrent requests
 var semaphore = make(chan struct{}, maxConcurrentRequests)
 
 func requestLimiter(next http.Handler) http.Handler {
