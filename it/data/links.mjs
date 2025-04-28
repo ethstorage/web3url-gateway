@@ -1,7 +1,7 @@
 
 export const links = [
   // w3eth.io
-  "https://vitalikblog.w3eth.io/css/misc.css",
+  "https://vitalikblog.w3eth.io/css/misc.css1",
   "https://usdc.w3eth.io/name?returns=(string)",
   "https://0xdac17f958d2ee523a2206206994597c13d831ec7.w3eth.io/name?returns=(string)",
   // w3link.io
