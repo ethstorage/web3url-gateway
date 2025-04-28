@@ -370,14 +370,9 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 	if web3Err, ok := err.(*web3protocol.Web3ProtocolError); ok {
 		httpCode = web3Err.HttpCode
 	}
-
-	// Check if headers have already been sent
-	if w.Header().Get("Content-Type") == "" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(httpCode)
-	} else {
-		log.Warnf("Headers already sent, skipping WriteHeader for error: %v", err)
-	}
+	// reset Content-Type to avoid "superfluous response.WriteHeader call"
+	w.Header().Set("Content-Type", "")
+	w.WriteHeader(httpCode)
 
 	escapedErrorMessage := html.EscapeString(err.Error())
 	_, writeErr := fmt.Fprintf(w, "<html><head><title>Error</title></head><body><h1>%d: %s</h1><p>%s</p></body></html>",
