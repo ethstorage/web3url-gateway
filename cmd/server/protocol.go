@@ -365,6 +365,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func respondWithErrorPage(w http.ResponseWriter, err error) {
+	log.Errorf("Error: %v", err)
 	httpCode := http.StatusBadRequest // Default to 400
 	if web3Err, ok := err.(*web3protocol.Web3ProtocolError); ok {
 		httpCode = web3Err.HttpCode
