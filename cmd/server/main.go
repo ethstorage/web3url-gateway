@@ -32,6 +32,7 @@ var (
 	defaultChain                  = stringFlags{value: "1"}
 	homePage                      = stringFlags{value: "/web3url.eth/"}
 	cors                          = stringFlags{value: "*"}
+	requestLimit                  = stringFlags{value: "200"}
 	nsInfos, chainInfos, nsChains arrayFlags
 	config                        Web3Config
 	web3protocolClient            *web3protocol.Client
@@ -57,6 +58,7 @@ func initConfig() {
 	flag.Var(&defaultChain, "defaultChain", "default chain id")
 	flag.Var(&homePage, "homePage", "home page address")
 	flag.Var(&cors, "cors", "comma separated list of domains from which to accept cross origin requests")
+	flag.Var(&requestLimit, "requestLimit", "max number of concurrent requests")
 	flag.Parse()
 
 	// read from config file
@@ -93,6 +95,15 @@ func initConfig() {
 	if cors.set {
 		config.CORS = cors.value
 	}
+	if requestLimit.set {
+		limit, err := strconv.Atoi(requestLimit.value)
+		if err != nil {
+			log.Fatalf("Invalid requestLimit: %v\n", requestLimit.value)
+			return
+		}
+		config.RequestLimit = limit
+	}
+
 	// Page cache size: not use the default of unlimited, will only end in crashed servers
 	if config.PageCache.MaxEntries == 0 {
 		config.PageCache.MaxEntries = 1000
@@ -257,10 +268,11 @@ func main() {
 		}
 	})
 
+	limitedHandler := requestLimiter(http.DefaultServeMux)
 	if config.RunAsHttp {
 		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
 		log.Info("Running server in unsecure mode...")
-		err := http.ListenAndServe(":"+config.ServerPort, nil)
+		err := http.ListenAndServe(":"+config.ServerPort, limitedHandler)
 		if err != nil {
 			log.Fatalf("Cannot start server: %v\n", err)
 			return
@@ -275,9 +287,10 @@ func main() {
 				MinVersion:     tls.VersionTLS12,
 			},
 			MaxHeaderBytes: 32 << 20,
+			Handler:        limitedHandler,
 		}
 
-		go http.ListenAndServe(":http", certManager.HTTPHandler(nil)) // 支持 http-01
+		go http.ListenAndServe(":http", certManager.HTTPHandler(nil)) // support http-01
 
 		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.Fatalf("Cannot start server: %v\n", err)

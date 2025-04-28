@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -32,13 +33,14 @@ type Web3Config struct {
 	NSDefaultChains map[string]int
 	Name2Chain      map[string]int
 	ChainConfigs    map[int]ChainConfig
+	RequestLimit    int
 }
 
 type PageCacheConfig struct {
-	Enabled bool
-	MaxEntries int
-	MaxEntrySize int // In bytes
-	CacheDuration int // In seconds
+	Enabled             bool
+	MaxEntries          int
+	MaxEntrySize        int // In bytes
+	CacheDuration       int // In seconds
 	ImmutableUrlRegexps []string
 }
 
@@ -48,11 +50,11 @@ type NameServiceInfo struct {
 }
 
 type ChainConfig struct {
-	ChainID  int
-	RPC      string
+	ChainID                  int
+	RPC                      string
 	RPCMaxConcurrentRequests int
-	SystemRPC string
-	NSConfig map[string]NameServiceInfo
+	SystemRPC                string
+	NSConfig                 map[string]NameServiceInfo
 }
 
 type arrayFlags []string
@@ -183,4 +185,19 @@ func hostChangeChainShortNameToId(host string) string {
 	}
 
 	return hostParts[0] + ":" + chainId
+}
+
+func requestLimiter(next http.Handler) http.Handler {
+	var semaphore = make(chan struct{}, config.RequestLimit)
+	log.Infof("Request limit: %v\n", config.RequestLimit)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case semaphore <- struct{}{}: // Acquire a slot
+			defer func() { <-semaphore }() // Release the slot when done
+			next.ServeHTTP(w, r)
+		default:
+			http.Error(w, "Too many requests, please try again later.", http.StatusServiceUnavailable)
+		}
+	})
 }
