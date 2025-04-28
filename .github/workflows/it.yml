@@ -57,7 +57,7 @@ jobs:
 
       - name: Send Failure Email
         if: ${{ steps.link-check.outputs.failures != '' }}
-        uses: ./.github/workflows/notify.yml
+        uses: ./.github/actions/notify
         with:
           subject: "❌ Web3Gateway Links Failure"
           body: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Send Daily Success Email
         if: ${{ (steps.link-check.outputs.failures == '' && github.event.schedule == '0 2 * * *' ) || (github.event_name == 'workflow_dispatch') }}
-        uses: ./.github/workflows/notify.yml
+        uses: ./.github/actions/notify
         with:
           subject: "✅ Web3Gateway Links Check Successful"
           body: |
