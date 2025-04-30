@@ -5,7 +5,7 @@ async function checkLink(url) {
   try {
     const response = await fetch(url, {
       agent: new https.Agent({ rejectUnauthorized: false }),
-      signal: AbortSignal.timeout(50000),
+      signal: AbortSignal.timeout(100000),
     });
     console.log(url, ":", response.statusText);
     if (!response.ok) {
