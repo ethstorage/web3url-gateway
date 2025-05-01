@@ -546,16 +546,23 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) int {
 		}
 	}
 
-	// Look for the "<body>" tag, and insert the patch right after it
-	bodyTagIndex := strings.Index(string(alteredBuf), "<body>")
+	// Look for the "<body>" tag (which might have attributes), and insert the patch right after it
+	// Find the "<body" tag
+	bodyTagIndex := strings.Index(strings.ToLower(string(alteredBuf)), "<body")
 	if bodyTagIndex == -1 {
 		return n
 	}
-
-	// Insert the patch right after the "<body>" tag
+	// Find the closing '>' of the body tag
+	closingTagIndex := strings.Index(string(alteredBuf[bodyTagIndex:]), ">")
+	if closingTagIndex == -1 {
+		return n
+	}	
+	// Calculate the actual position of the closing '>' in the full buffer
+	closingTagIndex += bodyTagIndex + 1
+	// Insert the patch right after the closing '>' of the body tag
 	alteredBuf = append(
-		alteredBuf[:bodyTagIndex+len("<body>")],
-		append(htmlPatch, alteredBuf[bodyTagIndex+len("<body")+1:len(alteredBuf)]...)...)
+		alteredBuf[:closingTagIndex],
+		append(htmlPatch, alteredBuf[closingTagIndex:len(alteredBuf)]...)...)
 
 	// If contentEncoding is "gzip", then recompress the data
 	if contentEncoding == "gzip" {
