@@ -30,16 +30,12 @@
           subDomains.push(urlMainParts.chainId)
         }
         else {
-          // gateway = "w3eth.io"
           subDomains.push(1);
         }
       }
       // It is a domain name
       else {
-        // ENS domains on mainnet have a shortcut
         if(urlMainParts.hostname.endsWith('.eth') && urlMainParts.chainId === undefined) {
-          // gateway = "w3eth.io"
-          // subDomains.push(urlMainParts.hostname.slice(0, -4))
           subDomains.push(urlMainParts.hostname)
           subDomains.push(1)
         }
@@ -111,6 +107,7 @@
       {element: HTMLSourceElement, attrName: 'src'}, // <source>
       {element: HTMLEmbedElement, attrName: 'src'}, // <embed>
       {element: HTMLInputElement, attrName: 'src'}, // <input type="image">
+      {element: HTMLObjectElement, attrName: 'data'}, // <object>
     ];
     elementsWithUrlAttr.forEach(function(elementWithUrlAttr) {
       const originalAttrSetter = Object.getOwnPropertyDescriptor(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName).set;

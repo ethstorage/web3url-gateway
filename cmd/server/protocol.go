@@ -81,7 +81,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Convert the subdomain and path to a web3:// URL (without "web3:/" prefix and the query)
-	p, _, er := handleSubdomain(h, path)
+	p, rootGatewayHost, er := handleSubdomain(h, path)
 	if er != nil {
 		log.Errorf("%s%s => Error converting subdomain: %s", h, req.URL.String(), er)
 		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: er})
@@ -278,10 +278,12 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// If the content type is text/html, we do some processing on the data
-		// - patching the fetch() JS function so that it works with web3:// URLs
-		// - Handling <a> links to absolute web3:// URLs
+		// - Rewrite the web3:// URLs of the HTML tags (e.g. <a>, <img>, etc.)
+		// - Inject a javascript patch to the HTML page, which :
+		//   - Patch the fetch() JS function so that it works with web3:// URLs
+		//   - Patch the setter method of various attributes of HTML tags (e.g. <a>, <img>, etc.)
 		if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") {
-			n = patchHTMLFile(buf, n, w.Header().Get("Content-Encoding"))
+			n = patchHTMLFile(buf, n, w.Header().Get("Content-Encoding"), rootGatewayHost)
 		}
 
 		// Update the total output data length
@@ -386,21 +388,31 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 // e.g.,
 // https://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656.w3eth.io/view/2
 // web3url.eth.1.w3link.io
-func handleSubdomain(host string, path string) (p string, useSubdomain bool, err error) {
+//
+// Returns:
+// p: the web3:// URL (without "web3:/" prefix and the query)
+// rootGatewayHost: the root gateway host, which can include port (e.g. w3link.io, localhost:9999)
+func handleSubdomain(host string, path string) (p string, rootGatewayHost string, err error) {
+	// First determine the root gateway host
+	rootGatewayHost = host
+	hostParts := strings.Split(host, ".")
+	if len(hostParts) >= 2 {
+		rootGatewayHost = strings.Join(hostParts[len(hostParts)-2:], ".")
+	}
+
 	// Remove port from end of host
 	if strings.Index(host, ":") > 0 {
 		host = host[0:strings.Index(host, ":")]
 	}
 	// Do not authorize being called with an IP address
 	if net.ParseIP(host) != nil {
-		return "", false, fmt.Errorf("invalid subdomain")
+		return "", "", fmt.Errorf("invalid subdomain")
 	}
 
-	hostParts := strings.Split(host, ".")
 	hostPartsCount := len(hostParts)
 	if hostPartsCount > 6 {
 		log.Info("subdomain too long")
-		return "", false, fmt.Errorf("invalid subdomain")
+		return "", "", fmt.Errorf("invalid subdomain")
 	}
 
 	p = path
@@ -428,7 +440,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	//   web3://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656:1/view/2
 	if hostPartsCount == 3 {
 		if config.DefaultChain == 0 {
-			return "", false, fmt.Errorf("default chain is not specified")
+			return "", "", fmt.Errorf("default chain is not specified")
 		}
 		if common.IsHexAddress(hostParts[0]) {
 			//e.g. https://0x2b51a751d3c7d3554e28dc72c3b032e5f56aa656.w3eth.io/view/2
@@ -438,7 +450,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 			suffix, err := getDefaultNSSuffix()
 			if err != nil {
 				log.Info(err.Error())
-				return "", false, fmt.Errorf("invalid subdomain")
+				return "", "", fmt.Errorf("invalid subdomain")
 			}
 			name := hostParts[0] + "." + suffix
 
@@ -447,7 +459,6 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 				p = "/" + name + path
 			}
 		}
-		useSubdomain = true
 	}
 
 	// https://[web3-hex-address].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
@@ -459,13 +470,12 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	if hostPartsCount == 4 {
 		if !common.IsHexAddress(hostParts[0]) {
 			log.Info("invalid contract address")
-			return "", false, fmt.Errorf("invalid subdomain")
+			return "", "", fmt.Errorf("invalid subdomain")
 		}
 
 		// Hostname: If [host]:[chain-short-name] then [host]:[chain-id]
 		full := hostChangeChainShortNameToId(hostParts[0] + ":" + hostParts[1])
 		p = "/" + full + path
-		useSubdomain = true
 	}
 
 	// https://[web3-host-name].[web3-host-tld].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
@@ -477,7 +487,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	if hostPartsCount == 5 {
 		if config.DefaultChain > 0 {
 			log.Info("no tld should be provided when default chain is specified")
-			return "", false, fmt.Errorf("invalid subdomain")
+			return "", "", fmt.Errorf("invalid subdomain")
 		}
 
 		name := hostParts[0] + "." + hostParts[1]
@@ -490,7 +500,6 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		} else if !strings.Contains(path, "/"+name+"/") {
 			p = "/" + full + path
 		}
-		useSubdomain = true
 	}
 
 	// https://[web3-host-subdomain].[web3-host-name].[web3-host-tld].[web3-chain-id | web3-chain-shortname].[gateway-host].[gateway-tld]
@@ -499,7 +508,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 	if hostPartsCount == 6 {
 		if config.DefaultChain > 0 {
 			log.Info("no tld should be provided when default chain is specified")
-			return "", false, fmt.Errorf("invalid subdomain")
+			return "", "", fmt.Errorf("invalid subdomain")
 		}
 
 		name := hostParts[0] + "." + hostParts[1] + "." + hostParts[2]
@@ -512,10 +521,9 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 		} else if !strings.Contains(path, "/"+name+"/") {
 			p = "/" + full + path
 		}
-		useSubdomain = true
 	}
 
-	return p, useSubdomain, nil
+	return p, rootGatewayHost, nil
 }
 
 // If the content type is text/html, we do some processing on the data
@@ -527,7 +535,7 @@ func handleSubdomain(host string, path string) (p string, useSubdomain bool, err
 //go:embed html.patch
 var htmlPatch []byte
 
-func patchHTMLFile(buf []byte, n int, contentEncoding string) int {
+func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost string) int {
 	// Create a new buffer of length n, and copy the data into it
 	alteredBuf := make([]byte, n)
 	copy(alteredBuf, buf[:n])
@@ -546,23 +554,79 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) int {
 		}
 	}
 
-	// Look for the "<body>" tag (which might have attributes), and insert the patch right after it
-	// Find the "<body" tag
-	bodyTagIndex := strings.Index(strings.ToLower(string(alteredBuf)), "<body")
+	// Convert the buffer to a string
+	// We should theorically look for the charset, located in a <meta charset="xxx" /> tag,
+	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
+	htmlContent := string(alteredBuf)
+
+
+	// In the HTML itself, convert web3:// URLs to gateway URLs
+	// Map of HTML tags to their attributes that could contain web3:// URLs
+	elementWithAttributes := map[string]string{
+		"a":      "href",
+		"link":   "href",
+		"area":   "href",
+		"img":    "src",
+		"script": "src",
+		"iframe": "src",
+		"video":  "src",
+		"audio":  "src",
+		"source": "src",
+		"embed":  "src",
+		"input":  "src",
+		"object": "data",
+	}
+	
+	// Lookup each tag in the HTML document, process their attributes
+	htmlTagRegex := regexp.MustCompile(`(?i)<\s*([a-z0-9]+)([^>]*)>`)
+	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(htmlContent, -1)
+	for _, htmlTagMatch := range htmlTagMatches {
+		tagName := strings.ToLower(htmlTagMatch[1])
+		tagAttributes := htmlTagMatch[2]
+		
+		// Check if the tag is in the map of tags to process
+		if attributeName, exists := elementWithAttributes[tagName]; exists {
+			// Find the attribute in the tag attributes
+			attributeRegex := regexp.MustCompile(fmt.Sprintf(`(?i)%s\s*=\s*["']?([^"'>\s]+)["']?`, attributeName))
+			attributeMatches := attributeRegex.FindAllStringSubmatch(tagAttributes, -1)
+			for _, attributeMatch := range attributeMatches {
+				// Get the attribute value
+				attributeValue := attributeMatch[1]
+				// Check if the attribute value is a web3:// URL
+				if strings.HasPrefix(attributeValue, "web3://") {
+					// Convert the web3:// URL to a gateway URL
+					newUrl, err := ConvertWeb3UrlToGatewayUrl(attributeValue, rootGatewayHost)
+					if err == nil {
+						// Replace the attribute value in the tag attributes
+						tagAttributes = strings.Replace(tagAttributes, attributeValue, newUrl, -1)
+						// Update the tag attributes in the HTML content
+						htmlContent = strings.Replace(htmlContent, htmlTagMatch[0], fmt.Sprintf("<%s%s>", tagName, tagAttributes), -1)
+					}
+				}
+			}
+		}
+	}
+
+
+	// Add a javascript patch to the HTML page, just after the "<body>" tag
+	// It will patch the fetch() JS function, and the setter method of various attributes of HTML tags
+	bodyTagIndex := strings.Index(strings.ToLower(htmlContent), "<body")
 	if bodyTagIndex == -1 {
 		return n
 	}
 	// Find the closing '>' of the body tag
-	closingTagIndex := strings.Index(string(alteredBuf[bodyTagIndex:]), ">")
+	closingTagIndex := strings.Index(htmlContent[bodyTagIndex:], ">")
 	if closingTagIndex == -1 {
 		return n
-	}	
-	// Calculate the actual position of the closing '>' in the full buffer
+	}
+	// Calculate the actual position of the closing '>' in the full string
 	closingTagIndex += bodyTagIndex + 1
 	// Insert the patch right after the closing '>' of the body tag
-	alteredBuf = append(
-		alteredBuf[:closingTagIndex],
-		append(htmlPatch, alteredBuf[closingTagIndex:len(alteredBuf)]...)...)
+	htmlContent = htmlContent[:closingTagIndex] + string(htmlPatch) + htmlContent[closingTagIndex:]
+	
+	
+	// Convert back to byte array
+	alteredBuf = []byte(htmlContent)
 
 	// If contentEncoding is "gzip", then recompress the data
 	if contentEncoding == "gzip" {
@@ -579,3 +643,4 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string) int {
 
 	return n
 }
+
