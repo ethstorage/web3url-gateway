@@ -158,6 +158,13 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	if cacheInvalidationHeadersSetFromCache && fetchedWeb3Url.HttpCode == 304 {
 		// Send the HTTP headers returned by the protocol
 		for httpHeaderName, httpHeaderValue := range cacheEntry.HttpHeaders {
+			// If header is "Location", and value is a web3:// URL, convert it to a gateway URL
+			if strings.ToLower(httpHeaderName) == "location" && strings.HasPrefix(httpHeaderValue, "web3://") {
+				newUrl, err := ConvertWeb3UrlToGatewayUrl(httpHeaderValue, rootGatewayHost)
+				if err == nil {
+					httpHeaderValue = newUrl
+				}
+			}
 			w.Header().Set(httpHeaderName, httpHeaderValue)
 		}
 		// Add a extra header indicating that it was served from cache
@@ -183,6 +190,13 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 	// Send the HTTP headers returned by the protocol
 	for httpHeaderName, httpHeaderValue := range fetchedWeb3Url.HttpHeaders {
+		// If header is "Location", and value is a web3:// URL, convert it to a gateway URL
+		if strings.ToLower(httpHeaderName) == "location" && strings.HasPrefix(httpHeaderValue, "web3://") {
+			newUrl, err := ConvertWeb3UrlToGatewayUrl(httpHeaderValue, rootGatewayHost)
+			if err == nil {
+				httpHeaderValue = newUrl
+			}
+		}
 		w.Header().Set(httpHeaderName, httpHeaderValue)
 	}
 	// Add a extra header indicating that it was not served from cache
