@@ -96,31 +96,33 @@
 
     // All tags with a attribute that can get an URL: override the setting of the attribute to convert web3:// URLs into gateway URLs
     const elementsWithUrlAttr = [
-      {element: HTMLAnchorElement, attrName: 'href'}, // <a>
-      {element: HTMLLinkElement, attrName: 'href'}, // <link>
-      {element: HTMLAreaElement, attrName: 'href'}, // <area>
-      {element: HTMLImageElement, attrName: 'src'}, // <img>
-      {element: HTMLScriptElement, attrName: 'src'}, // <script>
-      {element: HTMLIFrameElement, attrName: 'src'}, // <iframe>
-      // {tag: HTMLAudioElement, attr: 'src'}, // <audio>
-      // {tag: HTMLVideoElement, attr: 'src'}, // <video>
-      {element: HTMLSourceElement, attrName: 'src'}, // <source>
-      {element: HTMLEmbedElement, attrName: 'src'}, // <embed>
-      {element: HTMLInputElement, attrName: 'src'}, // <input type="image">
-      {element: HTMLObjectElement, attrName: 'data'}, // <object>
+      {tagName: 'a', attrName: 'href'}, // <a>
+      {tagName: 'link', attrName: 'href'}, // <link>
+      {tagName: 'area', attrName: 'href'}, // <area>
+      {tagName: 'img', attrName: 'src'}, // <img>
+      {tagName: 'script', attrName: 'src'}, // <script>
+      {tagName: 'iframe', attrName: 'src'}, // <iframe>
+      // {tagName: 'audio', attr: 'src'}, // <audio>
+      // {tagName: 'video', attr: 'src'}, // <video>
+      {tagName: 'source', attrName: 'src'}, // <source>
+      {tagName: 'embed', attrName: 'src'}, // <embed>
+      {tagName: 'input', attrName: 'src'}, // <input type="image">
+      {tagName: 'object', attrName: 'data'}, // <object>
     ];
+    // Override the setter of the attribute to convert web3:// URLs into gateway URLs
     elementsWithUrlAttr.forEach(function(elementWithUrlAttr) {
-      const originalAttrSetter = Object.getOwnPropertyDescriptor(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName).set;
-      Object.defineProperty(elementWithUrlAttr.element.prototype, elementWithUrlAttr.attrName, {
+      const element = document.createElement(elementWithUrlAttr.tagName);
+      const originalAttrSetter = Object.getOwnPropertyDescriptor(element.constructor.prototype, elementWithUrlAttr.attrName).set;
+      Object.defineProperty(element.constructor.prototype, elementWithUrlAttr.attrName, {
         set: function(attrValue) {
           if(attrValue.startsWith('web3://')) {
             const convertedUrl = convertWeb3UrlToGatewayUrl(attrValue);
             if(convertedUrl == null) {
-              console.error("Gateway " + elementWithUrlAttr.element.name + " " + elementWithUrlAttr.attrName + " setter wrapper: Unable to convert web3:// URL: " + attrValue);
+              console.error("Gateway " + element.name + " " + elementWithUrlAttr.attrName + " setter wrapper: Unable to convert web3:// URL: " + attrValue);
               originalAttrSetter.call(this, attrValue);
               return;
             }
-            console.log('Gateway ' + elementWithUrlAttr.element.name + ' ' + elementWithUrlAttr.attrName + ' setter wrapper: Converted ' + attrValue + ' to ' + convertedUrl);
+            console.log('Gateway ' + element.name + ' ' + elementWithUrlAttr.attrName + ' setter wrapper: Converted ' + attrValue + ' to ' + convertedUrl);
             originalAttrSetter.call(this, convertedUrl);
           }
           else {
@@ -129,6 +131,38 @@
         }
       });
     });
+    // Added nodes to the DOM : convert web3:// URLs into gateway URLs
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        // Insertion of nodes with the src attribute (img, iframe, audio, ...)
+        if(mutation.type === 'childList') {
+          mutation.addedNodes.forEach(function(addedNode) {
+            // Ignore non-element nodes
+            if(addedNode.nodeType != 1) {
+              return;
+            }
+            // Find all nodes that have a web3:// URL in their attribute as defined in elementsWithUrlAttr
+            elementsWithUrlAttr.forEach(function(elementWithUrlAttr) {
+              const nodes = [...addedNode.querySelectorAll(elementWithUrlAttr.tagName + '[' + elementWithUrlAttr.attrName + '^="web3://"]')];
+              if(addedNode.tagName === elementWithUrlAttr.tagName && addedNode[elementWithUrlAttr.attrName].startsWith('web3://')) {
+                nodes.push(addedNode);
+              }
+              nodes.forEach(function(node) {
+                const targetUrl = node[elementWithUrlAttr.attrName];
+                const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
+                if(convertedUrl == null) {
+                  console.error("Gateway " + node.tagName + " injection wrapper: Unable to convert web3:// URL: " + targetUrl);
+                  return;
+                }
+                console.log('Gateway ' + node.tagName + ' injection wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
+                node[elementWithUrlAttr.attrName] = convertedUrl;
+              });
+            });
+          });
+        }
+      });
+    });
+    observer.observe(document.querySelector("body"), {childList: true, subtree: true});
 
   })();
 </script>
