@@ -6,7 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.12.2
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
-	github.com/web3-protocol/web3protocol-go v0.2.14
+	github.com/web3-protocol/web3protocol-go v0.2.15
 	golang.org/x/net v0.16.0
 )
 
