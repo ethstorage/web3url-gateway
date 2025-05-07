@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"regexp"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/naoina/toml"
@@ -186,6 +187,70 @@ func hostChangeChainShortNameToId(host string) string {
 
 	return hostParts[0] + ":" + chainId
 }
+
+// Converts a web3:// URL to a Gateway URL
+func ConvertWeb3UrlToGatewayUrl(web3Url string, rootGatewayHost string) (string, error) {
+	// Parse the URL
+	re := regexp.MustCompile(`^(?P<protocol>[^:]+):\/\/(?P<hostname>[^:\/?#]+)(:(?P<chainId>[1-9][0-9]*))?(?P<pathQuery>(?P<path>\/[^?#]*)?([?](?P<query>[^#]*))?)?(#(?P<fragment>.*)?)?$`)
+	match := re.FindStringSubmatch(web3Url)
+	if match == nil {
+		// Invalid web3:// URL
+		return "", fmt.Errorf("invalid web3 URL: %s", web3Url)
+	}
+
+	// Extract named groups
+	urlMainParts := make(map[string]string)
+	for i, name := range re.SubexpNames() {
+		if i != 0 && name != "" {
+			urlMainParts[name] = match[i]
+		}
+	}
+
+	// Check protocol name
+	webProtocol := urlMainParts["protocol"]
+	if webProtocol != "web3" && webProtocol != "w3" {
+		// Bad protocol name
+		return "", fmt.Errorf("invalid web3 URL: %s", web3Url)
+	}
+
+	var subDomains []string
+
+	// Is the contract an ethereum address?
+	isEthAddress, _ := regexp.MatchString(`^0x[0-9a-fA-F]{40}$`, urlMainParts["hostname"])
+	if isEthAddress {
+		subDomains = append(subDomains, urlMainParts["hostname"])
+		if urlMainParts["chainId"] != "" {
+			subDomains = append(subDomains, urlMainParts["chainId"])
+		} else {
+			subDomains = append(subDomains, "1")
+		}
+	} else {
+		// It is a domain name
+		if strings.HasSuffix(urlMainParts["hostname"], ".eth") && urlMainParts["chainId"] == "" {
+			subDomains = append(subDomains, urlMainParts["hostname"])
+			subDomains = append(subDomains, "1")
+		} else {
+			subDomains = append(subDomains, urlMainParts["hostname"])
+			if urlMainParts["chainId"] != "" {
+				subDomains = append(subDomains, urlMainParts["chainId"])
+			}
+		}
+	}
+
+	path := urlMainParts["path"]
+	if path == "" {
+		path = "/"
+	}
+
+	protocol := "https"
+	if config.RunAsHttp {
+		protocol = "http"
+	}
+
+	gatewayUrl := protocol + "://" + strings.Join(subDomains, ".") + "." + rootGatewayHost + path
+	return gatewayUrl, nil
+}
+
 
 func requestLimiter(next http.Handler) http.Handler {
 	var semaphore = make(chan struct{}, config.RequestLimit)
