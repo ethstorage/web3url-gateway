@@ -84,7 +84,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	p, rootGatewayHost, er := handleSubdomain(h, path)
 	if er != nil {
 		log.Errorf("%s%s => Error converting subdomain: %s", h, req.URL.String(), er)
-		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: er})
+		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusBadRequest, Err: er})
 		return
 	}
 	// Make it a full web3 URL
@@ -149,7 +149,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Fetch the web3 URL
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url, reqHttpHeaders)
 	if err != nil {
-		respondWithErrorPage(w, err)
+		respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: fetchedWeb3Url.HttpCode, Err: err})
 		return
 	}
 
@@ -573,7 +573,6 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
 	htmlContent := string(alteredBuf)
 
-
 	// In the HTML itself, convert web3:// URLs to gateway URLs
 	// Map of HTML tags to their attributes that could contain web3:// URLs
 	elementWithAttributes := map[string]string{
@@ -590,14 +589,14 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 		"input":  "src",
 		"object": "data",
 	}
-	
+
 	// Lookup each tag in the HTML document, process their attributes
 	htmlTagRegex := regexp.MustCompile(`(?i)<\s*([a-z0-9]+)([^>]*)>`)
 	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(htmlContent, -1)
 	for _, htmlTagMatch := range htmlTagMatches {
 		tagName := strings.ToLower(htmlTagMatch[1])
 		tagAttributes := htmlTagMatch[2]
-		
+
 		// Check if the tag is in the map of tags to process
 		if attributeName, exists := elementWithAttributes[tagName]; exists {
 			// Find the attribute in the tag attributes
@@ -621,7 +620,6 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 		}
 	}
 
-
 	// Add a javascript patch to the HTML page, just after the "<body>" tag
 	// It will patch the fetch() JS function, and the setter method of various attributes of HTML tags
 	bodyTagIndex := strings.Index(strings.ToLower(htmlContent), "<body")
@@ -637,8 +635,7 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	closingTagIndex += bodyTagIndex + 1
 	// Insert the patch right after the closing '>' of the body tag
 	htmlContent = htmlContent[:closingTagIndex] + string(htmlPatch) + htmlContent[closingTagIndex:]
-	
-	
+
 	// Convert back to byte array
 	alteredBuf = []byte(htmlContent)
 
@@ -657,4 +654,3 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 
 	return n
 }
-
