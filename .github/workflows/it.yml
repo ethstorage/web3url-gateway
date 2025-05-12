@@ -27,7 +27,7 @@ jobs:
 
       - name: Check Links
         id: link-check
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
@@ -41,11 +41,11 @@ jobs:
             const newLinks = await addLinks();
             console.log('New links', newLinks);
             const allLinks = [...links, ...newLinks];
-            const results = await checkAllLinks(allLinks);
-            if (results.failures.length > 0) {
-              core.setOutput('failures', results.failures.map(f => `- ${f.url}: ${f.error}`).join('\n'));
+            const failures = await checkAllLinks(allLinks);
+            if (failures.size > 0) {
+              core.setOutput('failures', Array.from(failures, ([key, val]) => `${key} -> ${val}`).join('\n'));
             } else {
-              core.setOutput('results', results.all.map(a => `- ${a.url}`).join('\n'));
+              core.setOutput('results', allLinks.join('\n'));
             }
           }
 
