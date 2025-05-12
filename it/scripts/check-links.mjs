@@ -19,11 +19,30 @@ async function checkLink(url) {
 }
 
 export async function checkAllLinks(links) {
-  const all = await Promise.all(links.map(checkLink));
-  const failures = all.filter(r => !r.success);
-  console.log('totally checked links:', all.length, 'failed:', failures.length);
-  return {
-    all,
-    failures
-  };
+  const failures = new Map();
+
+  for (const link of links) {
+    const result = await checkLink(link);
+    if (!result.success) {
+      failures.set(link, result.error);
+    }
+  }
+
+  let retried = 1;
+  while (failures.size > 0 && retried < 4) {
+    console.log('retrying failed links:', failures.size, 'times:', retried);
+      const retryLinks = Array.from(failures.keys());
+      for (const link of retryLinks) {
+        const result = await checkLink(link);
+        if (!result.success) {
+          failures.set(link, result.error);
+        } else {
+          failures.delete(link);
+        }
+      }
+    retried++;
+  }
+
+  console.log('totally checked links:', links.length, 'failed:', failures.size);
+  return failures;
 }
