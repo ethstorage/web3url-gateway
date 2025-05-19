@@ -144,18 +144,24 @@
             // Find all nodes that have a web3:// URL in their attribute as defined in elementsWithUrlAttr
             elementsWithUrlAttr.forEach(function(elementWithUrlAttr) {
               const nodes = [...addedNode.querySelectorAll(elementWithUrlAttr.tagName + '[' + elementWithUrlAttr.attrName + '^="web3://"]')];
-              if(addedNode.tagName === elementWithUrlAttr.tagName && addedNode[elementWithUrlAttr.attrName].startsWith('web3://')) {
+              // Check if the addedNode itself matches the tag and has the attribute starting with web3://
+              if (
+                addedNode.tagName === elementWithUrlAttr.tagName.toUpperCase() &&
+                typeof addedNode.getAttribute === 'function' &&
+                typeof addedNode.getAttribute(elementWithUrlAttr.attrName) === 'string' &&
+                addedNode.getAttribute(elementWithUrlAttr.attrName).startsWith('web3://')
+              ) {
                 nodes.push(addedNode);
               }
               nodes.forEach(function(node) {
-                const targetUrl = node[elementWithUrlAttr.attrName];
+                const targetUrl = node.getAttribute(elementWithUrlAttr.attrName);
                 const convertedUrl = convertWeb3UrlToGatewayUrl(targetUrl);
                 if(convertedUrl == null) {
                   console.error("Gateway " + node.tagName + " injection wrapper: Unable to convert web3:// URL: " + targetUrl);
                   return;
                 }
                 console.log('Gateway ' + node.tagName + ' injection wrapper: Converted ' + targetUrl + ' to ' + convertedUrl);
-                node[elementWithUrlAttr.attrName] = convertedUrl;
+                node.setAttribute(elementWithUrlAttr.attrName, convertedUrl);
               });
             });
           });
