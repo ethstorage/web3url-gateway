@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -396,6 +397,8 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 	if writeErr != nil {
 		log.Errorf("Cannot write error page: %v", writeErr)
 	}
+	// print stack trace
+	log.Errorf("Stack trace: %s", debug.Stack())
 }
 
 // process request with contract info in subdomain:
@@ -573,7 +576,6 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
 	htmlContent := string(alteredBuf)
 
-
 	// In the HTML itself, convert web3:// URLs to gateway URLs
 	// Map of HTML tags to their attributes that could contain web3:// URLs
 	elementWithAttributes := map[string]string{
@@ -590,14 +592,14 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 		"input":  "src",
 		"object": "data",
 	}
-	
+
 	// Lookup each tag in the HTML document, process their attributes
 	htmlTagRegex := regexp.MustCompile(`(?i)<\s*([a-z0-9]+)([^>]*)>`)
 	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(htmlContent, -1)
 	for _, htmlTagMatch := range htmlTagMatches {
 		tagName := strings.ToLower(htmlTagMatch[1])
 		tagAttributes := htmlTagMatch[2]
-		
+
 		// Check if the tag is in the map of tags to process
 		if attributeName, exists := elementWithAttributes[tagName]; exists {
 			// Find the attribute in the tag attributes
@@ -621,7 +623,6 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 		}
 	}
 
-
 	// Add a javascript patch to the HTML page, just after the "<body>" tag
 	// It will patch the fetch() JS function, and the setter method of various attributes of HTML tags
 	bodyTagIndex := strings.Index(strings.ToLower(htmlContent), "<body")
@@ -637,8 +638,7 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	closingTagIndex += bodyTagIndex + 1
 	// Insert the patch right after the closing '>' of the body tag
 	htmlContent = htmlContent[:closingTagIndex] + string(htmlPatch) + htmlContent[closingTagIndex:]
-	
-	
+
 	// Convert back to byte array
 	alteredBuf = []byte(htmlContent)
 
@@ -657,4 +657,3 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 
 	return n
 }
-
