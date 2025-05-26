@@ -399,7 +399,7 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 		log.Errorf("Cannot write error page: %v", writeErr)
 	}
 	// print stack trace
-	fmt.Print("Stack trace:", debug.Stack())
+	fmt.Printf("Stack trace: %s\n", debug.Stack())
 }
 
 // process request with contract info in subdomain:
