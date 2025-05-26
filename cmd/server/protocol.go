@@ -150,6 +150,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Fetch the web3 URL
 	fetchedWeb3Url, err := web3protocolClient.FetchUrl(web3Url, reqHttpHeaders)
 	if err != nil {
+		log.Errorf("Error from web3protocol for %s: %v", web3Url, err)
 		respondWithErrorPage(w, err)
 		return
 	}
@@ -398,7 +399,7 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 		log.Errorf("Cannot write error page: %v", writeErr)
 	}
 	// print stack trace
-	log.Errorf("Stack trace: %s", debug.Stack())
+	fmt.Print("Stack trace:", debug.Stack())
 }
 
 // process request with contract info in subdomain:
