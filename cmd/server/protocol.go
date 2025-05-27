@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/http"
 	"regexp"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -383,7 +382,6 @@ func handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func respondWithErrorPage(w http.ResponseWriter, err error) {
-	log.Errorf("Error: %v", err)
 	httpCode := http.StatusBadRequest // Default to 400
 	if web3Err, ok := err.(*web3protocol.Web3ProtocolError); ok {
 		httpCode = web3Err.HttpCode
@@ -398,8 +396,6 @@ func respondWithErrorPage(w http.ResponseWriter, err error) {
 	if writeErr != nil {
 		log.Errorf("Cannot write error page: %v", writeErr)
 	}
-	// print stack trace
-	fmt.Printf("Stack trace: %s\n", debug.Stack())
 }
 
 // process request with contract info in subdomain:
