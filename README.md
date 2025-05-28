@@ -75,6 +75,9 @@ Example 2: `w3link.io` (for general web3 links)
 |534351|Scroll L1 Testnet|scr-testl1|
 |534354|Scroll L2 Testnet|scr-prealpha|
 |1513|Story Protocol Testnet|storyprotocoltest|
+|17000|Ethereum Testnet Holesky|holesky|
+|8453|Base Mainnet|base|
+|3337|EthStorage SWC Beta Testnet|es-d|
 
 ## How to create a wildcard certificate for `web3gateway.dev`
 
