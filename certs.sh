@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# This script is used to obtain SSL certificates for various subdomains using Certbot with DigitalOcean DNS.
+
+ certbot certonly --dns-digitalocean \
+  --dns-digitalocean-credentials \
+  ~/.secrets/certbot/digitalocean.ini \
+  -d '*.1.web3gateway.dev' \
+  -d '*.10.web3gateway.dev' \
+  -d '*.100001.web3gateway.dev' \
+  -d '*.1088.web3gateway.dev' \
+  -d '*.110001.web3gateway.dev' \
+  -d '*.11155111.web3gateway.dev' \
+  -d '*.137.web3gateway.dev' \
+  -d '*.1402.web3gateway.dev' \
+  -d '*.1666600000.web3gateway.dev' \
+  -d '*.1666700000.web3gateway.dev' \
+  -d '*.250.web3gateway.dev' \
+  -d '*.333.web3gateway.dev' \
+  -d '*.3333.web3gateway.dev' \
+  -d '*.4002.web3gateway.dev' \
+  -d '*.420.web3gateway.dev' \
+  -d '*.42161.web3gateway.dev' \
+  -d '*.421613.web3gateway.dev' \
+  -d '*.42170.web3gateway.dev' \
+  -d '*.43113.web3gateway.dev' \
+  -d '*.43114.web3gateway.dev' \
+  -d '*.534351.web3gateway.dev' \
+  -d '*.534354.web3gateway.dev' \
+  -d '*.56.web3gateway.dev' \
+  -d '*.80001.web3gateway.dev' \
+  -d '*.9000.web3gateway.dev' \
+  -d '*.9001.web3gateway.dev' \
+  -d '*.97.web3gateway.dev' \
+  -d '*.arb-nova.web3gateway.dev' \
+  -d '*.arb1.web3gateway.dev' \
+  -d '*.avax.web3gateway.dev' \
+  -d '*.bnb.web3gateway.dev' \
+  -d '*.bnbt.web3gateway.dev' \
+  -d '*.eth.1.web3gateway.dev' \
+  -d '*.eth.10.web3gateway.dev' \
+  -d '*.eth.11155111.web3gateway.dev' \
+  -d '*.eth.42161.web3gateway.dev' \
+  -d '*.eth.arb1.web3gateway.dev' \
+  -d '*.eth.eth.web3gateway.dev' \
+  -d '*.eth.oeth.web3gateway.dev' \
+  -d '*.eth.sep.web3gateway.dev' \
+  -d '*.eth.web3gateway.dev' \
+  -d '*.evmos-testnet.web3gateway.dev' \
+  -d '*.evmos.web3gateway.dev' \
+  -d '*.ftm.web3gateway.dev' \
+  -d '*.fuji.web3gateway.dev' \
+  -d '*.hmy-b-s0.web3gateway.dev' \
+  -d '*.hmy-s0.web3gateway.dev' \
+  -d '*.matic.web3gateway.dev' \
+  -d '*.maticmum.web3gateway.dev' \
+  -d '*.metis-andromeda.web3gateway.dev' \
+  -d '*.oeth.web3gateway.dev' \
+  -d '*.qkc-d-s0.web3gateway.dev' \
+  -d '*.qkc-s0.web3gateway.dev' \
+  -d '*.scr-prealpha.web3gateway.dev' \
+  -d '*.scr-testl1.web3gateway.dev' \
+  -d '*.sep.web3gateway.dev' \
+  -d '*.tftm.web3gateway.dev' \
+  -d '*.zkevmtest.web3gateway.dev' \
+  -d '*.web3gateway.dev' \
+  -d ordinals.btc.web3gateway.dev \
+  -d web3gateway.dev  \
+  -d '*.storyprotocoltest.web3gateway.dev' \
+  -d '*.1513.web3gateway.dev' \
+  -d '*.holesky.web3gateway.dev' \
+  -d '*.17000.web3gateway.dev' \
+  -d '*.base.web3gateway.dev' \
+  -d '*.8453.web3gateway.dev' \
+  -d '*.es-d.web3gateway.dev' \
+  -d '*.3337.web3gateway.dev' \
+  -d '*.esl2-d.web3gateway.dev' \
+  -d '*.3335.web3gateway.dev'
