@@ -108,25 +108,31 @@
       {tagName: 'embed', attrName: 'src'}, // <embed>
       {tagName: 'input', attrName: 'src'}, // <input type="image">
       {tagName: 'object', attrName: 'data'}, // <object>
+      {tagName: 'image', attrName: 'href'}, // <image> of SVG
     ];
     // Override the setter of the attribute to convert web3:// URLs into gateway URLs
     elementsWithUrlAttr.forEach(function(elementWithUrlAttr) {
       const element = document.createElement(elementWithUrlAttr.tagName);
-      const originalAttrSetter = Object.getOwnPropertyDescriptor(element.constructor.prototype, elementWithUrlAttr.attrName).set;
-      Object.defineProperty(element.constructor.prototype, elementWithUrlAttr.attrName, {
+      const proto = element.constructor.prototype;
+      const descriptor = Object.getOwnPropertyDescriptor(proto, elementWithUrlAttr.attrName);
+      if (!descriptor || typeof descriptor.set !== 'function') {
+        // Skip if no setter (e.g., SVG <image> 'href')
+        return;
+      }
+      Object.defineProperty(proto, elementWithUrlAttr.attrName, {
         set: function(attrValue) {
           if(attrValue.startsWith('web3://')) {
             const convertedUrl = convertWeb3UrlToGatewayUrl(attrValue);
             if(convertedUrl == null) {
               console.error("Gateway " + element.name + " " + elementWithUrlAttr.attrName + " setter wrapper: Unable to convert web3:// URL: " + attrValue);
-              originalAttrSetter.call(this, attrValue);
+              descriptor.set.call(this, attrValue);
               return;
             }
             console.log('Gateway ' + element.name + ' ' + elementWithUrlAttr.attrName + ' setter wrapper: Converted ' + attrValue + ' to ' + convertedUrl);
-            originalAttrSetter.call(this, convertedUrl);
+            descriptor.set.call(this, convertedUrl);
           }
           else {
-            originalAttrSetter.call(this, attrValue);
+            descriptor.set.call(this, attrValue);
           }
         }
       });
