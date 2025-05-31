@@ -291,13 +291,14 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			break
 		}
 
-		// If the content type is text/html, we do some processing on the data
+		// If the content type is some specific text types,
+		// we do some processing on the data
 		// - Rewrite the web3:// URLs of the HTML tags (e.g. <a>, <img>, etc.)
 		// - Inject a javascript patch to the HTML page, which :
 		//   - Patch the fetch() JS function so that it works with web3:// URLs
 		//   - Patch the setter method of various attributes of HTML tags (e.g. <a>, <img>, etc.)
-		if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") {
-			n = patchHTMLFile(buf, n, w.Header().Get("Content-Encoding"), rootGatewayHost)
+		if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") || strings.HasPrefix(w.Header().Get("Content-Type"), "text/css") || strings.HasPrefix(w.Header().Get("Content-Type"), "image/svg+xml") {
+			n = patchTextFile(buf, n, w.Header().Get("Content-Type"), w.Header().Get("Content-Encoding"), rootGatewayHost)
 		}
 
 		// Update the total output data length
@@ -549,7 +550,7 @@ func handleSubdomain(host string, path string) (p string, rootGatewayHost string
 //go:embed html.patch
 var htmlPatch []byte
 
-func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost string) int {
+func patchTextFile(buf []byte, n int, contentType string, contentEncoding string, rootGatewayHost string) int {
 	// Create a new buffer of length n, and copy the data into it
 	alteredBuf := make([]byte, n)
 	copy(alteredBuf, buf[:n])
@@ -558,12 +559,12 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	if contentEncoding == "gzip" {
 		gzipReader, err := gzip.NewReader(bytes.NewReader(alteredBuf))
 		if err != nil {
-			log.Infof("patchHtmlFile: Cannot initiate gzip decompression: %v\n", err)
+			log.Infof("patchTextFile: Cannot initiate gzip decompression: %v\n", err)
 			return n
 		}
 		alteredBuf, err = ioutil.ReadAll(gzipReader)
 		if err != nil {
-			log.Infof("patchHtmlFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
+			log.Infof("patchTextFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
 			return n
 		}
 	}
@@ -571,29 +572,39 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	// Convert the buffer to a string
 	// We should theorically look for the charset, located in a <meta charset="xxx" /> tag,
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
-	htmlContent := string(alteredBuf)
+	textContent := string(alteredBuf)
 
 
-	// In the HTML itself, convert web3:// URLs to gateway URLs
-	// Map of HTML tags to their attributes that could contain web3:// URLs
-	elementWithAttributes := map[string]string{
-		"a":      "href",
-		"link":   "href",
-		"area":   "href",
-		"img":    "src",
-		"script": "src",
-		"iframe": "src",
-		"video":  "src",
-		"audio":  "src",
-		"source": "src",
-		"embed":  "src",
-		"input":  "src",
-		"object": "data",
+	// In the text itself, convert web3:// URLs to gateway URLs
+	// Map of XML tags to their attributes that could contain web3:// URLs
+	elementWithAttributes := map[string]string{}
+	if strings.HasPrefix(contentType, "text/html") {
+		elementWithAttributes = map[string]string{
+			"a":      "href",
+			"link":   "href",
+			"area":   "href",
+			"img":    "src",
+			"script": "src",
+			"iframe": "src",
+			"video":  "src",
+			"audio":  "src",
+			"source": "src",
+			"embed":  "src",
+			"input":  "src",
+			"object": "data",
+			"image":  "href", // SVG
+		}
+	} else if strings.HasPrefix(contentType, "image/svg+xml") {
+		elementWithAttributes = map[string]string{
+			"a":      "href",
+			"image":  "href",
+			"script": "href",
+		}
 	}
 	
 	// Lookup each tag in the HTML document, process their attributes
 	htmlTagRegex := regexp.MustCompile(`(?i)<\s*([a-z0-9]+)([^>]*)>`)
-	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(htmlContent, -1)
+	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(textContent, -1)
 	for _, htmlTagMatch := range htmlTagMatches {
 		tagName := strings.ToLower(htmlTagMatch[1])
 		tagAttributes := htmlTagMatch[2]
@@ -614,7 +625,7 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 						// Replace the attribute value in the tag attributes
 						tagAttributes = strings.Replace(tagAttributes, attributeValue, newUrl, -1)
 						// Update the tag attributes in the HTML content
-						htmlContent = strings.Replace(htmlContent, htmlTagMatch[0], fmt.Sprintf("<%s%s>", tagName, tagAttributes), -1)
+						textContent = strings.Replace(textContent, htmlTagMatch[0], fmt.Sprintf("<%s%s>", tagName, tagAttributes), -1)
 					}
 				}
 			}
@@ -622,25 +633,48 @@ func patchHTMLFile(buf []byte, n int, contentEncoding string, rootGatewayHost st
 	}
 
 
+	// In the text itself, convert web3:// URLs to gateway URLs
+	// Special case: The url('') in CSS (which can have double quotes or single quotes)
+	if strings.HasPrefix(contentType, "text/css") || strings.HasPrefix(contentType, "text/html") || strings.HasPrefix(contentType, "image/svg+xml") {
+		cssUrlRegex := regexp.MustCompile(`(?i)url\(\s*['"]?([^'")]+)['"]?\s*\)`)
+		cssUrlMatches := cssUrlRegex.FindAllStringSubmatch(textContent, -1)
+		for _, cssUrlMatch := range cssUrlMatches {
+			// Get the URL value
+			cssUrlValue := cssUrlMatch[1]
+			// Check if the URL is a web3:// URL
+			if strings.HasPrefix(cssUrlValue, "web3://") {
+				// Convert the web3:// URL to a gateway URL
+				newUrl, err := ConvertWeb3UrlToGatewayUrl(cssUrlValue, rootGatewayHost)
+				if err == nil {
+					// Replace the URL value in the CSS content
+					textContent = strings.Replace(textContent, cssUrlMatch[0], fmt.Sprintf("url('%s')", newUrl), -1)
+				}
+			}
+		}
+	}
+
+	// HTML patching :
 	// Add a javascript patch to the HTML page, just after the "<body>" tag
 	// It will patch the fetch() JS function, and the setter method of various attributes of HTML tags
-	bodyTagIndex := strings.Index(strings.ToLower(htmlContent), "<body")
-	if bodyTagIndex == -1 {
-		return n
+	if strings.HasPrefix(contentType, "text/html") {
+		bodyTagIndex := strings.Index(strings.ToLower(textContent), "<body")
+		if bodyTagIndex == -1 {
+			return n
+		}
+		// Find the closing '>' of the body tag
+		closingTagIndex := strings.Index(textContent[bodyTagIndex:], ">")
+		if closingTagIndex == -1 {
+			return n
+		}
+		// Calculate the actual position of the closing '>' in the full string
+		closingTagIndex += bodyTagIndex + 1
+		// Insert the patch right after the closing '>' of the body tag
+		textContent = textContent[:closingTagIndex] + string(htmlPatch) + textContent[closingTagIndex:]
 	}
-	// Find the closing '>' of the body tag
-	closingTagIndex := strings.Index(htmlContent[bodyTagIndex:], ">")
-	if closingTagIndex == -1 {
-		return n
-	}
-	// Calculate the actual position of the closing '>' in the full string
-	closingTagIndex += bodyTagIndex + 1
-	// Insert the patch right after the closing '>' of the body tag
-	htmlContent = htmlContent[:closingTagIndex] + string(htmlPatch) + htmlContent[closingTagIndex:]
 	
 	
 	// Convert back to byte array
-	alteredBuf = []byte(htmlContent)
+	alteredBuf = []byte(textContent)
 
 	// If contentEncoding is "gzip", then recompress the data
 	if contentEncoding == "gzip" {
