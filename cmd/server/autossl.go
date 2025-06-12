@@ -5,13 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/web3-protocol/web3protocol-go"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -138,8 +136,7 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	// pre-check the server name
 	if err := validate(hello.ServerName); err != nil {
-		log.Errorf("Reject invalid server name: %s", hello.ServerName)
-		return nil, &web3protocol.Web3ProtocolError{HttpCode: http.StatusBadRequest, Err: err}
+		return nil, fmt.Errorf("rejected invalid server name: %s, err: %s", hello.ServerName, err.Error())
 	}
 
 	if cert, err := tryFindSystemCertificate(hello.ServerName); err == nil && cert != nil {
