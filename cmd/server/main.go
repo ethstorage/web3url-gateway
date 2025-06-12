@@ -142,7 +142,7 @@ func initConfig() {
 			return
 		}
 		if _, ok := config.ChainConfigs[chainId]; !ok {
-			log.Fatalf("Unsupported chainID %v", ss[0])
+			log.Fatalf("Unsupport chainID %v\n", ss[0])
 			return
 		}
 		config.ChainConfigs[chainId].NSConfig[ss[1]] = NameServiceInfo{
