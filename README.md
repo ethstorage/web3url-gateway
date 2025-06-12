@@ -51,7 +51,6 @@ Example 2: `w3link.io` (for general web3 links)
 |ChainID|Chain Name|Short Name|
 |----|----|----|
 |1|Ethereum Mainnet|eth|
-|5|Ethereum Testnet Goerli|gor|
 |11155111|Ethereum Testnet Sepolia|sep|
 |10|Optimism|oeth|
 |42161|Arbitrum One|arb1|
