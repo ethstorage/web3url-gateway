@@ -67,10 +67,11 @@ func validate(hostname string) error {
 	}
 	web3Url := "web3:/" + p
 	log.Infof("%s => %s", hostname, web3Url)
-	_, err := web3protocolClient.ParseUrl(web3Url, nil)
+	w3, err := web3protocolClient.ParseUrl(web3Url, nil)
 	if err != nil {
 		return err
 	}
+	fmt.Println("Parsed chainID:", w3.ChainId)
 	return nil
 }
 
