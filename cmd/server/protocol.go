@@ -65,13 +65,19 @@ func validate(hostname string) error {
 	if er != nil {
 		return er
 	}
+	if p == "/" {
+		// home page
+		return nil
+	}
 	web3Url := "web3:/" + p
 	log.Infof("%s => %s", hostname, web3Url)
 	w3, err := web3protocolClient.ParseUrl(web3Url, nil)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Parsed chainID:", w3.ChainId)
+	if _, ok := config.ChainConfigs[w3.ChainId]; !ok {
+		return fmt.Errorf("unsupported chainID %v", w3.ChainId)
+	}
 	return nil
 }
 
