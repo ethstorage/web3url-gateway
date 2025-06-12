@@ -60,27 +60,6 @@ type PageCacheEntry struct {
 	CreationTime time.Time
 }
 
-func validate(hostname string) error {
-	p, _, er := handleSubdomain(hostname, "/")
-	if er != nil {
-		return er
-	}
-	if p == "/" {
-		// home page
-		return nil
-	}
-	web3Url := "web3:/" + p
-	log.Infof("%s => %s", hostname, web3Url)
-	w3, err := web3protocolClient.ParseUrl(web3Url, nil)
-	if err != nil {
-		return err
-	}
-	if _, ok := config.ChainConfigs[w3.ChainId]; !ok {
-		return fmt.Errorf("unsupported chainID %v", w3.ChainId)
-	}
-	return nil
-}
-
 func handle(w http.ResponseWriter, req *http.Request) {
 
 	h := req.Host

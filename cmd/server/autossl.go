@@ -125,7 +125,7 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 		}
 		findCert, err = getCertFromPath(domain, path)
 		if err != nil {
-			log.Infof("get cert from path error: %v\n", err)
+			log.Debugf("get cert from path error: %v", err)
 			return nil
 		}
 		cache.Put(context.Background(), domainSysCertPath, []byte(path))
@@ -154,4 +154,23 @@ func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	}
 	log.Infof("Autocert: got certificate: %s\n", hello.ServerName)
 	return cert, nil
+}
+
+func validate(hostname string) error {
+	p, _, er := handleSubdomain(hostname, "/")
+	if er != nil {
+		return er
+	}
+	if p == "/" {
+		// home page
+		return nil
+	}
+	w3, err := web3protocolClient.ParseUrl("web3:/"+p, nil)
+	if err != nil {
+		return err
+	}
+	if _, ok := config.ChainConfigs[w3.ChainId]; !ok {
+		return fmt.Errorf("unsupported chainID %v", w3.ChainId)
+	}
+	return nil
 }
