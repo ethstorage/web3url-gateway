@@ -46,7 +46,7 @@ Example 2: `w3link.io` (for general web3 links)
   -dbToken xxxxxx
 ```
 
-## Supported chains on `w3link.io`:
+## Supported chains on `w3link.io` and `web3gateway.dev`:
 
 |ChainID|Chain Name|Short Name|
 |----|----|----|
@@ -55,8 +55,6 @@ Example 2: `w3link.io` (for general web3 links)
 |11155111|Ethereum Testnet Sepolia|sep|
 |10|Optimism|oeth|
 |42161|Arbitrum One|arb1|
-|420|Optimism Goerli Testnet|ogor|
-|421613|Arbitrum Goerli Rollup Testnet|arb-goerli|
 |9001|Evmos|evmos|
 |9000|Evmos Testnet|evmos-testnet|
 |42170|Arbitrum Nova|arb-nova|
@@ -74,13 +72,14 @@ Example 2: `w3link.io` (for general web3 links)
 |100001|QuarkChain Mainnet Shard 0|qkc-s0|
 |110001|QuarkChain Devnet Shard 0|qkc-d-s0|
 |1088|Metis Andromeda Mainnet|metis-andromed|
-|599|Metis Goerli Testnet|metis-goerli|
 |534351|Scroll L1 Testnet|scr-testl1|
 |534354|Scroll L2 Testnet|scr-prealpha|
-|84531|Base Goerli Testnet|basegor|
 |1513|Story Protocol Testnet|storyprotocoltest|
+|17000|Ethereum Testnet Holesky|holesky|
+|8453|Base Mainnet|base|
+|3337|EthStorage SWC Beta Testnet|es-d|
 
-## How to create a wildcard certificate for `w3link.io`
+## How to create a wildcard certificate for `web3gateway.dev`
 
 The gateway now has the capability to generate domain certificates on-the-fly using `autocert`. 
 However, the wildcard certificates are not supported in this way.
@@ -115,84 +114,12 @@ Authorize permissions to the file:
 chmod 600 /root/.secrets/certbot/digitalocean.ini
 ```
 
-
  3. create certificate：
 
+Before generate certificates by executing the following command, you can update `certs.sh` to reflect any changes required for the supported chains.
+
  ```bash
- certbot certonly --dns-digitalocean \
-  --dns-digitalocean-credentials \
-  ~/.secrets/certbot/digitalocean.ini \
-  -d '*.1.web3gateway.dev' \
-  -d '*.10.web3gateway.dev' \
-  -d '*.100001.web3gateway.dev' \
-  -d '*.1088.web3gateway.dev' \
-  -d '*.110001.web3gateway.dev' \
-  -d '*.11155111.web3gateway.dev' \
-  -d '*.137.web3gateway.dev' \
-  -d '*.1402.web3gateway.dev' \
-  -d '*.1666600000.web3gateway.dev' \
-  -d '*.1666700000.web3gateway.dev' \
-  -d '*.250.web3gateway.dev' \
-  -d '*.333.web3gateway.dev' \
-  -d '*.3333.web3gateway.dev' \
-  -d '*.4002.web3gateway.dev' \
-  -d '*.420.web3gateway.dev' \
-  -d '*.42161.web3gateway.dev' \
-  -d '*.421613.web3gateway.dev' \
-  -d '*.42170.web3gateway.dev' \
-  -d '*.43113.web3gateway.dev' \
-  -d '*.43114.web3gateway.dev' \
-  -d '*.534351.web3gateway.dev' \
-  -d '*.534354.web3gateway.dev' \
-  -d '*.56.web3gateway.dev' \
-  -d '*.80001.web3gateway.dev' \
-  -d '*.9000.web3gateway.dev' \
-  -d '*.9001.web3gateway.dev' \
-  -d '*.97.web3gateway.dev' \
-  -d '*.arb-nova.web3gateway.dev' \
-  -d '*.arb1.web3gateway.dev' \
-  -d '*.avax.web3gateway.dev' \
-  -d '*.bnb.web3gateway.dev' \
-  -d '*.bnbt.web3gateway.dev' \
-  -d '*.eth.1.web3gateway.dev' \
-  -d '*.eth.10.web3gateway.dev' \
-  -d '*.eth.11155111.web3gateway.dev' \
-  -d '*.eth.42161.web3gateway.dev' \
-  -d '*.eth.arb1.web3gateway.dev' \
-  -d '*.eth.eth.web3gateway.dev' \
-  -d '*.eth.oeth.web3gateway.dev' \
-  -d '*.eth.sep.web3gateway.dev' \
-  -d '*.eth.web3gateway.dev' \
-  -d '*.evmos-testnet.web3gateway.dev' \
-  -d '*.evmos.web3gateway.dev' \
-  -d '*.ftm.web3gateway.dev' \
-  -d '*.fuji.web3gateway.dev' \
-  -d '*.hmy-b-s0.web3gateway.dev' \
-  -d '*.hmy-s0.web3gateway.dev' \
-  -d '*.matic.web3gateway.dev' \
-  -d '*.maticmum.web3gateway.dev' \
-  -d '*.metis-andromeda.web3gateway.dev' \
-  -d '*.oeth.web3gateway.dev' \
-  -d '*.qkc-d-s0.web3gateway.dev' \
-  -d '*.qkc-s0.web3gateway.dev' \
-  -d '*.scr-prealpha.web3gateway.dev' \
-  -d '*.scr-testl1.web3gateway.dev' \
-  -d '*.sep.web3gateway.dev' \
-  -d '*.tftm.web3gateway.dev' \
-  -d '*.zkevmtest.web3gateway.dev' \
-  -d '*.web3gateway.dev' \
-  -d ordinals.btc.web3gateway.dev  
-  -d web3gateway.dev  
-  -d '*.storyprotocoltest.web3gateway.dev' \
-  -d '*.1513.web3gateway.dev' \
-  -d '*.holesky.web3gateway.dev' \
-  -d '*.17000.web3gateway.dev' \
-  -d '*.base.web3gateway.dev' \
-  -d '*.8453.web3gateway.dev' \
-  -d '*.es-d.web3gateway.dev' \
-  -d '*.3337.web3gateway.dev' \
-  -d '*.esl2-d.web3gateway.dev' \
-  -d '*.3335.web3gateway.dev'
+ ./certs.sh
 ```
 If successful, some messages like the following will appear where you can find the location of the private key and certificates:
 
@@ -210,27 +137,22 @@ By default, the certificate will be renewed 30 days before expiration.
 
 Check if the renew service is running normally：
 
-```
+```bash
   certbot renew --dry-run
 ```
 
 ## Autocert configuration
 
-To enable `autocert`, make changes to `config.toml` as follows:
+To enable `autocert`, modify the `config.toml` file by setting `RunAsHttp` to `false`:
 
-```
+```toml
 RunAsHttp = false
-SystemCertDir = "/root/dl/web3url-gateway/sys_cert"
-...
 ```
-Where `SystemCertDir` is the folder to store the file of the combination of the private key and the system certificate.
+Currently, the `autocert` module is activated on the `web3gateway.dev` gateway, using the system certificate and private key generated by `certbot`:
 
-Currently, the `autocert` module is activated on the `web3gateway.dev` gateway, with system certificate and private key generated by `certbot`:
-
+```toml
+SystemCertDir = "/etc/letsencrypt/live/1.web3gateway.dev"
+KeyFile = "/etc/letsencrypt/live/1.web3gateway.dev/privkey.pem"
 ```
-/etc/letsencrypt/live/1.web3gateway.dev/fullchain.pem
-/etc/letsencrypt/live/1.web3gateway.dev/privkey.pem
-``` 
 
-Meanwhile, `w3link.io` and `w3eth.io` are running with `RunAsHttp` set to `true`, which indicates `autocert` service is not utilized.
-
+In contrast, `w3link.io` and `w3eth.io` are running with `RunAsHttp` set to `true`, which indicates `autocert` service is not utilized.

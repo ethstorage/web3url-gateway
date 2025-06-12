@@ -31,9 +31,7 @@ immutableUrlRegexps = []
 [name2chain]
 "es-t" = 3333
 "qkcl2-b" = 3335
-"esl2-t" = 3336
 "es-d" = 3337
-"wsc-d" = 42069
 "eth" = 1
 "sep" = 11155111
 "oeth" = 10
@@ -184,7 +182,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.3333]
     "ChainID" = 3333
-    "RPC" = "http://65.108.236.27:9540"
+    "RPC" = "http://65.108.230.142:9545"
 
     [chainConfigs.2710]
     "ChainID" = 2710
@@ -197,15 +195,7 @@ immutableUrlRegexps = []
     [chainConfigs.3335]
     "ChainID" = 3335
     "RPC" = "http://5.9.87.214:8545"
-
-    [chainConfigs.3336]
-    "ChainID" = 3336
-    "RPC" = "http://65.109.115.36:9540"
     
     [chainConfigs.3337]
     "ChainID" = 3337
-    "RPC" = "http://65.109.115.36:9596"
-
-    [chainConfigs.42069]
-    "ChainID" = 42069
-    "RPC" = "http://142.132.154.16:8545"
+    "RPC" = "https://rpc.beta.testnet.l2.ethstorage.io:9596"
