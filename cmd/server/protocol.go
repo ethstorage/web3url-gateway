@@ -60,20 +60,6 @@ type PageCacheEntry struct {
 	CreationTime time.Time
 }
 
-func validate(hostname string) error {
-	p, _, er := handleSubdomain(hostname, "/")
-	if er != nil {
-		return er
-	}
-	web3Url := "web3:/" + p
-	log.Infof("%s => %s", hostname, web3Url)
-	_, err := web3protocolClient.ParseUrl(web3Url, nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func handle(w http.ResponseWriter, req *http.Request) {
 
 	h := req.Host
@@ -588,6 +574,7 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
 	textContent := string(alteredBuf)
 
+
 	// In the text itself, convert web3:// URLs to gateway URLs
 	// Map of XML tags to their attributes that could contain web3:// URLs
 	elementWithAttributes := map[string]string{}
@@ -614,14 +601,14 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 			"script": "href",
 		}
 	}
-
+	
 	// Lookup each tag in the HTML document, process their attributes
 	htmlTagRegex := regexp.MustCompile(`(?i)<\s*([a-z0-9]+)([^>]*)>`)
 	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(textContent, -1)
 	for _, htmlTagMatch := range htmlTagMatches {
 		tagName := strings.ToLower(htmlTagMatch[1])
 		tagAttributes := htmlTagMatch[2]
-
+		
 		// Check if the tag is in the map of tags to process
 		if attributeName, exists := elementWithAttributes[tagName]; exists {
 			// Find the attribute in the tag attributes
@@ -644,6 +631,7 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 			}
 		}
 	}
+
 
 	// In the text itself, convert web3:// URLs to gateway URLs
 	// Special case: The url('') in CSS (which can have double quotes or single quotes)
@@ -683,7 +671,8 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 		// Insert the patch right after the closing '>' of the body tag
 		textContent = textContent[:closingTagIndex] + string(htmlPatch) + textContent[closingTagIndex:]
 	}
-
+	
+	
 	// Convert back to byte array
 	alteredBuf = []byte(textContent)
 
@@ -702,3 +691,4 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 
 	return n
 }
+
