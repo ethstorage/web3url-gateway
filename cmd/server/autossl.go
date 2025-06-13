@@ -5,13 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/web3-protocol/web3protocol-go"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -125,7 +123,7 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 		}
 		findCert, err = getCertFromPath(domain, path)
 		if err != nil {
-			log.Infof("get cert from path error: %v\n", err)
+			log.Debugf("get cert from path error: %v", err)
 			return nil
 		}
 		cache.Put(context.Background(), domainSysCertPath, []byte(path))
@@ -136,18 +134,16 @@ func tryFindSystemCertificate(domain string) (*tls.Certificate, error) {
 }
 
 func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	log.Infof("TLS: getting certificate for %s\n", hello.ServerName)
 	// pre-check the server name
-	_, _, er := handleSubdomain(hello.ServerName, "/")
-	if er != nil {
-		log.Errorf("Invalid subdomain: %s\n", hello.ServerName)
-		return nil, &web3protocol.Web3ProtocolError{HttpCode: http.StatusBadRequest, Err: er}
+	if err := validate(hello.ServerName); err != nil {
+		return nil, fmt.Errorf("rejected invalid server name: %s, err: %s", hello.ServerName, err.Error())
 	}
 
 	if cert, err := tryFindSystemCertificate(hello.ServerName); err == nil && cert != nil {
 		log.Infof("Found system certificate: %s\n", hello.ServerName)
 		return cert, nil
 	}
+	log.Infof("Autocert: getting certificate for %s", hello.ServerName)
 	cert, err := certManager.GetCertificate(hello)
 	if err != nil {
 		log.Errorf("Autocert: get certificate error: %v\n", err)
@@ -155,4 +151,23 @@ func GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	}
 	log.Infof("Autocert: got certificate: %s\n", hello.ServerName)
 	return cert, nil
+}
+
+func validate(hostname string) error {
+	p, _, er := handleSubdomain(hostname, "/")
+	if er != nil {
+		return er
+	}
+	if p == "/" {
+		// home page
+		return nil
+	}
+	w3, err := web3protocolClient.ParseUrl("web3:/"+p, nil)
+	if err != nil {
+		return err
+	}
+	if _, ok := config.ChainConfigs[w3.ChainId]; !ok {
+		return fmt.Errorf("unsupported chainID %v", w3.ChainId)
+	}
+	return nil
 }
