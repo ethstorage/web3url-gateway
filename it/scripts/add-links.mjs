@@ -4,11 +4,21 @@ dotenv.config();
 
 export async function addLinks() {
     console.log("Adding new links...");
+    const links = await Promise.all([
+        addLink("http://5.9.87.214:8545", 3337),
+        addLink("https://eth-sepolia.public.blastapi.io", 3333),
+    ]);
+    return links.flat();
+}
+
+
+export async function addLink(rpc, chainId) {
+    console.log("Adding link for", rpc, chainId);
     if (!process.env.PRIVATE_KEY || process.env.PRIVATE_KEY.length === 0) {
         throw new Error("PRIVATE_KEY is not set.");
     }
     const flatDirectory = await FlatDirectory.create({
-        rpc: "http://5.9.87.214:8545",
+        rpc: rpc,
         privateKey: process.env.PRIVATE_KEY,
     });
     const contractAddress = await flatDirectory.deploy();
@@ -34,8 +44,8 @@ export async function addLinks() {
     await flatDirectory.close();
 
     return [
-        `https://${contractAddress}.3337.w3link.io/test.txt`,
-        `https://${contractAddress}.3337.web3gateway.dev/test.txt`
+        `https://${contractAddress}.${chainId}.w3link.io/test.txt`,
+        `https://${contractAddress}.${chainId}.web3gateway.dev/test.txt`
     ];
 }
 
