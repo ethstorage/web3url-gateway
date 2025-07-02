@@ -27,7 +27,7 @@ jobs:
 
       - name: Check Links
         id: link-check
-        timeout-minutes: 10
+        timeout-minutes: 30
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
