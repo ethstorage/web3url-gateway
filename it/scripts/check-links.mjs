@@ -33,6 +33,7 @@ export async function checkAllLinks(links) {
     console.log('retrying failed links:', failures.size, 'times:', retried);
       const retryLinks = Array.from(failures.keys());
       for (const link of retryLinks) {
+        console.log('retrying link:', link);
         await new Promise(resolve => setTimeout(resolve, retried*10000));
         const result = await checkLink(link);
         if (!result.success) {

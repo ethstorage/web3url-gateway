@@ -31,6 +31,7 @@ immutableUrlRegexps = []
 [name2chain]
 "es-t" = 3333
 "qkcl2-b" = 3335
+"qkc-l2-t" = 110011
 "es-d" = 3337
 "eth" = 1
 "sep" = 11155111
@@ -84,8 +85,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.10]
     "ChainID" = 10
-
-    "RPC" = "https://endpoints.omniatech.io/v1/op/mainnet/public"
+    "RPC" = "https://rpc.therpc.io/optimism"
     "SystemRPC" = "https://optimism-mainnet.infura.io/v3/************"
 
     [chainConfigs.42161]
@@ -195,7 +195,11 @@ immutableUrlRegexps = []
     [chainConfigs.3335]
     "ChainID" = 3335
     "RPC" = "http://5.9.87.214:8545"
-    
+
     [chainConfigs.3337]
     "ChainID" = 3337
     "RPC" = "https://rpc.beta.testnet.l2.ethstorage.io:9596"
+
+    [chainConfigs.110011]
+    "ChainID" = 110011
+    "RPC" = "https://rpc.gamma.testnet.l2.quarkchain.io:8545"
