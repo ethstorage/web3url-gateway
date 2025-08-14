@@ -20,29 +20,40 @@ export async function addLink(rpc, type, chainId, shortName) {
     if (!process.env.PRIVATE_KEY || process.env.PRIVATE_KEY.length === 0) {
         throw new Error("PRIVATE_KEY is not set.");
     }
-    const flatDirectory = await FlatDirectory.create({
-        rpc: rpc,
-        privateKey: process.env.PRIVATE_KEY,
-    });
-    const contractAddress = await flatDirectory.deploy();
 
-    await flatDirectory.upload({
-        key: "test.txt",
-        content: Buffer.from("hello link checker"),
-        type: type,
-        callback: {
-            onProgress: function (progress, count, isChange) {
-                // console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
-            },
-            onFail: function (err) {
-                console.log(err);
-            },
-            onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-                console.log(`totalUploadChunks: ${totalUploadChunks}, totalUploadSize: ${totalUploadSize}, totalStorageCost: ${totalStorageCost}`);
-            }
-        },
-    });
-    await flatDirectory.close();
+    const timeout = 5 * 60000;
+
+    const contractAddress = await Promise.race([
+        (async () => {
+            const flatDirectory = await FlatDirectory.create({
+                rpc: rpc,
+                privateKey: process.env.PRIVATE_KEY,
+            });
+            const contractAddress = await flatDirectory.deploy();
+
+            await flatDirectory.upload({
+                key: "test.txt",
+                content: Buffer.from("hello link checker"),
+                type: type,
+                callback: {
+                    onProgress: function (progress, count, isChange) {
+                        // console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
+                    },
+                    onFail: function (err) {
+                        console.log(err);
+                    },
+                    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+                        console.log(`totalUploadChunks: ${totalUploadChunks}, totalUploadSize: ${totalUploadSize}, totalStorageCost: ${totalStorageCost}`);
+                    }
+                },
+            });
+            await flatDirectory.close();
+            return contractAddress;
+        })(),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`FlatDirectory.create and deploy timeout after ${timeout}ms`)), timeout)
+        )
+    ]);
 
     const duration = Date.now() - startTime;
     console.log(`addLink for ${rpc} (chainId: ${chainId}) took ${duration}ms`);
