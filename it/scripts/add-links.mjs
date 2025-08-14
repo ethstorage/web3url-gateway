@@ -4,14 +4,18 @@ dotenv.config();
 
 export async function addLinks() {
     console.log("Adding new links...");
+    const totalStartTime = Date.now();
     const links = await Promise.all([
         addLink("https://rpc.gamma.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"),
         addLink("https://rpc.beta.testnet.l2.quarkchain.io:8545", 2, 3337, "es-d"),
     ]);
+    const totalDuration = Date.now() - totalStartTime;
+    console.log(`Total addLinks time: ${totalDuration}ms`);
     return links.flat();
 }
 
 export async function addLink(rpc, type, chainId, shortName) {
+    const startTime = Date.now();
     console.log("Adding link for", rpc, chainId);
     if (!process.env.PRIVATE_KEY || process.env.PRIVATE_KEY.length === 0) {
         throw new Error("PRIVATE_KEY is not set.");
@@ -28,19 +32,20 @@ export async function addLink(rpc, type, chainId, shortName) {
         type: type,
         callback: {
             onProgress: function (progress, count, isChange) {
-                console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
+                // console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
             },
             onFail: function (err) {
                 console.log(err);
             },
             onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-                console.log("totalUploadChunks", totalUploadChunks);
-                console.log("totalUploadSize", totalUploadSize);
-                console.log("totalStorageCost", totalStorageCost);
+                console.log(`totalUploadChunks: ${totalUploadChunks}, totalUploadSize: ${totalUploadSize}, totalStorageCost: ${totalStorageCost}`);
             }
         },
     });
     await flatDirectory.close();
+
+    const duration = Date.now() - startTime;
+    console.log(`addLink for ${rpc} (chainId: ${chainId}) took ${duration}ms`);
 
     return [
         `https://${contractAddress}.${chainId}.w3link.io/test.txt`,
