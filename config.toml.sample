@@ -1,5 +1,6 @@
 ServerPort = "80"
 RunAsHttp = false
+IsBehindHttpsProxy = false
 AutoCertEmail = ""
 SystemCertDir = ""
 CertificateFile = ""
