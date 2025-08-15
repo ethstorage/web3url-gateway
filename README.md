@@ -156,3 +156,35 @@ KeyFile = "/etc/letsencrypt/live/1.web3gateway.dev/privkey.pem"
 ```
 
 In contrast, `w3link.io` and `w3eth.io` are running with `RunAsHttp` set to `true`, which indicates `autocert` service is not utilized.
+
+## HTTP/HTTPS Proxy Configuration
+
+When running the web3:// gateway behind an HTTPS proxy (such as a reverse proxy or load balancer), you need to configure the `IsBehindHttpsProxy` setting to ensure proper URL generation.
+
+### Configuration Options
+
+- `RunAsHttp`: Controls whether the server itself runs on HTTP or HTTPS
+- `IsBehindHttpsProxy`: Indicates if the HTTP server is behind an HTTPS proxy
+
+### Usage Scenarios
+
+**Scenario 1: Direct HTTPS server**
+```toml
+RunAsHttp = false
+IsBehindHttpsProxy = false
+```
+Use this when the server directly handles HTTPS connections with its own certificates.
+
+**Scenario 2: Direct HTTP server**
+```toml
+RunAsHttp = true
+IsBehindHttpsProxy = false
+```
+Use this for local development or when the server only handles HTTP traffic.
+
+**Scenario 3: HTTP server behind HTTPS proxy**
+```toml
+RunAsHttp = true
+IsBehindHttpsProxy = true
+```
+Use this when the server runs as HTTP internally but is accessed through an HTTPS proxy. This ensures that web3:// URLs are converted to HTTPS gateway URLs instead of HTTP, maintaining proper protocol consistency for end users.

@@ -20,21 +20,22 @@ import (
 )
 
 type Web3Config struct {
-	ServerPort      string
-	Verbosity       int
-	CertificateFile string
-	KeyFile         string
-	RunAsHttp       bool
-	AutoCertEmail   string
-	SystemCertDir   string
-	DefaultChain    int
-	HomePage        string
-	CORS            string
-	PageCache       PageCacheConfig
-	NSDefaultChains map[string]int
-	Name2Chain      map[string]int
-	ChainConfigs    map[int]ChainConfig
-	RequestLimit    int
+	ServerPort         string
+	Verbosity          int
+	CertificateFile    string
+	KeyFile            string
+	RunAsHttp          bool
+	IsBehindHttpsProxy bool
+	AutoCertEmail      string
+	SystemCertDir      string
+	DefaultChain       int
+	HomePage           string
+	CORS               string
+	PageCache          PageCacheConfig
+	NSDefaultChains    map[string]int
+	Name2Chain         map[string]int
+	ChainConfigs       map[int]ChainConfig
+	RequestLimit       int
 }
 
 type PageCacheConfig struct {
@@ -243,7 +244,7 @@ func ConvertWeb3UrlToGatewayUrl(web3Url string, rootGatewayHost string) (string,
 	}
 
 	protocol := "https"
-	if config.RunAsHttp {
+	if config.RunAsHttp && !config.IsBehindHttpsProxy {
 		protocol = "http"
 	}
 
