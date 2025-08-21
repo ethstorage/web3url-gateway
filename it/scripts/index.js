@@ -3,7 +3,7 @@ import { addLinks } from './add-links.mjs';
 import { checkAllLinks } from './check-links.mjs';
 
 async function run() {
-    let failures = await checkAllLinks(links);
+    const failures = await checkAllLinks(links);
     if (failures.size > 0) {
         console.log('Failed links: \n', Array.from(failures, ([key, value]) => `${key} -> ${value}`).join('\n'));
     } else {
@@ -13,9 +13,9 @@ async function run() {
     const newLinks = await addLinks();
     console.log('New links', newLinks);
 
-    failures = await checkAllLinks(newLinks);
-    if (failures.size > 0) {
-        console.log('Failed links: \n', Array.from(failures, ([key, value]) => `${key} -> ${value}`).join('\n'));
+    const newFailures = await checkAllLinks(newLinks);
+    if (newFailures.size > 0) {
+        console.log('Failed new links: \n', Array.from(newFailures, ([key, value]) => `${key} -> ${value}`).join('\n'));
     } else {
         console.log('New links are OK');
     }
