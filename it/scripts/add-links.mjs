@@ -5,7 +5,7 @@ dotenv.config();
 export async function addLinks() {
     console.log("Adding new links...");
     const links = await Promise.all([
-        addLink("https://rpc.gamma.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"),
+        // addLink("https://rpc.gamma.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"),
         addLink("https://rpc.beta.testnet.l2.quarkchain.io:8545", 2, 3337, "es-d"),
     ]);
     return links.flat();
