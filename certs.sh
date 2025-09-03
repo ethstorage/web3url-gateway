@@ -5,6 +5,8 @@
  certbot certonly --dns-digitalocean \
   --dns-digitalocean-credentials \
   ~/.secrets/certbot/digitalocean.ini \
+  -d web3gateway.dev  \
+  -d ordinals.btc.web3gateway.dev \
   -d '*.1.web3gateway.dev' \
   -d '*.10.web3gateway.dev' \
   -d '*.100001.web3gateway.dev' \
@@ -17,7 +19,6 @@
   -d '*.1666700000.web3gateway.dev' \
   -d '*.250.web3gateway.dev' \
   -d '*.333.web3gateway.dev' \
-  -d '*.3333.web3gateway.dev' \
   -d '*.4002.web3gateway.dev' \
   -d '*.420.web3gateway.dev' \
   -d '*.42161.web3gateway.dev' \
@@ -64,8 +65,6 @@
   -d '*.tftm.web3gateway.dev' \
   -d '*.zkevmtest.web3gateway.dev' \
   -d '*.web3gateway.dev' \
-  -d ordinals.btc.web3gateway.dev \
-  -d web3gateway.dev  \
   -d '*.storyprotocoltest.web3gateway.dev' \
   -d '*.1513.web3gateway.dev' \
   -d '*.holesky.web3gateway.dev' \
@@ -75,4 +74,8 @@
   -d '*.es-d.web3gateway.dev' \
   -d '*.3337.web3gateway.dev' \
   -d '*.esl2-d.web3gateway.dev' \
-  -d '*.3335.web3gateway.dev'
+  -d '*.3335.web3gateway.dev' \
+  -d '*.es-t.web3gateway.dev' \
+  -d '*.3333.web3gateway.dev' \
+  -d '*.qkc-l2-t.web3gateway.dev' \
+  -d '*.110011.web3gateway.dev'
