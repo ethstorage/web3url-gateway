@@ -76,6 +76,7 @@ Example 2: `w3link.io` (for general web3 links)
 |1513|Story Protocol Testnet|storyprotocoltest|
 |17000|Ethereum Testnet Holesky|holesky|
 |8453|Base Mainnet|base|
+|3333|EthStorage Testnet|es-t|
 |3337|EthStorage SWC Beta Testnet|es-d|
 |110011|QuarkChain SWC Gamma Testnet|qkc-l2-t|
 

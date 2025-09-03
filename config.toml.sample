@@ -183,7 +183,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.3333]
     "ChainID" = 3333
-    "RPC" = "http://65.108.230.142:9545"
+    "RPC" = "https://rpc.testnet.ethstorage.io:9546"
 
     [chainConfigs.2710]
     "ChainID" = 2710
