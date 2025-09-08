@@ -599,6 +599,7 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 			"a":      "href",
 			"image":  "href",
 			"script": "href",
+			"object": "data",
 		}
 	}
 	
