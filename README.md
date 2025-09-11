@@ -79,6 +79,7 @@ Example 2: `w3link.io` (for general web3 links)
 |3333|EthStorage Testnet|es-t|
 |3337|EthStorage SWC Beta Testnet|es-d|
 |110011|QuarkChain SWC Gamma Testnet|qkc-l2-t|
+|333|EthStorage Mainnet|es-m|
 
 ## How to create a wildcard certificate for `web3gateway.dev`
 
