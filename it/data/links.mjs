@@ -1,5 +1,8 @@
 
 export const links = [
+  // ES Mainnet
+  "https://0x1e9796fa683cbdaa29b5fd5267febed6d4b9124b.333.w3link.io/hello.txt",
+  "https://0x1e9796fa683cbdaa29b5fd5267febed6d4b9124b.es-m.w3link.io/hello.txt",
   // w3eth.io
   "https://vitalikblog.w3eth.io/css/misc.css",
   "https://usdc.w3eth.io/name?returns=(string)",

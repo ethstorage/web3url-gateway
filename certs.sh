@@ -78,4 +78,6 @@
   -d '*.es-t.web3gateway.dev' \
   -d '*.3333.web3gateway.dev' \
   -d '*.qkc-l2-t.web3gateway.dev' \
-  -d '*.110011.web3gateway.dev'
+  -d '*.110011.web3gateway.dev' \
+  -d '*.es-m.web3gateway.dev' \
+  -d '*.333.web3gateway.dev'

@@ -30,6 +30,7 @@ immutableUrlRegexps = []
 
 # support chain name convention
 [name2chain]
+"es-m" = 333
 "es-t" = 3333
 "qkcl2-b" = 3335
 "qkc-l2-t" = 110011
@@ -181,10 +182,6 @@ immutableUrlRegexps = []
     "ChainID" = 1513
     "RPC" = "https://evm-rpc-story.josephtran.xyz"
 
-    [chainConfigs.3333]
-    "ChainID" = 3333
-    "RPC" = "https://rpc.testnet.ethstorage.io:9546"
-
     [chainConfigs.2710]
     "ChainID" = 2710
     "RPC" = "https://rpc-testnet.morphl2.io"
@@ -193,9 +190,17 @@ immutableUrlRegexps = []
     "ChainID" = 17000
     "RPC" = "https://holesky.drpc.org"
 
+    [chainConfigs.333]
+    "ChainID" = 333
+    "RPC" = "https://rpc.mainnet.ethstorage.io:9545"
+
+    [chainConfigs.3333]
+    "ChainID" = 3333
+    "RPC" = "https://rpc.testnet.ethstorage.io:9546"
+
     [chainConfigs.3335]
     "ChainID" = 3335
-    "RPC" = "http://5.9.87.214:8545"
+    "RPC" = "https://rpc.beta.testnet.l2.quarkchain.io:8545"
 
     [chainConfigs.3337]
     "ChainID" = 3337
