@@ -1,3 +1,4 @@
+import { links } from '../data/links.mjs';
 import { addLinks } from './add-links.mjs';
 import { checkAllLinks } from './check-links.mjs';
 
