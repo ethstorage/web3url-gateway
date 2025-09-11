@@ -4,12 +4,25 @@ dotenv.config();
 
 export async function addLinks() {
     console.log("Adding new links...");
-    const links = await Promise.all([
+    const tasks = [
         addLink("https://rpc.gamma.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"),
         addLink("https://rpc.beta.testnet.l2.quarkchain.io:8545", 2, 3337, "es-d"),
         addLink("http://65.108.230.142:8545", 2, 3333, "es-t"),
-    ]);
-    return links.flat();
+    ];
+    const results = await Promise.allSettled(tasks);
+    const links = [];
+    for (const r of results) {
+        if (r.status === "fulfilled") {
+            if (Array.isArray(r.value)) {
+                links.push(...r.value);
+            } else {
+                links.push(r.value);
+            }
+        } else {
+            console.error("addLink failed:", r.reason?.message || r.reason);
+        }
+    }
+    return links;
 }
 
 export async function addLink(rpc, type, chainId, shortName) {
@@ -22,7 +35,10 @@ export async function addLink(rpc, type, chainId, shortName) {
         privateKey: process.env.PRIVATE_KEY,
     });
     const contractAddress = await flatDirectory.deploy();
-
+    if (!contractAddress) {
+        console.error("Failed to deploy contract on", rpc, "chainId:", chainId);
+        throw new Error("Failed to deploy contract.");
+    }
     await flatDirectory.upload({
         key: "test.txt",
         content: Buffer.from("hello link checker"),
