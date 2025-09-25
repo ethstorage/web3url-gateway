@@ -98,6 +98,7 @@ export async function addLink(rpc, type, chainId, shortName) {
     const beforeEth = ethers.formatEther(startBalance);
     const afterEth = ethers.formatEther(endBalance);
     const costEth = ethers.formatEther(costWei);
+    console.log("==== Balance Summary ====", "address:", address);
     console.table([
         {
             Chain: chainId,
