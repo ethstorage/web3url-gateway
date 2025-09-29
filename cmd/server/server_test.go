@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,7 +74,7 @@ func TestW3links(t *testing.T) {
 			handle(w, req)
 			res := w.Result()
 			defer res.Body.Close()
-			data, err := ioutil.ReadAll(res.Body)
+			data, err := io.ReadAll(res.Body)
 			assert.NoError(t, err)
 			if test.statusCode == http.StatusOK {
 				assert.Equal(t, test.expect, string(data))
@@ -106,7 +106,7 @@ func TestW3urls(t *testing.T) {
 			handle(w, req)
 			res := w.Result()
 			defer res.Body.Close()
-			data, err := ioutil.ReadAll(res.Body)
+			data, err := io.ReadAll(res.Body)
 			assert.NoError(t, err)
 			if test.statusCode == http.StatusOK {
 				assert.Equal(t, test.expect, string(data)[:])

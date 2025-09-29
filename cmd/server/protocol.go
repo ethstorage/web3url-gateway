@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"regexp"
@@ -562,7 +561,7 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 			log.Infof("patchTextFile: Cannot initiate gzip decompression: %v\n", err)
 			return n
 		}
-		alteredBuf, err = ioutil.ReadAll(gzipReader)
+		alteredBuf, err = io.ReadAll(gzipReader)
 		if err != nil {
 			log.Infof("patchTextFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
 			return n
@@ -573,7 +572,6 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 	// We should theorically look for the charset, located in a <meta charset="xxx" /> tag,
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
 	textContent := string(alteredBuf)
-
 
 	// In the text itself, convert web3:// URLs to gateway URLs
 	// Map of XML tags to their attributes that could contain web3:// URLs
@@ -602,14 +600,14 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 			"object": "data",
 		}
 	}
-	
+
 	// Lookup each tag in the HTML document, process their attributes
 	htmlTagRegex := regexp.MustCompile(`(?i)<\s*([a-z0-9]+)([^>]*)>`)
 	htmlTagMatches := htmlTagRegex.FindAllStringSubmatch(textContent, -1)
 	for _, htmlTagMatch := range htmlTagMatches {
 		tagName := strings.ToLower(htmlTagMatch[1])
 		tagAttributes := htmlTagMatch[2]
-		
+
 		// Check if the tag is in the map of tags to process
 		if attributeName, exists := elementWithAttributes[tagName]; exists {
 			// Find the attribute in the tag attributes
@@ -632,7 +630,6 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 			}
 		}
 	}
-
 
 	// In the text itself, convert web3:// URLs to gateway URLs
 	// Special case: The url('') in CSS (which can have double quotes or single quotes)
@@ -672,8 +669,7 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 		// Insert the patch right after the closing '>' of the body tag
 		textContent = textContent[:closingTagIndex] + string(htmlPatch) + textContent[closingTagIndex:]
 	}
-	
-	
+
 	// Convert back to byte array
 	alteredBuf = []byte(textContent)
 
@@ -692,4 +688,3 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 
 	return n
 }
-
