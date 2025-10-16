@@ -45,7 +45,7 @@ jobs:
               const message = error?.message ?? String(error);
               console.error('addLinks failed:', message);
               core.setOutput('failures', message);
-              return;
+              throw new Error(message);
             }
             const allLinks = [...links, ...newLinks];
             const failures = await checkAllLinks(allLinks);
