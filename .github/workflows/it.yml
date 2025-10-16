@@ -38,8 +38,15 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            const newLinks = await addLinks();
-            console.log('New links', newLinks);
+            let newLinks = [];
+            try {
+              newLinks = await addLinks();
+            } catch (error) {
+              const message = error?.message ?? String(error);
+              console.error('addLinks failed:', message);
+              core.setOutput('failures', message);
+              return;
+            }
             const allLinks = [...links, ...newLinks];
             const failures = await checkAllLinks(allLinks);
             if (failures.size > 0) {

@@ -12,7 +12,10 @@ async function run() {
 
     const newLinks = await addLinks();
     console.log('New links', newLinks);
-
+    if (newLinks.length === 0) {
+        console.log('No new links added');
+        return;
+    }
     const newFailures = await checkAllLinks(newLinks);
     if (newFailures.size > 0) {
         console.log('Failed new links: \n', Array.from(newFailures, ([key, value]) => `${key} -> ${value}`).join('\n'));

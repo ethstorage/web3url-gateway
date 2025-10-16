@@ -34,7 +34,7 @@ export async function addLinks() {
                 links.push(r.value);
             }
         } else {
-            console.error("addLink failed:", r.reason?.message || r.reason);
+            throw new Error(formatUploadError(r.reason));
         }
     }
     return links;
@@ -114,6 +114,34 @@ export async function addLink(rpc, type, chainId, shortName) {
         `https://${contractAddress}.${shortName}.w3link.io/test.txt`,
         `https://${contractAddress}.${shortName}.web3gateway.dev/test.txt`,
     ];
+}
+
+
+function formatUploadError(reason) {
+    const rawMessage = (() => {
+        if (!reason) {
+            return "";
+        }
+        if (typeof reason === "string") {
+            return reason;
+        }
+        if (reason?.message && typeof reason.message === "string") {
+            return reason.message;
+        }
+        try {
+            return JSON.stringify(reason);
+        } catch {
+            return String(reason);
+        }
+    })();
+
+    const nestedMessageMatch = rawMessage.match(/"message"\s*:\s*"([^"]+)"/);
+    const sanitized = nestedMessageMatch
+        ? nestedMessageMatch[1]
+        : rawMessage.replace(/^flatDirectory\.upload failed:\s*/i, "").trim();
+
+    const message = sanitized || "unknown error";
+    return `upload failed: ${JSON.stringify(message)}`;
 }
 
 
