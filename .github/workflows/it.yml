@@ -38,15 +38,7 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            let newLinks = [];
-            try {
-              newLinks = await addLinks();
-            } catch (error) {
-              const message = error?.message ?? String(error);
-              console.error('addLinks failed:', message);
-              core.setOutput('failures', message);
-              throw new Error(message);
-            }
+            let newLinks = await addLinks();
             const allLinks = [...links, ...newLinks];
             const failures = await checkAllLinks(allLinks);
             if (failures.size > 0) {
@@ -57,12 +49,14 @@ jobs:
           }
 
           await run().catch(error => {
-            core.setFailed(error.message);
+            const message = error?.message ?? String(error);
+            core.setOutput('error', message);
+            process.exit(1);
           });
           EOF
 
       - name: Send Failure Email
-        if: ${{ steps.link-check.outputs.failures != '' }}
+        if: ${{ steps.link-check.outputs.failures != '' } || steps.link-check.outputs.error != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -71,6 +65,8 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
           body: |
+            ${{ steps.link-check.outputs.error }}
+            
             The following links failed:
             ${{ steps.link-check.outputs.failures }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
