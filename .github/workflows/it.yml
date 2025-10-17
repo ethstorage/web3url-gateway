@@ -38,7 +38,16 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            let newLinks = await addLinks();
+            let newLinks = [];
+            try {
+              newLinks = await addLinks();
+            } catch (error) {
+              const message = error?.message ?? String(error);
+              console.error('addLinks failed:', message);
+              core.setOutput('failures', message);
+              core.setOutput('error', message);
+              throw error;
+            }
             const allLinks = [...links, ...newLinks];
             const failures = await checkAllLinks(allLinks);
             if (failures.size > 0) {
@@ -51,8 +60,11 @@ jobs:
           await run().catch(error => {
             const message = error?.message ?? String(error);
             console.error('Link check failed:', message);
-            core.setOutput('error', message);
-            core.setFailed(message);
+            if (!process.exitCode || process.exitCode === 0) {
+              core.setOutput('error', message);
+              core.setFailed(message);
+            }
+            process.exit(1);
           });
           EOF
 
@@ -68,7 +80,6 @@ jobs:
           body: |
             ${{ steps.link-check.outputs.error }}
 
-            The following links failed:
             ${{ steps.link-check.outputs.failures }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
