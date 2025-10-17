@@ -3,15 +3,10 @@ import { addLinks } from './add-links.mjs';
 import { checkAllLinks } from './check-links.mjs';
 
 async function run() {
-
-    const { links: newLinks, errors: addLinkErrors } = await addLinks();
-    if (addLinkErrors.length > 0) {
-        console.error('Add link errors:', addLinkErrors.join('\n'));
-    }
+    const newLinks = await addLinks();
     console.log('New links', newLinks);
     if (newLinks.length === 0) {
         console.log('No new links added');
-        return;
     }
     const allLinks = [...links, ...newLinks];
     const newFailures = await checkAllLinks(allLinks);
