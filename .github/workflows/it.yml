@@ -50,13 +50,14 @@ jobs:
 
           await run().catch(error => {
             const message = error?.message ?? String(error);
+            console.error('Link check failed:', message);
             core.setOutput('error', message);
-            process.exit(1);
+            core.setFailed(message);
           });
           EOF
 
       - name: Send Failure Email
-        if: ${{ steps.link-check.outputs.failures != '' || steps.link-check.outputs.error != '' }}
+        if: ${{ always() && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.error != '') }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
