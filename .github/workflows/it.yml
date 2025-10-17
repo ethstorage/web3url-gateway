@@ -38,16 +38,7 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            let newLinks = [];
-            try {
-              newLinks = await addLinks();
-            } catch (error) {
-              const message = error?.message ?? String(error);
-              console.error('addLinks failed:', message);
-              core.setOutput('failures', message);
-              core.setOutput('error', message);
-              throw error;
-            }
+            const newLinks = await addLinks();
             const allLinks = [...links, ...newLinks];
             const failures = await checkAllLinks(allLinks);
             if (failures.size > 0) {
@@ -60,10 +51,9 @@ jobs:
           await run().catch(error => {
             const message = error?.message ?? String(error);
             console.error('Link check failed:', message);
-            if (!process.exitCode || process.exitCode === 0) {
-              core.setOutput('error', message);
-              core.setFailed(message);
-            }
+            core.setOutput('failures', message);
+            core.setOutput('error', message);
+            core.setFailed(message);
             process.exit(1);
           });
           EOF
