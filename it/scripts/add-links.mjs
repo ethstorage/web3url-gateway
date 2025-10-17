@@ -33,7 +33,7 @@ export async function addLinks() {
                 links.push(r.value);
             }
         } else {
-            throw new Error(formatUploadError(r.reason));
+            throw new Error(formatAddLinkErr(r.reason));
         }
     }
     return links;
@@ -116,7 +116,7 @@ export async function addLink(rpc, type, chainId, shortName) {
 }
 
 
-function formatUploadError(reason) {
+function formatAddLinkErr(reason) {
     const rawMessage = (() => {
         if (!reason) {
             return "";
@@ -133,14 +133,16 @@ function formatUploadError(reason) {
             return String(reason);
         }
     })();
+    
+    console.log("Raw error message:", rawMessage);
 
     const nestedMessageMatch = rawMessage.match(/"message"\s*:\s*"([^"]+)"/);
     const sanitized = nestedMessageMatch
         ? nestedMessageMatch[1]
-        : rawMessage.replace(/^flatDirectory\.upload failed:\s*/i, "").trim();
+        : rawMessage;
 
     const message = sanitized || "unknown error";
-    return `upload failed: ${JSON.stringify(message)}`;
+    return `add link failed: ${JSON.stringify(message)}`;
 }
 
 
