@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { FlatDirectory } from "ethstorage-sdk";
 dotenv.config();
 
-const TIMEOUT = process.env.TIMEOUT || 60000; // 60 seconds
+const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
 const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 gwei
 const L1_RPC = process.env.L1_RPC || "http://65.108.230.142:8545";
 
@@ -20,7 +20,6 @@ export async function addLinks() {
     const tasks = [];
     if (await isBlobBaseFeeOK()) {
         tasks.push(addLink("https://rpc.gamma.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"));
-        tasks.push(addLink("https://rpc.beta.testnet.l2.quarkchain.io:8545", 2, 3337, "es-d"));
         tasks.push(addLink(L1_RPC, 2, 3333, "es-t"));
     }
 
