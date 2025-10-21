@@ -39,7 +39,6 @@ jobs:
 
           async function run() {
             const newLinks = await addLinks();
-            console.log('New links', newLinks);
             const allLinks = [...links, ...newLinks];
             const failures = await checkAllLinks(allLinks);
             if (failures.size > 0) {
@@ -50,12 +49,16 @@ jobs:
           }
 
           await run().catch(error => {
-            core.setFailed(error.message);
+            const message = error?.message ?? String(error);
+            console.error('Link check failed:', message);
+            core.setOutput('error', message);
+            core.setFailed(message);
+            process.exit(1);
           });
           EOF
 
       - name: Send Failure Email
-        if: ${{ steps.link-check.outputs.failures != '' }}
+        if: ${{ always() && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.error != '') }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -64,7 +67,8 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
           body: |
-            The following links failed:
+            ${{ steps.link-check.outputs.error }}
+
             ${{ steps.link-check.outputs.failures }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
