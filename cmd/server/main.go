@@ -206,7 +206,7 @@ func initWeb3protocolClient() {
 	for shortName, chainId := range config.Name2Chain {
 		web3pChainConfig, ok := web3pConfig.Chains[chainId]
 		if !ok {
-			log.Fatalf("Chain short name %v is defined, but his chain is not\n", shortName)
+			log.Fatalf("Chain short name %v is defined, but its chain is not\n", shortName)
 			return
 		}
 		web3pChainConfig.ShortName = shortName

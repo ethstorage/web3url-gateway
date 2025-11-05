@@ -55,7 +55,7 @@
     // Wrap the fetch() function to convert web3:// URLs into gateway URLs
     const originalFetch = fetch;
     fetch = function(input, init) {
-      // Process absolute web3:// URLS: convert them into gateway HTTP RULS
+      // Process absolute web3:// URLS: convert them into gateway HTTP URLs
       if (typeof input === 'string' && input.startsWith('web3://')) {
         const convertedUrl = convertWeb3UrlToGatewayUrl(input);
         if(convertedUrl == null) {
