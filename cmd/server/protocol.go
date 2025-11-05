@@ -120,7 +120,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Web3urlgateway-Cache-Status", "hit")
 		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
 		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
-		// it will add his own Content-Type: text/xml; charset=utf-8
+		// it will add its own Content-Type: text/xml; charset=utf-8
 		if w.Header().Get("Content-Type") == "" {
 			// Best thing would be to remove the content-type header, but looks like we can
 			// only set it to empty. This code looks weird but it works.
@@ -170,7 +170,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Web3urlgateway-Cache-Status", "hit")
 		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
 		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
-		// it will add his own Content-Type: text/xml; charset=utf-8
+		// it will add its own Content-Type: text/xml; charset=utf-8
 		if w.Header().Get("Content-Type") == "" {
 			// Best thing would be to remove the content-type header, but looks like we can
 			// only set it to empty. This code looks weird but it works.
@@ -201,7 +201,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	// Add a extra header indicating that it was not served from cache
 	w.Header().Set("Web3urlgateway-Cache-Status", "miss")
 	// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
-	// it will add his own Content-Type: text/xml; charset=utf-8
+	// it will add its own Content-Type: text/xml; charset=utf-8
 	if w.Header().Get("Content-Type") == "" {
 		// Best thing would be to remove the content-type header, but looks like we can
 		// only set it to empty. This code looks weird but it works.
