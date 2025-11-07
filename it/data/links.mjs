@@ -42,6 +42,9 @@ export const links = [
   "https://0x88de9058a1503A1d50542d8402Be76812BfE66A7.basesep.w3link.io/name?returns=(string)",
   "https://0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed.base.w3link.io/symbol?returns=(string)",
   "https://0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed.8453.w3link.io/symbol?returns=(string)",
+  "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.injective.w3link.io/name?returns=(string)",
+  "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.1776.w3link.io/name?returns=(string)",
+
   // web3gateway.dev
   "https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.web3gateway.dev/name?returns=(string)",
   "https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.web3gateway.dev/name?returns=(string)",
@@ -76,5 +79,7 @@ export const links = [
   "https://0x88de9058a1503A1d50542d8402Be76812BfE66A7.84532.web3gateway.dev/name?returns=(string)",
   "https://0x88de9058a1503A1d50542d8402Be76812BfE66A7.basesep.web3gateway.dev/name?returns=(string)",
   "https://0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed.base.web3gateway.dev/symbol?returns=(string)",
-  "https://0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed.8453.web3gateway.dev/symbol?returns=(string)"
+  "https://0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed.8453.web3gateway.dev/symbol?returns=(string)",
+  "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.injective.web3gateway.dev/name?returns=(string)",
+  "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.1776.web3gateway.dev/name?returns=(string)",
 ]

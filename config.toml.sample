@@ -62,7 +62,7 @@ immutableUrlRegexps = []
 "basesep" = 84532
 "storyprotocoltest" = 1513
 "tmorph" = 2710
-"holesky" = 17000
+"injective" = 1776
 
 [chainConfigs]
     [chainConfigs.1]
@@ -136,7 +136,7 @@ immutableUrlRegexps = []
 
     [chainConfigs.1666700000]
     "ChainID" = 1666700000
-    "RPC" = "https://api.s0.b.hmny.io"
+    "RPC" = "https://endpoints.omniatech.io/v1/harmony/testnet-0/public"
 
     [chainConfigs.137]
     "ChainID" = 137
@@ -186,9 +186,9 @@ immutableUrlRegexps = []
     "ChainID" = 2710
     "RPC" = "https://rpc-testnet.morphl2.io"
 
-    [chainConfigs.17000]
-    "ChainID" = 17000
-    "RPC" = "https://holesky.drpc.org"
+    [chainConfigs.1776]
+    "ChainID" = 1776
+    "RPC" = "https://sentry.evm-rpc.injective.network"
 
     [chainConfigs.333]
     "ChainID" = 333
