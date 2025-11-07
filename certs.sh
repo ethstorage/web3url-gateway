@@ -67,8 +67,8 @@
   -d '*.web3gateway.dev' \
   -d '*.storyprotocoltest.web3gateway.dev' \
   -d '*.1513.web3gateway.dev' \
-  -d '*.holesky.web3gateway.dev' \
-  -d '*.17000.web3gateway.dev' \
+  -d '*.injective.web3gateway.dev' \
+  -d '*.1776.web3gateway.dev' \
   -d '*.base.web3gateway.dev' \
   -d '*.8453.web3gateway.dev' \
   -d '*.es-d.web3gateway.dev' \

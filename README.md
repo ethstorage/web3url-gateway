@@ -74,7 +74,7 @@ Example 2: `w3link.io` (for general web3 links)
 |534351|Scroll L1 Testnet|scr-testl1|
 |534354|Scroll L2 Testnet|scr-prealpha|
 |1513|Story Protocol Testnet|storyprotocoltest|
-|17000|Ethereum Testnet Holesky|holesky|
+|1776|Injective EVM Mainnet|injective|
 |8453|Base Mainnet|base|
 |3333|EthStorage Testnet|es-t|
 |3337|EthStorage SWC Beta Testnet|es-d|
