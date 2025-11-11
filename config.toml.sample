@@ -208,4 +208,4 @@ immutableUrlRegexps = []
 
     [chainConfigs.110011]
     "ChainID" = 110011
-    "RPC" = "https://rpc.gamma.testnet.l2.quarkchain.io:8545"
+    "RPC" = "https://rpc.delta.testnet.l2.quarkchain.io:8545"
