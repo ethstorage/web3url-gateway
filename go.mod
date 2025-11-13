@@ -10,7 +10,7 @@ require (
 	golang.org/x/net v0.16.0
 )
 
-replace github.com/web3-protocol/web3protocol-go => github.com/ethstorage/web3protocol-go v0.0.0-20251113040015-bfbe3fe26340
+replace github.com/web3-protocol/web3protocol-go => github.com/ethstorage/web3protocol-go v0.0.0-20251113091020-1262371d81f8
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
