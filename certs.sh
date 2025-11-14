@@ -62,6 +62,8 @@
   -d '*.scr-prealpha.web3gateway.dev' \
   -d '*.scr-testl1.web3gateway.dev' \
   -d '*.sep.web3gateway.dev' \
+  -d '*.opsep.web3gateway.dev' \
+  -d '*.11155420.web3gateway.dev' \
   -d '*.tftm.web3gateway.dev' \
   -d '*.zkevmtest.web3gateway.dev' \
   -d '*.web3gateway.dev' \

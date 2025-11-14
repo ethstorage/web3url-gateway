@@ -38,6 +38,7 @@ immutableUrlRegexps = []
 "eth" = 1
 "sep" = 11155111
 "oeth" = 10
+"opsep"= 11155420
 "arb1" = 42161
 "evmos" = 9001
 "evmos-testnet" = 9000
@@ -89,6 +90,10 @@ immutableUrlRegexps = []
     "ChainID" = 10
     "RPC" = "https://rpc.therpc.io/optimism"
     "SystemRPC" = "https://optimism-mainnet.infura.io/v3/************"
+
+    [chainConfigs.11155420]
+    "ChainID" = 11155420
+    "RPC" = "https://sepolia.optimism.io"
 
     [chainConfigs.42161]
     "ChainID" = 42161

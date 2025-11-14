@@ -53,6 +53,7 @@ Example 2: `w3link.io` (for general web3 links)
 |1|Ethereum Mainnet|eth|
 |11155111|Ethereum Testnet Sepolia|sep|
 |10|Optimism|oeth|
+|11155420|Optimism Sepolia|opsep|
 |42161|Arbitrum One|arb1|
 |9001|Evmos|evmos|
 |9000|Evmos Testnet|evmos-testnet|
