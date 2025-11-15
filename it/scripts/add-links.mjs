@@ -68,6 +68,11 @@ export async function addLink(rpc, type, chainId, shortName) {
         console.error("Failed to deploy contract on", rpc, "chainId:", chainId);
         throw new Error("Failed to deploy contract.");
     }
+    const code = await linkProvider.getCode(contractAddress);
+    if (code === "0x" || code === "0x0") {
+        console.error("No contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
+        throw new Error("Failed to deploy contract.");
+    }
 
     await withTimeout(
         flatDirectory.upload({
