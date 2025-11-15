@@ -65,13 +65,24 @@ export async function addLink(rpc, type, chainId, shortName) {
     );
 
     if (!contractAddress) {
-        console.error("Failed to deploy contract on", rpc, "chainId:", chainId);
-        throw new Error("Failed to deploy contract.");
+        console.error("Error: no contract address found at", rpc, "chainId:", chainId);
+        throw new Error("Failed to deploy flatDirectory.");
     }
-    const code = await linkProvider.getCode(contractAddress);
+    // check contract code every 5 seconds for up to 1 minute
+    let code = "0x";
+    let attempts = 0;
+    const maxAttempts = 12; 
+    
+    while ((code === "0x" || code === "0x0") && attempts < maxAttempts) {
+        console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        code = await linkProvider.getCode(contractAddress);
+        attempts++;
+    }
+
     if (code === "0x" || code === "0x0") {
-        console.error("No contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
-        throw new Error("Failed to deploy contract.");
+        console.error("Error: no contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
+        throw new Error("Failed to deploy flatDirectory.");
     }
 
     await withTimeout(
