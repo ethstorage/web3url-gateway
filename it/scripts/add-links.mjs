@@ -19,9 +19,9 @@ export async function addLinks() {
     console.log("Adding new links...");
     const results = [];
     if (await isBlobBaseFeeOK()) {
+        results.push(await addLink(L1_RPC, 2, 3333, "es-t"));
         results.push(await addLink("https://rpc.delta.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"));
         results.push(await addLink("https://optimism-sepolia-public.nodies.app", 1, 11155420, "opsep"));
-        results.push(await addLink(L1_RPC, 2, 3333, "es-t"));
     }
     return results;
 }
