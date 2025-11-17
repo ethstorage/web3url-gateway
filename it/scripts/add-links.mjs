@@ -18,11 +18,34 @@ export async function addLinks() {
 
     console.log("Adding new links...");
     const results = [];
+    const errors = [];
+    
     if (await isBlobBaseFeeOK()) {
-        results.push(await addLink(L1_RPC, 2, 3333, "es-t"));
-        results.push(await addLink("https://rpc.delta.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"));
-        results.push(await addLink("https://optimism-sepolia-public.nodies.app", 1, 11155420, "opsep"));
+        const configs = [
+            { rpc: L1_RPC, type: 2, chainId: 3333, shortName: "es-t" },
+            { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
+            { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" }
+        ];
+
+        const settled = await Promise.allSettled(
+            configs.map(config => addLink(config.rpc, config.type, config.chainId, config.shortName))
+        );
+
+        settled.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                results.push(...result.value);
+            } else {
+                const errMsg = formatAddLinkErr(result.reason);
+                console.error(errMsg);
+                errors.push(`${errMsg} on chain ${configs[index].chainId}`);
+            }
+        });
     }
+    
+    if (errors.length > 0) {
+        throw new Error(`addLinks failed:\n${errors.join('\n')}`);
+    }
+    
     return results;
 }
 
