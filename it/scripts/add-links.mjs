@@ -17,27 +17,13 @@ export async function addLinks() {
     }
 
     console.log("Adding new links...");
-    const tasks = [];
+    const results = [];
     if (await isBlobBaseFeeOK()) {
-        tasks.push(addLink("https://rpc.delta.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"));
-        tasks.push(addLink("https://optimism-sepolia-public.nodies.app", 1, 11155420, "opsep"));
-        tasks.push(addLink(L1_RPC, 2, 3333, "es-t"));
+        results.push(await addLink("https://rpc.delta.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"));
+        results.push(await addLink("https://optimism-sepolia-public.nodies.app", 1, 11155420, "opsep"));
+        results.push(await addLink(L1_RPC, 2, 3333, "es-t"));
     }
-
-    const results = await Promise.allSettled(tasks);
-    const links = [];
-    for (const r of results) {
-        if (r.status === "fulfilled") {
-            if (Array.isArray(r.value)) {
-                links.push(...r.value);
-            } else {
-                links.push(r.value);
-            }
-        } else {
-            throw new Error(formatAddLinkErr(r.reason));
-        }
-    }
-    return links;
+    return results;
 }
 
 export async function addLink(rpc, type, chainId, shortName) {
