@@ -24,7 +24,7 @@ export async function addLinks() {
         const configs = [
             { rpc: L1_RPC, type: 2, chainId: 3333, shortName: "es-t" },
             { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
-            { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" }
+            { rpc: "https://optimism-sepolia.drpc.org", type: 1, chainId: 11155420, shortName: "opsep" }
         ];
 
         const settled = await Promise.allSettled(
