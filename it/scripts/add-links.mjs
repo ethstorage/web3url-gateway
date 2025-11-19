@@ -17,26 +17,36 @@ export async function addLinks() {
     }
 
     console.log("Adding new links...");
-    const tasks = [];
+    const results = [];
+    const errors = [];
+    
     if (await isBlobBaseFeeOK()) {
-        tasks.push(addLink("https://rpc.delta.testnet.l2.quarkchain.io:8545", 1, 110011, "qkc-l2-t"));
-        tasks.push(addLink(L1_RPC, 2, 3333, "es-t"));
-    }
+        const configs = [
+            { rpc: L1_RPC, type: 2, chainId: 3333, shortName: "es-t" },
+            { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
+            { rpc: "https://optimism-sepolia.drpc.org", type: 1, chainId: 11155420, shortName: "opsep" }
+        ];
 
-    const results = await Promise.allSettled(tasks);
-    const links = [];
-    for (const r of results) {
-        if (r.status === "fulfilled") {
-            if (Array.isArray(r.value)) {
-                links.push(...r.value);
+        const settled = await Promise.allSettled(
+            configs.map(config => addLink(config.rpc, config.type, config.chainId, config.shortName))
+        );
+
+        settled.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                results.push(...result.value);
             } else {
-                links.push(r.value);
+                const errMsg = formatAddLinkErr(result.reason);
+                console.error(errMsg);
+                errors.push(`${errMsg} on chain ${configs[index].chainId}`);
             }
-        } else {
-            throw new Error(formatAddLinkErr(r.reason));
-        }
+        });
     }
-    return links;
+    
+    if (errors.length > 0) {
+        throw new Error(`addLinks failed:\n${errors.join('\n')}`);
+    }
+    
+    return results;
 }
 
 export async function addLink(rpc, type, chainId, shortName) {
@@ -64,8 +74,24 @@ export async function addLink(rpc, type, chainId, shortName) {
     );
 
     if (!contractAddress) {
-        console.error("Failed to deploy contract on", rpc, "chainId:", chainId);
-        throw new Error("Failed to deploy contract.");
+        console.error("Error: no contract address found at", rpc, "chainId:", chainId);
+        throw new Error("Failed to deploy flatDirectory.");
+    }
+    // check contract code every 5 seconds for up to 1 minute
+    let code = "0x";
+    let attempts = 0;
+    const maxAttempts = 12; 
+    
+    while ((code === "0x" || code === "0x0") && attempts < maxAttempts) {
+        console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        code = await linkProvider.getCode(contractAddress);
+        attempts++;
+    }
+
+    if (code === "0x" || code === "0x0") {
+        console.error("Error: no contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
+        throw new Error("Failed to deploy flatDirectory.");
     }
 
     await withTimeout(
