@@ -38,43 +38,46 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            let newLinks = [];
-            let addLinksError = null;
-            
+            let createdLinks = [];
+            let addLinkErrors = [];
+
             try {
-              newLinks = await addLinks();
+              const { links: newLinks, errors } = await addLinks();
+              createdLinks = newLinks;
+              addLinkErrors = errors;
               console.log('New links', newLinks);
-            } catch (error) {
-              addLinksError = error;
-              console.error('addLinks failed:', error.message);
-              core.setOutput('error', error.message);
+              if (errors.length) {
+                console.log('Per-link errors:\n' + errors.join('\n'));
+              }
+            } catch (e) {
+              // Hard failure (e.g. config). Treat as error output.
+              addLinkErrors.push(e.message);
+              console.error('addLinks hard failure:', e.message);
             }
-            
-            const allLinks = [...links, ...newLinks];
+
+            const allLinks = [...links, ...createdLinks];
             const failures = await checkAllLinks(allLinks);
-            
+
             if (failures.size > 0) {
-              core.setOutput('failures', Array.from(failures, ([key, val]) => `${key} -> ${val}`).join('\n'));
+              core.setOutput('failures', Array.from(failures, ([k,v]) => `${k} -> ${v}`).join('\n'));
             } else {
               core.setOutput('results', allLinks.join('\n'));
             }
-            
-            if (addLinksError) {
-              throw addLinksError;
+
+            if (addLinkErrors.length) {
+              core.setOutput('addlink_errors', addLinkErrors.join('\n'));
             }
           }
 
-          await run().catch(error => {
-            const message = error?.message ?? String(error);
-            console.error('Link check failed:', message);
-            core.setOutput('error', message);
-            core.setFailed(message);
+          await run().catch(err => {
+            console.error('Unexpected script failure:', err?.message || String(err));
+            core.setFailed(err?.message || String(err));
             process.exit(1);
           });
           EOF
 
       - name: Send Failure Email
-        if: ${{ always() && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.error != '') }}
+        if: ${{ always() && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.addlink_errors != '') }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com

@@ -4,31 +4,32 @@ import { checkAllLinks } from './check-links.mjs';
 
 async function run() {
     let newLinks = [];
-    let addLinksError = null;
-    
+    let addLinkErrors = [];
+
     try {
-        newLinks = await addLinks();
-        console.log('New links', newLinks);
-        if (newLinks.length === 0) {
+        const { links: created, errors } = await addLinks();
+        newLinks = created;
+        addLinkErrors = errors;
+        console.log('New links', created);
+        if (errors.length) {
+            console.log('addLink errors:\n' + errors.join('\n'));
+        }
+        if (created.length === 0) {
             console.log('No new links added');
         }
-    } catch (error) {
-        addLinksError = error;
-        console.error('addLinks failed:', error.message);
+    } catch (e) {
+        // only catches unexpected top-level failures (e.g. PRIVATE_KEY missing)
+        console.error('addLinks hard failure:', e.message);
+        addLinkErrors.push(e.message);
     }
-    
+
     const allLinks = [...links, ...newLinks];
     const newFailures = await checkAllLinks(allLinks);
-    
+
     if (newFailures.size > 0) {
-        console.log('Failed links: \n', Array.from(newFailures, ([key, value]) => `${key} -> ${value}`).join('\n'));
+        console.log('Failed links: \n', Array.from(newFailures, ([k, v]) => `${k} -> ${v}`).join('\n'));
     } else {
         console.log('All links are OK');
     }
-    
-    if (addLinksError) {
-        throw addLinksError;
-    }
 }
-
 await run();
