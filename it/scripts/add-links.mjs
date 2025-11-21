@@ -42,12 +42,7 @@ export async function addLinks() {
             }
         });
     }
-    
-    if (errors.length > 0) {
-        throw new Error(`addLinks failed:\n${errors.join('\n')}`);
-    }
-    
-    return results;
+    return { links: results, errors };
 }
 
 export async function addLink(rpc, type, chainId, shortName) {
