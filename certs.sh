@@ -12,6 +12,7 @@
   -d '*.100001.web3gateway.dev' \
   -d '*.1088.web3gateway.dev' \
   -d '*.110001.web3gateway.dev' \
+  -d '*.100011.web3gateway.dev' \
   -d '*.11155111.web3gateway.dev' \
   -d '*.137.web3gateway.dev' \
   -d '*.1402.web3gateway.dev' \
@@ -82,4 +83,8 @@
   -d '*.qkc-l2-t.web3gateway.dev' \
   -d '*.110011.web3gateway.dev' \
   -d '*.es-m.web3gateway.dev' \
-  -d '*.333.web3gateway.dev'
+  -d '*.333.web3gateway.dev' \
+  -d '*.basesep.web3gateway.dev' \
+  -d '*.84532.web3gateway.dev' \
+  -d '*.qkc-l2.web3gateway.dev' \
+  -d '*.100011.web3gateway.dev'

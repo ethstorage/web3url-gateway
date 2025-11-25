@@ -32,8 +32,11 @@ immutableUrlRegexps = []
 [name2chain]
 "es-m" = 333
 "es-t" = 3333
-"qkcl2-b" = 3335
+"qkc-l2" = 100011
 "qkc-l2-t" = 110011
+"qkcl2-b" = 3335
+"qkc-s0" = 100001
+"qkc-d-s0" = 110001
 "es-d" = 3337
 "eth" = 1
 "sep" = 11155111
@@ -54,8 +57,6 @@ immutableUrlRegexps = []
 "matic" = 137
 "maticmum" = 80001
 "zkevmtest" = 1402
-"qkc-s0" = 100001
-"qkc-d-s0" = 110001
 "metis-andromeda" = 1088
 "scr-testl1" = 534351
 "scr-prealpha" = 534354
@@ -214,3 +215,7 @@ immutableUrlRegexps = []
     [chainConfigs.110011]
     "ChainID" = 110011
     "RPC" = "https://rpc.delta.testnet.l2.quarkchain.io:8545"
+
+    [chainConfigs.100011]
+    "ChainID" = 100011
+    "RPC" = "https://rpc.mainnet.l2.quarkchain.io:8545"

@@ -52,6 +52,13 @@ Example 2: `w3link.io` (for general web3 links)
 |----|----|----|
 |1|Ethereum Mainnet|eth|
 |11155111|Ethereum Testnet Sepolia|sep|
+|100011|QuarkChain L2 Mainnet|qkc-l2|
+|100001|QuarkChain Mainnet Shard 0|qkc-s0|
+|110001|QuarkChain Devnet Shard 0|qkc-d-s0|
+|110011|QuarkChain SWC Delta Testnet|qkc-l2-t|
+|333|EthStorage Mainnet|es-m|
+|3333|EthStorage Testnet|es-t|
+|3337|EthStorage SWC Beta Testnet|es-d|
 |10|Optimism|oeth|
 |11155420|Optimism Sepolia|opsep|
 |42161|Arbitrum One|arb1|
@@ -69,18 +76,13 @@ Example 2: `w3link.io` (for general web3 links)
 |137|Polygon Mainnet|matic|
 |80001|Mumbai|maticmum|
 |1402|Polygon zkEVM Testnet|zkevmtest|
-|100001|QuarkChain Mainnet Shard 0|qkc-s0|
-|110001|QuarkChain Devnet Shard 0|qkc-d-s0|
 |1088|Metis Andromeda Mainnet|metis-andromed|
 |534351|Scroll L1 Testnet|scr-testl1|
 |534354|Scroll L2 Testnet|scr-prealpha|
 |1513|Story Protocol Testnet|storyprotocoltest|
 |1776|Injective EVM Mainnet|injective|
 |8453|Base Mainnet|base|
-|3333|EthStorage Testnet|es-t|
-|3337|EthStorage SWC Beta Testnet|es-d|
-|110011|QuarkChain SWC Delta Testnet|qkc-l2-t|
-|333|EthStorage Mainnet|es-m|
+|84532|Base Sepolia|basesep|
 
 ## How to create a wildcard certificate for `web3gateway.dev`
 

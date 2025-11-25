@@ -1,13 +1,15 @@
 
 export const links = [
-  // ES Mainnet
-  "https://0x1e9796fa683cbdaa29b5fd5267febed6d4b9124b.333.w3link.io/hello.txt",
-  "https://0x1e9796fa683cbdaa29b5fd5267febed6d4b9124b.es-m.w3link.io/hello.txt",
+  
   // w3eth.io
   "https://vitalikblog.w3eth.io/css/misc.css",
   "https://usdc.w3eth.io/name?returns=(string)",
   "https://0xdac17f958d2ee523a2206206994597c13d831ec7.w3eth.io/name?returns=(string)",
+
   // w3link.io
+  "https://0x4200000000000000000000000000000000000800.100011.w3link.io/name?returns=(string)",
+  "https://0x1e9796fa683cbdaa29b5fd5267febed6d4b9124b.333.w3link.io/hello.txt",
+  "https://0x1e9796fa683cbdaa29b5fd5267febed6d4b9124b.es-m.w3link.io/hello.txt",
   "https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.w3link.io/name?returns=(string)",
   "https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.w3link.io/name?returns=(string)",
   "https://0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.arb1.w3link.io/name?returns=(string)",
@@ -46,6 +48,7 @@ export const links = [
   "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.1776.w3link.io/name?returns=(string)",
 
   // web3gateway.dev
+  "https://0x4200000000000000000000000000000000000006.qkc-l2.web3gateway.dev/name?returns=(string)",
   "https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.sep.web3gateway.dev/name?returns=(string)",
   "https://0x9616fd0f0afc5d39c518289d1c1189a50bde94f5.11155111.web3gateway.dev/name?returns=(string)",
   "https://0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8.arb1.web3gateway.dev/name?returns=(string)",
