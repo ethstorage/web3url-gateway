@@ -88,7 +88,7 @@ jobs:
           body: |
             Link check outcome: ${{ steps.link-check.outcome }}
 
-            ${{ steps.link-check.outputs.error }}
+            ${{ steps.link-check.outputs.addlink_errors }}
 
             ${{ steps.link-check.outputs.failures }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
