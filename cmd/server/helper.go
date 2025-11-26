@@ -169,7 +169,7 @@ func getChainById(chainId string) string {
 	return chainId
 }
 
-// For a given hostname with a chain short name, replace by its chaid id. Examples:
+// For a given hostname with a chain short name, replace by its chain id. Examples:
 // uniswap.eth:gor -> uniswap.eth:5
 // uniswap.eth:5 -> uniswap.eth:5
 // uniswap.eth -> uniswap.eth
