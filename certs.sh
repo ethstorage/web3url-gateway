@@ -12,7 +12,6 @@
   -d '*.100001.web3gateway.dev' \
   -d '*.1088.web3gateway.dev' \
   -d '*.110001.web3gateway.dev' \
-  -d '*.100011.web3gateway.dev' \
   -d '*.11155111.web3gateway.dev' \
   -d '*.137.web3gateway.dev' \
   -d '*.1402.web3gateway.dev' \
