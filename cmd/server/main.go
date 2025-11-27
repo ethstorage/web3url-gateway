@@ -12,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 
+	_ "net/http/pprof"
+
 	"github.com/ethereum/go-ethereum/common"
 	golanglru2 "github.com/hashicorp/golang-lru/v2/expirable"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -300,4 +302,11 @@ func main() {
 		// log.Fatalf("Cannot start server: %v\n", err)
 		// }
 	}
+
+	go func() {
+		log.Println("pprof listening on :6060")
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	select {}
 }
