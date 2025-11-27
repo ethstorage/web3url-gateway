@@ -272,7 +272,7 @@ func main() {
 
 	go func() {
 		log.Println("pprof listening on :6060")
-		log.Println(http.ListenAndServe("localhost:6060", nil))
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
 
 	limitedHandler := requestLimiter(http.DefaultServeMux)
