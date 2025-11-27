@@ -270,6 +270,11 @@ func main() {
 		}
 	})
 
+	go func() {
+		log.Println("pprof listening on :6060")
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	limitedHandler := requestLimiter(http.DefaultServeMux)
 	if config.RunAsHttp {
 		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
@@ -303,10 +308,4 @@ func main() {
 		// }
 	}
 
-	go func() {
-		log.Println("pprof listening on :6060")
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
-	select {}
 }
