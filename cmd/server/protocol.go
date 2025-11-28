@@ -74,6 +74,12 @@ func handle(w http.ResponseWriter, req *http.Request) {
 
 	path := req.URL.EscapedPath()
 	w.Header().Set("Access-Control-Allow-Origin", config.CORS)
+
+	// Long-term caching for static assets
+	if strings.Contains(path, "/assets/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+
 	if strings.HasPrefix(h, "ordinals.btc.") {
 		handleOrdinals(w, req, path)
 		return
