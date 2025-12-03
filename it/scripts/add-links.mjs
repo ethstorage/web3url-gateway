@@ -118,13 +118,17 @@ export async function addLink(rpc, type, chainId, shortName) {
             "FlatDirectory.create"
         );
 
-        const dateTime = new Date().toLocaleString('zh-CN').split(' ');
-        const dateKey = dateTime[0];
+        const beijingTime = new Date().toLocaleString('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+        });
+
+        const [dateKey, timePart] = beijingTime.split(' ');
+        console.log(dateKey, timePart);
 
         await withTimeout(
             flatDirectory.upload({
                 key: dateKey,
-                content: Buffer.from(`hello link checker - at ${dateTime[1]}`),
+                content: Buffer.from(`hello link checker - at ${datePart} ${timePart}`),
                 type: type,
                 callback: {
                     onProgress: function (progress, count, isChange) {
