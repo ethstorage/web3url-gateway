@@ -19,10 +19,11 @@ export async function addLinks() {
     console.log("Adding new links...");
     const results = [];
     const errors = [];
-    
+
     if (await isBlobBaseFeeOK()) {
         const configs = [
             { rpc: L1_RPC, type: 2, chainId: 3333, shortName: "es-t" },
+            { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
             { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
             { rpc: "https://base-sepolia.drpc.org", type: 1, chainId: 84532, shortName: "basesep" },
             { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" }
@@ -54,46 +55,67 @@ export async function addLink(rpc, type, chainId, shortName) {
     const address = await wallet.getAddress();
     const startBalance = await linkProvider.getBalance(address);
 
+    let contractAddress;
+
+    // Use existing flatDirectory for mainnet QuarkChain L2 to save cost
+    if (chainId === 100011) {
+        contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
+        console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
+    } else {
+        const flatDirectory = await withTimeout(
+            FlatDirectory.create({
+                rpc: rpc,
+                privateKey: pk,
+            }),
+            TIMEOUT,
+            "FlatDirectory.create"
+        );
+
+        contractAddress = await withTimeout(
+            flatDirectory.deploy(),
+            TIMEOUT,
+            "flatDirectory.deploy"
+        );
+
+        if (!contractAddress) {
+            console.error("Error: no contract address found at", rpc, "chainId:", chainId);
+            throw new Error("Failed to deploy flatDirectory.");
+        }
+        // check contract code every 5 seconds for up to 1 minute
+        let code = "0x";
+        let attempts = 0;
+        const maxAttempts = 12;
+
+        while ((code === "0x" || code === "0x0") && attempts < maxAttempts) {
+            console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            code = await linkProvider.getCode(contractAddress);
+            attempts++;
+        }
+
+        if (code === "0x" || code === "0x0") {
+            console.error("Error: no contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
+            throw new Error("Failed to deploy flatDirectory.");
+        }
+    }
+
     const flatDirectory = await withTimeout(
         FlatDirectory.create({
             rpc: rpc,
             privateKey: pk,
+            address: contractAddress,
         }),
         TIMEOUT,
         "FlatDirectory.create"
     );
 
-    const contractAddress = await withTimeout(
-        flatDirectory.deploy(),
-        TIMEOUT,
-        "flatDirectory.deploy"
-    );
-
-    if (!contractAddress) {
-        console.error("Error: no contract address found at", rpc, "chainId:", chainId);
-        throw new Error("Failed to deploy flatDirectory.");
-    }
-    // check contract code every 5 seconds for up to 1 minute
-    let code = "0x";
-    let attempts = 0;
-    const maxAttempts = 12; 
-    
-    while ((code === "0x" || code === "0x0") && attempts < maxAttempts) {
-        console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        code = await linkProvider.getCode(contractAddress);
-        attempts++;
-    }
-
-    if (code === "0x" || code === "0x0") {
-        console.error("Error: no contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
-        throw new Error("Failed to deploy flatDirectory.");
-    }
+    const dateTime = new Date().toLocaleString('zh-CN').split(' ');
+    const dateKey = dateTime[0];
 
     await withTimeout(
         flatDirectory.upload({
-            key: "test.txt",
-            content: Buffer.from("hello link checker"),
+            key: dateKey,
+            content: Buffer.from(`hello link checker - at ${dateTime[1]}`),
             type: type,
             callback: {
                 onProgress: function (progress, count, isChange) {
@@ -130,10 +152,10 @@ export async function addLink(rpc, type, chainId, shortName) {
     ]);
 
     return [
-        `https://${contractAddress}.${chainId}.w3link.io/test.txt`,
-        `https://${contractAddress}.${chainId}.web3gateway.dev/test.txt`,
-        `https://${contractAddress}.${shortName}.w3link.io/test.txt`,
-        `https://${contractAddress}.${shortName}.web3gateway.dev/test.txt`,
+        `https://${contractAddress}.${chainId}.w3link.io/${dateKey}`,
+        `https://${contractAddress}.${chainId}.web3gateway.dev/${dateKey}`,
+        `https://${contractAddress}.${shortName}.w3link.io/${dateKey}`,
+        `https://${contractAddress}.${shortName}.web3gateway.dev/${dateKey}`,
     ];
 }
 
@@ -155,7 +177,7 @@ function formatAddLinkErr(reason) {
             return String(reason);
         }
     })();
-    
+
     console.log("Raw error message:", rawMessage);
 
     const nestedMessageMatch = rawMessage.match(/"message"\s*:\s*"([^"]+)"/);
