@@ -128,7 +128,7 @@ export async function addLink(rpc, type, chainId, shortName) {
         await withTimeout(
             flatDirectory.upload({
                 key: dateKey,
-                content: Buffer.from(`hello link checker - at ${datePart} ${timePart}`),
+                content: Buffer.from(`hello link checker - at ${dateKey} ${timePart}`),
                 type: type,
                 callback: {
                     onProgress: function (progress, count, isChange) {
