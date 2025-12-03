@@ -43,6 +43,9 @@ export async function addLinks() {
             }
         });
     }
+    
+    provider.destroy();
+    
     return { links: results, errors };
 }
 
@@ -51,112 +54,125 @@ export async function addLink(rpc, type, chainId, shortName) {
     const pk = process.env.PRIVATE_KEY;
     // Balance before
     const linkProvider = new ethers.JsonRpcProvider(rpc);
-    const wallet = new ethers.Wallet(pk, linkProvider);
-    const address = await wallet.getAddress();
-    const startBalance = await linkProvider.getBalance(address);
+    try {
+        const wallet = new ethers.Wallet(pk, linkProvider);
+        const address = await wallet.getAddress();
+        const startBalance = await linkProvider.getBalance(address);
 
-    let contractAddress;
+        let contractAddress;
 
-    // Use existing flatDirectory for mainnet QuarkChain L2 to save cost
-    if (chainId === 100011) {
-        contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
-        console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
-    } else {
+        // Use existing flatDirectory for mainnet QuarkChain L2 to save cost
+        if (chainId === 100011) {
+            contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
+            console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
+        } else {
+            let deployDirectory;
+            try {
+                deployDirectory = await withTimeout(
+                    FlatDirectory.create({
+                        rpc: rpc,
+                        privateKey: pk,
+                    }),
+                    TIMEOUT,
+                    "FlatDirectory.create"
+                );
+
+                contractAddress = await withTimeout(
+                    deployDirectory.deploy(),
+                    TIMEOUT,
+                    "flatDirectory.deploy"
+                );
+            } finally {
+                await deployDirectory?.close?.();
+            }
+
+            if (!contractAddress) {
+                console.error("Error: no contract address found at", rpc, "chainId:", chainId);
+                throw new Error("Failed to deploy flatDirectory.");
+            }
+            // check contract code every 5 seconds for up to 1 minute
+            let code = "0x";
+            let attempts = 0;
+            const maxAttempts = 12;
+
+            while ((code === "0x" || code === "0x0") && attempts < maxAttempts) {
+                console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                code = await linkProvider.getCode(contractAddress);
+                attempts++;
+            }
+
+            if (code === "0x" || code === "0x0") {
+                console.error("Error: no contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
+                throw new Error("Failed to deploy flatDirectory.");
+            }
+        }
+
         const flatDirectory = await withTimeout(
             FlatDirectory.create({
                 rpc: rpc,
                 privateKey: pk,
+                address: contractAddress,
             }),
             TIMEOUT,
             "FlatDirectory.create"
         );
 
-        contractAddress = await withTimeout(
-            flatDirectory.deploy(),
+        const beijingTime = new Date().toLocaleString('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+        });
+
+        const [dateKey, timePart] = beijingTime.split(' ');
+        console.log(dateKey, timePart);
+
+        await withTimeout(
+            flatDirectory.upload({
+                key: dateKey,
+                content: Buffer.from(`hello link checker - at ${dateKey} ${timePart}`),
+                type: type,
+                callback: {
+                    onProgress: function (progress, count, isChange) {
+                        console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
+                    },
+                    onFail: function (err) {
+                        console.log("Upload failed", "chainId", chainId, "error", err);
+                    },
+                    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+                        console.log("Upload finished.", "chainId:", chainId);
+                    },
+                },
+            }),
             TIMEOUT,
-            "flatDirectory.deploy"
+            "flatDirectory.upload"
         );
 
-        if (!contractAddress) {
-            console.error("Error: no contract address found at", rpc, "chainId:", chainId);
-            throw new Error("Failed to deploy flatDirectory.");
-        }
-        // check contract code every 5 seconds for up to 1 minute
-        let code = "0x";
-        let attempts = 0;
-        const maxAttempts = 12;
+        await flatDirectory.close();
 
-        while ((code === "0x" || code === "0x0") && attempts < maxAttempts) {
-            console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            code = await linkProvider.getCode(contractAddress);
-            attempts++;
-        }
-
-        if (code === "0x" || code === "0x0") {
-            console.error("Error: no contract code found at", contractAddress, "on", rpc, "chainId:", chainId);
-            throw new Error("Failed to deploy flatDirectory.");
-        }
-    }
-
-    const flatDirectory = await withTimeout(
-        FlatDirectory.create({
-            rpc: rpc,
-            privateKey: pk,
-            address: contractAddress,
-        }),
-        TIMEOUT,
-        "FlatDirectory.create"
-    );
-
-    const dateTime = new Date().toLocaleString('zh-CN').split(' ');
-    const dateKey = dateTime[0];
-
-    await withTimeout(
-        flatDirectory.upload({
-            key: dateKey,
-            content: Buffer.from(`hello link checker - at ${dateTime[1]}`),
-            type: type,
-            callback: {
-                onProgress: function (progress, count, isChange) {
-                    console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
-                },
-                onFail: function (err) {
-                    console.log("Upload failed", "chainId", chainId, "error", err);
-                },
-                onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-                    console.log("Upload finished.", "chainId:", chainId);
-                },
+        // Balance after and table summary
+        const endBalance = await linkProvider.getBalance(address);
+        const costWei = startBalance - endBalance;
+        const beforeEth = ethers.formatEther(startBalance);
+        const afterEth = ethers.formatEther(endBalance);
+        const costEth = ethers.formatEther(costWei);
+        console.log("==== Balance Summary ====", "address:", address);
+        console.table([
+            {
+                Chain: chainId,
+                "Before": beforeEth,
+                "After": afterEth,
+                "Cost": costEth,
             },
-        }),
-        TIMEOUT,
-        "flatDirectory.upload"
-    );
+        ]);
 
-    await flatDirectory.close();
-
-    // Balance after and table summary
-    const endBalance = await linkProvider.getBalance(address);
-    const costWei = startBalance - endBalance;
-    const beforeEth = ethers.formatEther(startBalance);
-    const afterEth = ethers.formatEther(endBalance);
-    const costEth = ethers.formatEther(costWei);
-    console.log("==== Balance Summary ====", "address:", address);
-    console.table([
-        {
-            Chain: chainId,
-            "Before": beforeEth,
-            "After": afterEth,
-            "Cost": costEth,
-        },
-    ]);
-
-    return [
-        `https://${contractAddress}.${chainId}.w3link.io/${dateKey}`,
-        `https://${contractAddress}.${chainId}.web3gateway.dev/${dateKey}`,
-        `https://${contractAddress}.${shortName}.w3link.io/${dateKey}`,
-        `https://${contractAddress}.${shortName}.web3gateway.dev/${dateKey}`,
-    ];
+        return [
+            `https://${contractAddress}.${chainId}.w3link.io/${dateKey}`,
+            `https://${contractAddress}.${chainId}.web3gateway.dev/${dateKey}`,
+            `https://${contractAddress}.${shortName}.w3link.io/${dateKey}`,
+            `https://${contractAddress}.${shortName}.web3gateway.dev/${dateKey}`,
+        ];
+    } finally {
+        linkProvider.destroy();
+    }
 }
 
 
@@ -191,12 +207,16 @@ function formatAddLinkErr(reason) {
 
 
 function withTimeout(promise, ms, label) {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms)
-        ),
-    ]);
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+    });
 }
 
 
