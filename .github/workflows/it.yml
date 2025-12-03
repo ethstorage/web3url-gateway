@@ -77,7 +77,7 @@ jobs:
           EOF
 
       - name: Send Failure Email
-        if: ${{ always() && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.addlink_errors != '' || steps.link-check.outcome != 'success') }}
+        if: ${{ always() && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.addlink_errors != '' || steps.link-check.outcome != 'success' || steps.link-check.outcome != 'cancelled') }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
