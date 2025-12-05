@@ -50,7 +50,7 @@ export async function addLinks() {
                 }
             } else {
                 const errMsg = formatAddLinkErr(result.reason);
-                console.error(errMsg);
+                console.error(`${errMsg} on chain ${configs[index].chainId}, status: ${result.status}`);
                 errors.push(`${errMsg} on chain ${configs[index].chainId}`);
                 summaries.push({
                     chainId: configs[index].chainId,
@@ -88,8 +88,6 @@ export async function addLink(rpc, type, chainId, shortName) {
             pk,
             type,
             chainId,
-            shortName,
-            linkProvider,
         });
         // Balance after and table summary
         const endBalance = await linkProvider.getBalance(address);
@@ -116,7 +114,7 @@ export async function addLink(rpc, type, chainId, shortName) {
     }
 }
 
-async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId, shortName, linkProvider }) {
+async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId }) {
     let contractAddress;
 
     if (chainId === 100011) {
@@ -124,7 +122,7 @@ async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId, shortName,
         console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
     } else {
         let attempts = 0;
-        const maxAttempts = 12;
+        const maxAttempts = 3;
         while (!contractAddress && attempts < maxAttempts) {
             const deployDirectory = await withTimeout(
                 FlatDirectory.create({
@@ -173,28 +171,30 @@ async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId, shortName,
     const [dateKey, timePart] = beijingTime.split(' ');
     console.log(dateKey, timePart);
 
-    await withTimeout(
-        flatDirectory.upload({
-            key: dateKey,
-            content: Buffer.from(`hello link checker - at ${dateKey} ${timePart}`),
-            type,
-            callback: {
-                onProgress: function (progress, count, isChange) {
-                    console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
+    try {
+        await withTimeout(
+            flatDirectory.upload({
+                key: dateKey,
+                content: Buffer.from(`hello link checker - at ${dateKey} ${timePart}`),
+                type,
+                callback: {
+                    onProgress: function (progress, count, isChange) {
+                        console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
+                    },
+                    onFail: function (err) {
+                        console.log("Upload failed", "chainId", chainId, "error", err);
+                    },
+                    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+                        console.log("Upload finished", "totalUploadSize:", totalUploadSize, "totalStorageCost:", totalStorageCost, "chainId:", chainId);
+                    },
                 },
-                onFail: function (err) {
-                    console.log("Upload failed", "chainId", chainId, "error", err);
-                },
-                onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-                    console.log("Upload finished.", "chainId:", chainId);
-                },
-            },
-        }),
-        TIMEOUT,
-        "flatDirectory.upload"
-    );
-
-    await flatDirectory.close();
+            }),
+            TIMEOUT,
+            "flatDirectory.upload"
+        );
+    } finally {
+        await flatDirectory.close?.();
+    }
 
     return { contractAddress, dateKey };
 }
