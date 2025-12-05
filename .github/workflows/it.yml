@@ -30,6 +30,8 @@ jobs:
         timeout-minutes: 30
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          L1_RPC_MAINNET: ${{ secrets.L1_RPC_MAINNET }}
+          L1_RPC_SEP: ${{ secrets.L1_RPC_SEP }}
         run: |
           node << 'EOF'
           import core from '@actions/core';
@@ -95,7 +97,7 @@ jobs:
           from: Web3Gateway
 
       - name: Send Daily Success Email
-        if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && steps.link-check.outputs.addlink_errors == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
