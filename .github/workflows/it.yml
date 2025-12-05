@@ -94,7 +94,7 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
-          body: |
+          html_body: |
             Link check outcome: ${{ steps.link-check.outcome }}
 
             ${{ steps.link-check.outputs.addlink_errors }}
@@ -116,7 +116,7 @@ jobs:
           username: ${{secrets.SMTP_USERNAME}}
           password: ${{secrets.SMTP_PASSWORD}}
           subject: "✅ Web3Gateway Links Check Successful"
-          body: |
+          html_body: |
             All links are healthy:
             ${{ steps.link-check.outputs.results }}
             ...

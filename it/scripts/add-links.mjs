@@ -55,9 +55,8 @@ export async function addLinks() {
                 summaries.push({
                     chainId: configs[index].chainId,
                     shortName: configs[index].shortName,
-                    before: '--',
+                    cost: `(tx failed)`,
                     after: '--',
-                    cost: `(${errMsg})`,
                 });
             }
         });
@@ -95,7 +94,6 @@ export async function addLink(rpc, type, chainId, shortName) {
         // Balance after and table summary
         const endBalance = await linkProvider.getBalance(address);
         const costWei = startBalance - endBalance;
-        const beforeEth = ethers.formatEther(startBalance);
         const afterEth = ethers.formatEther(endBalance);
         const costEth = ethers.formatEther(costWei);
 
@@ -109,9 +107,8 @@ export async function addLink(rpc, type, chainId, shortName) {
             summary: {
                 chainId,
                 shortName,
-                before: beforeEth,
-                after: afterEth,
                 cost: costEth,
+                after: afterEth,
             },
         };
     } finally {
@@ -236,10 +233,10 @@ function formatCostSummary(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
         return '';
     }
-    const header = '| Chain ID | Short | Before | After | Cost |';
-    const divider = '| --- | --- | --- | --- | --- |';
+    const header = '| Chain ID | Short | Cost | Balance |';
+    const divider = '| --- | --- | --- | --- |';
     const body = rows
-        .map(row => `| ${row.chainId ?? ''} | ${row.shortName ?? ''} | ${row.before ?? ''} | ${row.after ?? ''} | ${row.cost ?? ''} |`)
+        .map(row => `| ${row.chainId ?? ''} | ${row.shortName ?? ''} | ${row.cost ?? ''} | ${row.after ?? ''} |`)
         .join('\n');
     return `${header}\n${divider}\n${body}`;
 }
