@@ -42,11 +42,13 @@ jobs:
           async function run() {
             let createdLinks = [];
             let addLinkErrors = [];
+            let summaryTable = '';
 
             try {
-              const { links: newLinks, errors } = await addLinks();
+              const { links: newLinks, errors, summaryTable: tableText } = await addLinks();
               createdLinks = newLinks;
               addLinkErrors = errors;
+              summaryTable = tableText || '';
               console.log('New links', newLinks);
               if (errors.length) {
                 console.log('Per-link errors:\n' + errors.join('\n'));
@@ -63,12 +65,16 @@ jobs:
             if (failures.size > 0) {
               core.setOutput('failures', Array.from(failures, ([k,v]) => `${k} -> ${v}`).join('\n'));
             } else {
-              core.setOutput('results', allLinks.join('\n'));
+              core.setOutput('results', createdLinks.join('\n'));
             }
 
             if (addLinkErrors.length) {
               core.setOutput('addlink_errors', addLinkErrors.join('\n'));
             }
+            if (summaryTable) {
+              core.setOutput('summary', summaryTable);
+            }
+  
           }
 
           await run().catch(err => {
@@ -84,6 +90,7 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 465
+          convert_markdown: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
@@ -93,6 +100,9 @@ jobs:
             ${{ steps.link-check.outputs.addlink_errors }}
 
             ${{ steps.link-check.outputs.failures }}
+
+            Cost summary:
+            ${{ steps.link-check.outputs.summary }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
@@ -102,11 +112,18 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 465
+          convert_markdown: true
           username: ${{secrets.SMTP_USERNAME}}
           password: ${{secrets.SMTP_PASSWORD}}
           subject: "✅ Web3Gateway Links Check Successful"
           body: |
             All links are healthy:
             ${{ steps.link-check.outputs.results }}
+            ...
+            (static links omitted)
+            ...
+
+            Cost summary:
+            ${{ steps.link-check.outputs.summary }}
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway
