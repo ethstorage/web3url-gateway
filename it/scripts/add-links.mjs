@@ -5,10 +5,10 @@ dotenv.config();
 
 const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
 const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 gwei
-const L1_RPC = process.env.L1_RPC || "http://65.108.230.142:8545";
+const L1_RPC_MAINNET = process.env.L1_RPC_MAINNET;
+const L1_RPC_SEP = process.env.L1_RPC_SEP || "http://65.108.230.142:8545";
 
 
-const provider = new ethers.JsonRpcProvider(L1_RPC);
 
 export async function addLinks() {
 
@@ -17,22 +17,27 @@ export async function addLinks() {
     }
 
     console.log("Adding new links...");
+    const configs = [];
     const results = [];
     const errors = [];
-
-    if (await isBlobBaseFeeOK()) {
-        const configs = [
-            { rpc: L1_RPC, type: 2, chainId: 3333, shortName: "es-t" },
-            { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
+    if (await isBlobBaseFeeOK(L1_RPC_SEP, "Sepolia")) {
+        configs.push(
+            { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
             { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
             { rpc: "https://base-sepolia.drpc.org", type: 1, chainId: 84532, shortName: "basesep" },
             { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" }
-        ];
+        );
+    }
+    if (await isBlobBaseFeeOK(L1_RPC_MAINNET, "Mainnet")) {
+        configs.push(
+            { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
+        );
+    }
 
+    if (configs.length > 0) {
         const settled = await Promise.allSettled(
             configs.map(config => addLink(config.rpc, config.type, config.chainId, config.shortName))
         );
-
         settled.forEach((result, index) => {
             if (result.status === 'fulfilled') {
                 results.push(...result.value);
@@ -43,9 +48,6 @@ export async function addLinks() {
             }
         });
     }
-    
-    provider.destroy();
-    
     return { links: results, errors };
 }
 
@@ -119,7 +121,7 @@ export async function addLink(rpc, type, chainId, shortName) {
         );
 
         const beijingTime = new Date().toLocaleString('zh-CN', {
-          timeZone: 'Asia/Shanghai',
+            timeZone: 'Asia/Shanghai',
         });
 
         const [dateKey, timePart] = beijingTime.split(' ');
@@ -220,17 +222,26 @@ function withTimeout(promise, ms, label) {
 }
 
 
-async function isBlobBaseFeeOK() {
-    const response = await provider.send("eth_blobBaseFee", []);
-    if (!response || response === '0x0' || response === 0) {
-        console.error("Blob base fee is not available.");
+async function isBlobBaseFeeOK(l1RPC, chainName) {
+    if (!l1RPC || l1RPC.length === 0) {
+        console.error("L1 RPC is not set for", chainName);
         return false;
     }
-    const blobBaseFee = parseInt(response, 16);
-    console.log("Blob base fee:", blobBaseFee / 1e9, "Gwei");
-    if (blobBaseFee > BLOB_BASE_FEE_CAP) {
-        console.log("Blob base fee is too high!");
-        return false;
+    const provider = new ethers.JsonRpcProvider(l1RPC);
+    try {
+        const response = await provider.send("eth_blobBaseFee", []);
+        if (!response || response === '0x0' || response === 0) {
+            console.error("Blob base fee is not available for", chainName);
+            return false;
+        }
+        const blobBaseFee = parseInt(response, 16);
+        console.log("Blob base fee for", chainName, ":", blobBaseFee / 1e9, "Gwei");
+        if (blobBaseFee > BLOB_BASE_FEE_CAP) {
+            console.log("Blob base fee is too high for", chainName, "!");
+            return false;
+        }
+        return true;
+    } finally {
+        provider.destroy?.();
     }
-    return true;
 }
