@@ -86,7 +86,7 @@ jobs:
 
       - name: Send Failure Email
         if: ${{ always() && steps.link-check.outcome != 'cancelled' && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.addlink_errors != '' || steps.link-check.outcome != 'success') }}
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -95,20 +95,27 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
           html_body: |
-            Link check outcome: ${{ steps.link-check.outcome }}
+            ## 🚨 Link Check Failed
 
+            - **Outcome:** `${{ steps.link-check.outcome }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ github.run_started_at }}`
+
+            ---
+
+            ### Add-Link Errors
             ${{ steps.link-check.outputs.addlink_errors }}
 
+            ### Link Failures
             ${{ steps.link-check.outputs.failures }}
 
-            Cost summary:
+            ### Cost Summary
             ${{ steps.link-check.outputs.summary }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
       - name: Send Daily Success Email
         if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && steps.link-check.outputs.addlink_errors == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -117,13 +124,19 @@ jobs:
           password: ${{secrets.SMTP_PASSWORD}}
           subject: "✅ Web3Gateway Links Check Successful"
           html_body: |
-            All links are healthy:
-            ${{ steps.link-check.outputs.results }}
-            ...
-            (static links omitted)
-            ...
+            ## ✅ All Links Healthy
 
-            Cost summary:
+            - **Outcome:** `${{ steps.link-check.outcome }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ github.run_started_at }}`
+
+            ---
+
+            ### New Links
+            ${{ steps.link-check.outputs.results }}
+
+            _(static link list trimmed in workflow log)_
+
+            ### Cost Summary
             ${{ steps.link-check.outputs.summary }}
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway
