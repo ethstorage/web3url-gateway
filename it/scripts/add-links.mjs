@@ -35,7 +35,7 @@ export async function addLinks() {
                 { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
                 { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
                 { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
-                { rpc: "https://base-sepolia.drpc.org", type: 1, chainId: 84532, shortName: "basesep" },
+                { rpc: "https://base-sepolia-rpc.publicnode.com", type: 1, chainId: 84532, shortName: "basesep" },
             );
         }
     }
@@ -165,43 +165,26 @@ async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId }) {
         contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
         console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
     } else {
-        let attempts = 0;
-        const maxAttempts = 3;
-        while (!contractAddress && attempts < maxAttempts) {
-            attempts++;
-            let deployDirectory
-            try {
-                deployDirectory = await withTimeout(
-                    FlatDirectory.create({
-                        rpc,
-                        privateKey: pk,
-                    }),
-                    TIMEOUT,
-                    "FlatDirectory.create"
-                );
-                contractAddress = await withTimeout(
-                    deployDirectory.deploy(),
-                    TIMEOUT,
-                    "flatDirectory.deploy"
-                );
-            } catch (err) {
-                console.error(
-                    "FlatDirectory deploy failed",
-                    "chainId:",
-                    chainId,
-                    "attempt:",
-                    attempts,
-                    "error:",
-                    err?.message || err
-                );
-            } finally {
-                await deployDirectory?.close?.();
-            }
-
-            if (!contractAddress && attempts < maxAttempts) {
-                console.log("Retrying flatDirectory deployment...", "chainId:", chainId, "next attempt in 5s");
-                await new Promise(resolve => setTimeout(resolve, 5000));
-            }
+        let deployDirectory;
+        try {
+            deployDirectory = await withTimeout(
+                FlatDirectory.create({
+                    rpc,
+                    privateKey: pk,
+                }),
+                TIMEOUT,
+                "FlatDirectory.create"
+            );
+            contractAddress = await withTimeout(
+                deployDirectory.deploy(),
+                TIMEOUT,
+                "flatDirectory.deploy"
+            );
+        } catch (err) {
+            console.error("FlatDirectory deploy failed", "chainId:", chainId, "error:", err?.message || err);
+            throw err;
+        } finally {
+            await deployDirectory?.close?.();
         }
 
         if (!contractAddress) {
