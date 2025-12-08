@@ -4,7 +4,7 @@ import { FlatDirectory } from "ethstorage-sdk";
 dotenv.config();
 
 const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
-const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 gwei
+const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 Gwei
 const L1_RPC_MAINNET = process.env.L1_RPC_MAINNET;
 const L1_RPC_SEP = process.env.L1_RPC_SEP || "http://65.108.230.142:8545";
 
@@ -62,7 +62,16 @@ export async function addLinks() {
 
     if (configs.length > 0) {
         const settled = await Promise.allSettled(
-            configs.map(config => addLink(config.rpc, config.type, config.chainId, config.shortName))
+            configs.map(config =>
+                retryAsync(
+                    () => addLink(config.rpc, config.type, config.chainId, config.shortName),
+                    {
+                        maxAttempts: 3,
+                        delayMs: 2000,
+                        label: `addLink chain ${config.chainId}`,
+                    }
+                )
+            )
         );
         settled.forEach((result, index) => {
             if (result.status === 'fulfilled') {
@@ -112,7 +121,7 @@ export async function addLink(rpc, type, chainId, shortName) {
 
         const feeData = await linkProvider.getFeeData();
         const gasPriceWei = feeData.maxFeePerGas ?? feeData.gasPrice ?? 0n;
-        const gasPriceGwei = gasPriceWei ? `${ethers.formatUnits(gasPriceWei, 'gwei')} gwei` : 'n/a';
+        const gasPriceGwei = gasPriceWei ? `${ethers.formatUnits(gasPriceWei, 'gwei')} Gwei` : 'n/a';
 
         const { contractAddress, dateKey } = await ensureFlatDirectoryAndUpload({
             rpc,
@@ -124,7 +133,10 @@ export async function addLink(rpc, type, chainId, shortName) {
         const endBalance = await linkProvider.getBalance(address);
         const costWei = startBalance - endBalance;
         const afterEth = ethers.formatEther(endBalance);
-        const costEth = ethers.formatEther(costWei);
+        const baseCostEth = ethers.formatEther(costWei);
+        const displayCost = chainId === 100011
+            ? `${baseCostEth} (upload only)`
+            : baseCostEth;
 
         return {
             links: [
@@ -137,7 +149,7 @@ export async function addLink(rpc, type, chainId, shortName) {
                 chainId,
                 shortName,
                 gasPrice: gasPriceGwei,
-                cost: costEth,
+                cost: displayCost,
                 after: afterEth,
             },
         };
@@ -151,9 +163,6 @@ async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId }) {
 
     if (chainId === 100011) {
         contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
-        console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
-    } else if (chainId === 84532) {
-        contractAddress = "0x235014173210DB99c91fc7dCeF1c78c60CaB4E36";
         console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
     } else {
         let attempts = 0;
@@ -325,6 +334,26 @@ function escapeHtml(value) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+async function retryAsync(fn, { maxAttempts = 3, delayMs = 1000, label = 'operation' } = {}) {
+    let attempt = 0;
+    let lastError;
+    while (attempt < maxAttempts) {
+        attempt++;
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            const message = err?.message || String(err);
+            console.warn(`${label} attempt ${attempt} failed: ${message}`);
+            if (attempt >= maxAttempts) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    throw lastError;
 }
 
 
