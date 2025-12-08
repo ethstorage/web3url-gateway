@@ -43,12 +43,14 @@ jobs:
             let createdLinks = [];
             let addLinkErrors = [];
             let summaryTable = '';
+            let l1InfoTable = '';
 
             try {
-              const { links: newLinks, errors, summaryTable: tableText } = await addLinks();
+              const { links: newLinks, errors, summaryTable: tableText, l1InfoTable: l1TableText } = await addLinks();
               createdLinks = newLinks;
               addLinkErrors = errors;
               summaryTable = tableText || '';
+              l1InfoTable = l1TableText || '';
               console.log('New links', newLinks);
               if (errors.length) {
                 console.log('Per-link errors:\n' + errors.join('\n'));
@@ -73,6 +75,9 @@ jobs:
             }
             if (summaryTable) {
               core.setOutput('summary', summaryTable);
+            }
+            if (l1InfoTable) {
+              core.setOutput('l1_summary', l1InfoTable);
             }
   
           }
@@ -110,6 +115,9 @@ jobs:
 
             ### Cost Summary
             ${{ steps.link-check.outputs.summary }}
+
+            ### L1 Gas & Blob Info
+            ${{ steps.link-check.outputs.l1_summary }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
@@ -138,5 +146,8 @@ jobs:
 
             ### Cost Summary
             ${{ steps.link-check.outputs.summary }}
+
+            ### L1 Gas & Blob Info
+            ${{ steps.link-check.outputs.l1_summary }}
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway

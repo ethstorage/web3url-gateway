@@ -21,18 +21,43 @@ export async function addLinks() {
     const results = [];
     const errors = [];
     const summaries = [];
-    if (await isBlobBaseFeeOK(L1_RPC_SEP, "Sepolia")) {
-        configs.push(
-            { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
-            { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
-            { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
-            { rpc: "https://base-sepolia.drpc.org", type: 1, chainId: 84532, shortName: "basesep" },
-        );
+    const l1FeeRows = [];
+
+    const sepoliaFeeInfo = await fetchL1GasInfo(L1_RPC_SEP, "Sepolia");
+    if (sepoliaFeeInfo) {
+        l1FeeRows.push({
+            network: "Sepolia",
+            blobFee: sepoliaFeeInfo.blobBaseFeeGwei,
+            gasPrice: sepoliaFeeInfo.l1GasPriceGwei,
+        });
+        if (sepoliaFeeInfo.ok && sepoliaFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
+            configs.push(
+                { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
+                { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
+                { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
+                { rpc: "https://base-sepolia.drpc.org", type: 1, chainId: 84532, shortName: "basesep" },
+            );
+        }
     }
-    if (await isBlobBaseFeeOK(L1_RPC_MAINNET, "Mainnet")) {
-        configs.push(
-            { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
-        );
+
+    const mainnetFeeInfo = await fetchL1GasInfo(L1_RPC_MAINNET, "Mainnet");
+    if (mainnetFeeInfo) {
+        l1FeeRows.push({
+            network: "Mainnet",
+            blobFee: mainnetFeeInfo.blobBaseFeeGwei,
+            gasPrice: mainnetFeeInfo.l1GasPriceGwei,
+        });
+        if (mainnetFeeInfo.ok && mainnetFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
+            configs.push(
+                { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
+            );
+        }
+    }
+
+    const l1InfoTable = formatL1GasInfo(l1FeeRows);
+    if (l1InfoTable) {
+        console.log("==== L1 Gas Price Info ====");
+        console.table(l1FeeRows);
     }
 
     if (configs.length > 0) {
@@ -55,12 +80,14 @@ export async function addLinks() {
                 summaries.push({
                     chainId: configs[index].chainId,
                     shortName: configs[index].shortName,
+                    gasPrice: '--',
                     cost: `(tx failed)`,
                     after: '--',
                 });
             }
         });
     }
+
     let summaryTable = '';
     if (summaries.length) {
         console.log("==== Cost Summary ====");
@@ -70,7 +97,7 @@ export async function addLinks() {
             console.log('Cost summary table:\n' + summaryTable);
         }
     }
-    return { links: results, errors, summaries, summaryTable };
+    return { links: results, errors, l1InfoTable, summaryTable };
 }
 
 export async function addLink(rpc, type, chainId, shortName) {
@@ -82,6 +109,10 @@ export async function addLink(rpc, type, chainId, shortName) {
         const wallet = new ethers.Wallet(pk, linkProvider);
         const address = await wallet.getAddress();
         const startBalance = await linkProvider.getBalance(address);
+
+        const feeData = await linkProvider.getFeeData();
+        const gasPriceWei = feeData.maxFeePerGas ?? feeData.gasPrice ?? 0n;
+        const gasPriceGwei = gasPriceWei ? `${ethers.formatUnits(gasPriceWei, 'gwei')} gwei` : 'n/a';
 
         const { contractAddress, dateKey } = await ensureFlatDirectoryAndUpload({
             rpc,
@@ -105,6 +136,7 @@ export async function addLink(rpc, type, chainId, shortName) {
             summary: {
                 chainId,
                 shortName,
+                gasPrice: gasPriceGwei,
                 cost: costEth,
                 after: afterEth,
             },
@@ -233,10 +265,22 @@ function formatCostSummary(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
         return '';
     }
-    const header = '| Chain ID | Short | Cost | Balance |';
-    const divider = '| --- | --- | --- | --- |';
+    const header = '| Chain ID | Short | Gas Price | Cost | Balance |';
+    const divider = '| --- | --- | --- | --- | --- |';
     const body = rows
-        .map(row => `| ${row.chainId ?? ''} | ${row.shortName ?? ''} | ${row.cost ?? ''} | ${row.after ?? ''} |`)
+        .map(row => `| ${row.chainId ?? ''} | ${row.shortName ?? ''} | ${row.gasPrice ?? ''} | ${row.cost ?? ''} | ${row.after ?? ''} |`)
+        .join('\n');
+    return `${header}\n${divider}\n${body}`;
+}
+
+function formatL1GasInfo(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+        return '';
+    }
+    const header = '| L1 Network | Blob Base Fee | Gas Price |';
+    const divider = '| --- | --- | --- |';
+    const body = rows
+        .map(row => `| ${row.network} | ${row.blobFee} | ${row.gasPrice ?? 'n/a'} |`)
         .join('\n');
     return `${header}\n${divider}\n${body}`;
 }
@@ -256,25 +300,37 @@ function withTimeout(promise, ms, label) {
 }
 
 
-async function isBlobBaseFeeOK(l1RPC, chainName) {
+async function fetchL1GasInfo(l1RPC, chainName) {
     if (!l1RPC || l1RPC.length === 0) {
         console.error("L1 RPC is not set for", chainName);
-        return false;
+        return { ok: false, chainName, blobBaseFee: Number.POSITIVE_INFINITY, blobBaseFeeGwei: 'rpc missing' };
     }
     const provider = new ethers.JsonRpcProvider(l1RPC);
     try {
-        const response = await provider.send("eth_blobBaseFee", []);
-        if (!response || response === '0x0' || response === 0) {
+        const blobFeeResponse = await provider.send("eth_blobBaseFee", []);
+        const gasPriceResponse = await provider.send("eth_gasPrice", []);
+
+        if (!blobFeeResponse || blobFeeResponse === '0x0' || blobFeeResponse === 0) {
             console.error("Blob base fee is not available for", chainName);
-            return false;
+            return { ok: false, chainName, blobBaseFee: Number.POSITIVE_INFINITY, blobBaseFeeGwei: 'n/a' };
         }
-        const blobBaseFee = parseInt(response, 16);
-        console.log("Blob base fee for", chainName, ":", blobBaseFee / 1e9, "Gwei");
-        if (blobBaseFee > BLOB_BASE_FEE_CAP) {
-            console.log("Blob base fee is too high for", chainName, "!");
-            return false;
+        const blobBaseFee = Number.parseInt(blobFeeResponse, 16);
+        const blobBaseFeeGwei = `${blobBaseFee / 1e9} Gwei`;
+
+        let l1GasPrice = Number.POSITIVE_INFINITY;
+        let l1GasPriceGwei = 'n/a';
+        if (gasPriceResponse) {
+            try {
+                l1GasPrice = Number.parseInt(gasPriceResponse, 16);
+                l1GasPriceGwei = `${l1GasPrice / 1e9} Gwei`;
+            } catch (err) {
+                console.warn('Failed to parse L1 gas price for', chainName, err);
+            }
         }
-        return true;
+        return { ok: true, chainName, blobBaseFee, blobBaseFeeGwei, l1GasPrice, l1GasPriceGwei };
+    } catch (err) {
+        console.error("Failed to fetch blob base fee for", chainName, err);
+        return { ok: false, chainName, blobBaseFee: Number.POSITIVE_INFINITY, blobBaseFeeGwei: 'error' };
     } finally {
         provider.destroy?.();
     }
