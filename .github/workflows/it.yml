@@ -18,7 +18,7 @@ jobs:
       - name: Capture Start Time
         id: capture-time
         run: |
-          echo "started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "started_at=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S %Z')" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,57 +45,43 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            let createdLinks = [];
-            let addLinkErrors = [];
-            let summaryTable = '';
-            let l1InfoTable = '';
-
-            try {
-              const { links: newLinks, errors, summaryTable: tableText, l1InfoTable: l1TableText } = await addLinks();
-              createdLinks = newLinks;
-              addLinkErrors = errors;
-              summaryTable = tableText || '';
-              l1InfoTable = l1TableText || '';
-              console.log('New links', newLinks);
-              if (errors.length) {
-                console.log('Per-link errors:\n' + errors.join('\n'));
-              }
-            } catch (e) {
-              // Hard failure (e.g. config). Treat as error output.
-              addLinkErrors.push(e.message);
-              console.error('addLinks hard failure:', e.message);
-            }
-
-            const allLinks = [...links, ...createdLinks];
-            const failures = await checkAllLinks(allLinks);
-
-            if (failures.size > 0) {
-              core.setOutput('failures', Array.from(failures, ([k,v]) => `${k} -> ${v}`).join('\n'));
-            } else {
-              core.setOutput('results', createdLinks.join('\n'));
-            }
+            
+            let errors = [];
+            const { links: created, errors: addLinkErrors, summaryTable, l1InfoTable } = await addLinks();
+            const allLinks = [...links, ...created];
+            const checkLinkErrors = await checkAllLinks(allLinks);
 
             if (addLinkErrors.length) {
-              core.setOutput('addlink_errors', addLinkErrors.join('\n'));
+              errors.push(...addLinkErrors);
             }
+            if (checkLinkErrors.size > 0) {
+              errors.push(...Array.from(checkLinkErrors, ([k,v]) => `${k} -> ${v}`));
+            } 
+            if (errors.length === 0) {
+              core.setOutput('created', created.join('\n'));
+            } else {
+              core.setOutput('failures', errors.join('\n'));
+              throw new Error(errors.join('\n'));
+            }
+
             if (summaryTable) {
               core.setOutput('summary', summaryTable);
             }
             if (l1InfoTable) {
               core.setOutput('l1_summary', l1InfoTable);
             }
-  
           }
 
           await run().catch(err => {
-            console.error('Unexpected script failure:', err?.message || String(err));
-            core.setFailed(err?.message || String(err));
+            const errMsg = err?.stack || err?.message || String(err);
+            console.error('Error happened:', errMsg);
+            core.setFailed(errMsg);
             process.exit(1);
           });
           EOF
 
       - name: Send Failure Email
-        if: ${{ always() && steps.link-check.outcome != 'cancelled' && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.addlink_errors != '' || steps.link-check.outcome != 'success') }}
+        if: ${{ always() && steps.link-check.outcome != 'cancelled' && steps.link-check.outcome != 'success' }}
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
@@ -112,9 +98,6 @@ jobs:
 
             ---
 
-            ### Add-Link Errors
-            ${{ steps.link-check.outputs.addlink_errors }}
-
             ### Link Failures
             ${{ steps.link-check.outputs.failures }}
 
@@ -128,7 +111,7 @@ jobs:
           from: Web3Gateway
 
       - name: Send Daily Success Email
-        if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && steps.link-check.outputs.addlink_errors == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
@@ -152,7 +135,7 @@ jobs:
             ${{ steps.link-check.outputs.summary }}
 
             ### New Links
-            ${{ steps.link-check.outputs.results }}
+            ${{ steps.link-check.outputs.created }}
 
             _(static link list trimmed)_
 
