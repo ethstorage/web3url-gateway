@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Capture Start Time
+        id: capture-time
+        run: |
+          echo "started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -103,7 +108,7 @@ jobs:
             ## 🚨 Link Check Failed
 
             - **Outcome:** `${{ steps.link-check.outcome }}`
-            - **Triggered By:** `${{ github.event_name }}` at `${{ github.run_started_at }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ steps.capture-time.outputs.started_at }}`
 
             ---
 
@@ -113,11 +118,12 @@ jobs:
             ### Link Failures
             ${{ steps.link-check.outputs.failures }}
 
+            ### L1 Gas Prices
+            ${{ steps.link-check.outputs.l1_summary }}
+
             ### Cost Summary
             ${{ steps.link-check.outputs.summary }}
 
-            ### L1 Gas & Blob Info
-            ${{ steps.link-check.outputs.l1_summary }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
@@ -135,19 +141,20 @@ jobs:
             ## ✅ All Links Healthy
 
             - **Outcome:** `${{ steps.link-check.outcome }}`
-            - **Triggered By:** `${{ github.event_name }}` at `${{ github.run_started_at }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ steps.capture-time.outputs.started_at }}`
 
             ---
+
+            ### L1 Gas Prices
+            ${{ steps.link-check.outputs.l1_summary }}
+            
+            ### Cost Summary
+            ${{ steps.link-check.outputs.summary }}
 
             ### New Links
             ${{ steps.link-check.outputs.results }}
 
-            _(static link list trimmed in workflow log)_
+            _(static link list trimmed)_
 
-            ### Cost Summary
-            ${{ steps.link-check.outputs.summary }}
-
-            ### L1 Gas & Blob Info
-            ${{ steps.link-check.outputs.l1_summary }}
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway

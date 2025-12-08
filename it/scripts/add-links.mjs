@@ -152,32 +152,47 @@ async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId }) {
     if (chainId === 100011) {
         contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
         console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
+    } else if (chainId === 84532) {
+        contractAddress = "0x235014173210DB99c91fc7dCeF1c78c60CaB4E36";
+        console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
     } else {
         let attempts = 0;
         const maxAttempts = 3;
         while (!contractAddress && attempts < maxAttempts) {
-            const deployDirectory = await withTimeout(
-                FlatDirectory.create({
-                    rpc,
-                    privateKey: pk,
-                }),
-                TIMEOUT,
-                "FlatDirectory.create"
-            );
-
+            attempts++;
+            let deployDirectory
             try {
+                deployDirectory = await withTimeout(
+                    FlatDirectory.create({
+                        rpc,
+                        privateKey: pk,
+                    }),
+                    TIMEOUT,
+                    "FlatDirectory.create"
+                );
                 contractAddress = await withTimeout(
                     deployDirectory.deploy(),
                     TIMEOUT,
                     "flatDirectory.deploy"
                 );
+            } catch (err) {
+                console.error(
+                    "FlatDirectory deploy failed",
+                    "chainId:",
+                    chainId,
+                    "attempt:",
+                    attempts,
+                    "error:",
+                    err?.message || err
+                );
             } finally {
                 await deployDirectory?.close?.();
             }
 
-            console.log("Waiting for flatDirectory deployment...", "chainId:", chainId, "attempt:", attempts + 1);
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            attempts++;
+            if (!contractAddress && attempts < maxAttempts) {
+                console.log("Retrying flatDirectory deployment...", "chainId:", chainId, "next attempt in 5s");
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
         }
 
         if (!contractAddress) {
@@ -265,24 +280,51 @@ function formatCostSummary(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
         return '';
     }
-    const header = '| Chain ID | Short | Gas Price | Cost | Balance |';
-    const divider = '| --- | --- | --- | --- | --- |';
-    const body = rows
-        .map(row => `| ${row.chainId ?? ''} | ${row.shortName ?? ''} | ${row.gasPrice ?? ''} | ${row.cost ?? ''} | ${row.after ?? ''} |`)
-        .join('\n');
-    return `${header}\n${divider}\n${body}`;
+    const headers = ['Chain ID', 'Short', 'Gas Price', 'Cost', 'Balance'];
+    const bodyRows = rows.map(row => [
+        row.chainId ?? '',
+        row.shortName ?? '',
+        row.gasPrice ?? '',
+        row.cost ?? '',
+        row.after ?? '',
+    ]);
+    return renderHtmlTable(headers, bodyRows);
 }
 
 function formatL1GasInfo(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
         return '';
     }
-    const header = '| L1 Network | Blob Base Fee | Gas Price |';
-    const divider = '| --- | --- | --- |';
-    const body = rows
-        .map(row => `| ${row.network} | ${row.blobFee} | ${row.gasPrice ?? 'n/a'} |`)
-        .join('\n');
-    return `${header}\n${divider}\n${body}`;
+    const headers = ['L1 Network', 'Blob Base Fee', 'Gas Price'];
+    const bodyRows = rows.map(row => [
+        row.network ?? '',
+        row.blobFee ?? '',
+        row.gasPrice ?? 'n/a',
+    ]);
+    return renderHtmlTable(headers, bodyRows);
+}
+
+function renderHtmlTable(headers, rows) {
+    if (!Array.isArray(headers) || headers.length === 0 || !Array.isArray(rows)) {
+        return '';
+    }
+    const tableStyle = 'style="border-collapse: collapse; width: 100%; font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;"';
+    const headerCellStyle = 'style="border: 1px solid #d0d7de; padding: 6px 8px; background: #f6f8fa; text-align: left;"';
+    const cellStyle = 'style="border: 1px solid #d0d7de; padding: 6px 8px; text-align: left;"';
+    const thead = `<thead><tr>${headers.map(text => `<th ${headerCellStyle}>${escapeHtml(text)}</th>`).join('')}</tr></thead>`;
+    const tbodyRows = rows
+        .map(row => `<tr>${row.map(value => `<td ${cellStyle}>${escapeHtml(value ?? '')}</td>`).join('')}</tr>`)
+        .join('');
+    const tbody = `<tbody>${tbodyRows}</tbody>`;
+    return `<table ${tableStyle}>${thead}${tbody}</table>`;
+}
+
+function escapeHtml(value) {
+    const str = value == null ? '' : String(value);
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 
