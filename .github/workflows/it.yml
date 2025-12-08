@@ -51,24 +51,23 @@ jobs:
             const allLinks = [...links, ...created];
             const checkLinkErrors = await checkAllLinks(allLinks);
 
-            if (addLinkErrors.length) {
-              errors.push(...addLinkErrors);
-            }
-            if (checkLinkErrors.size > 0) {
-              errors.push(...Array.from(checkLinkErrors, ([k,v]) => `${k} -> ${v}`));
-            } 
-            if (errors.length === 0) {
-              core.setOutput('created', created.join('\n'));
-            } else {
-              core.setOutput('failures', errors.join('\n'));
-              throw new Error(errors.join('\n'));
-            }
-
             if (summaryTable) {
               core.setOutput('summary', summaryTable);
             }
             if (l1InfoTable) {
               core.setOutput('l1_summary', l1InfoTable);
+            }
+            if (addLinkErrors.length) {
+              errors.push(...addLinkErrors);
+            }
+            if (checkLinkErrors.size > 0) {
+              errors.push(...Array.from(checkLinkErrors, ([k,v]) => `${k} -> ${v}`));
+            }
+            if (errors.length === 0) {
+              core.setOutput('created', created.join('\n'));
+            } else {
+              core.setOutput('failures', errors.join('\n'));
+              throw new Error(errors.join('\n'));
             }
           }
 
