@@ -89,6 +89,7 @@ export async function addLinks() {
                 summaries.push({
                     chainId: configs[index].chainId,
                     shortName: configs[index].shortName,
+                    type: configs[index].type,
                     gasPrice: '--',
                     cost: `(tx failed)`,
                     after: '--',
@@ -148,6 +149,7 @@ export async function addLink(rpc, type, chainId, shortName) {
             summary: {
                 chainId,
                 shortName,
+                type,
                 gasPrice: gasPriceGwei,
                 cost: displayCost,
                 after: afterEth,
@@ -272,10 +274,11 @@ function formatCostSummary(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
         return '';
     }
-    const headers = ['Chain ID', 'Short', 'Gas Price', 'Cost', 'Balance'];
+    const headers = ['Chain ID', 'Short', 'Type', 'Gas Price', 'Cost', 'Balance'];
     const bodyRows = rows.map(row => [
         row.chainId ?? '',
         row.shortName ?? '',
+        row.type ?? '',
         row.gasPrice ?? '',
         row.cost ?? '',
         row.after ?? '',
