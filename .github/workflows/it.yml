@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Capture Start Time
+        id: capture-time
+        run: |
+          echo "started_at=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S %Z')" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,6 +35,8 @@ jobs:
         timeout-minutes: 30
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          L1_RPC_MAINNET: ${{ secrets.L1_RPC_MAINNET }}
+          L1_RPC_SEP: ${{ secrets.L1_RPC_SEP }}
         run: |
           node << 'EOF'
           import core from '@actions/core';
@@ -38,73 +45,98 @@ jobs:
           import { addLinks } from './it/scripts/add-links.mjs';
 
           async function run() {
-            let createdLinks = [];
-            let addLinkErrors = [];
+            
+            let errors = [];
+            const { links: created, errors: addLinkErrors, summaryTable, l1InfoTable } = await addLinks();
+            const allLinks = [...links, ...created];
+            const checkLinkErrors = await checkAllLinks(allLinks);
 
-            try {
-              const { links: newLinks, errors } = await addLinks();
-              createdLinks = newLinks;
-              addLinkErrors = errors;
-              console.log('New links', newLinks);
-              if (errors.length) {
-                console.log('Per-link errors:\n' + errors.join('\n'));
-              }
-            } catch (e) {
-              // Hard failure (e.g. config). Treat as error output.
-              addLinkErrors.push(e.message);
-              console.error('addLinks hard failure:', e.message);
+            if (summaryTable) {
+              core.setOutput('summary', summaryTable);
             }
-
-            const allLinks = [...links, ...createdLinks];
-            const failures = await checkAllLinks(allLinks);
-
-            if (failures.size > 0) {
-              core.setOutput('failures', Array.from(failures, ([k,v]) => `${k} -> ${v}`).join('\n'));
-            } else {
-              core.setOutput('results', allLinks.join('\n'));
+            if (l1InfoTable) {
+              core.setOutput('l1_summary', l1InfoTable);
             }
-
             if (addLinkErrors.length) {
-              core.setOutput('addlink_errors', addLinkErrors.join('\n'));
+              errors.push(...addLinkErrors);
+            }
+            if (checkLinkErrors.size > 0) {
+              errors.push(...Array.from(checkLinkErrors, ([k,v]) => `${k} -> ${v}`));
+            }
+            if (errors.length === 0) {
+              core.setOutput('created', created.join('\n'));
+            } else {
+              core.setOutput('failures', errors.join('\n'));
+              throw new Error(errors.join('\n'));
             }
           }
 
           await run().catch(err => {
-            console.error('Unexpected script failure:', err?.message || String(err));
-            core.setFailed(err?.message || String(err));
+            const errMsg = err?.stack || err?.message || String(err);
+            console.error('Error happened:', errMsg);
+            core.setFailed(errMsg);
             process.exit(1);
           });
           EOF
 
       - name: Send Failure Email
-        if: ${{ always() && steps.link-check.outcome != 'cancelled' && (steps.link-check.outputs.failures != '' || steps.link-check.outputs.addlink_errors != '' || steps.link-check.outcome != 'success') }}
-        uses: dawidd6/action-send-mail@v3
+        if: ${{ always() && steps.link-check.outcome != 'cancelled' && steps.link-check.outcome != 'success' }}
+        uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
           server_port: 465
+          convert_markdown: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "❌ Web3Gateway Links Failure"
-          body: |
-            Link check outcome: ${{ steps.link-check.outcome }}
+          html_body: |
+            ## 🚨 Link Check Failed
 
-            ${{ steps.link-check.outputs.addlink_errors }}
+            - **Outcome:** `${{ steps.link-check.outcome }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ steps.capture-time.outputs.started_at }}`
 
+            ---
+
+            ### Link Failures
             ${{ steps.link-check.outputs.failures }}
+
+            ### L1 Gas Prices
+            ${{ steps.link-check.outputs.l1_summary }}
+
+            ### Cost Summary
+            ${{ steps.link-check.outputs.summary }}
+
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
       - name: Send Daily Success Email
         if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
           server_port: 465
+          convert_markdown: true
           username: ${{secrets.SMTP_USERNAME}}
           password: ${{secrets.SMTP_PASSWORD}}
           subject: "✅ Web3Gateway Links Check Successful"
-          body: |
-            All links are healthy:
-            ${{ steps.link-check.outputs.results }}
+          html_body: |
+            ## ✅ All Links Healthy
+
+            - **Outcome:** `${{ steps.link-check.outcome }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ steps.capture-time.outputs.started_at }}`
+
+            ---
+
+            ### L1 Gas Prices
+            ${{ steps.link-check.outputs.l1_summary }}
+            
+            ### Cost Summary
+            ${{ steps.link-check.outputs.summary }}
+
+            ### New Links
+            ${{ steps.link-check.outputs.created }}
+
+            _(static link list trimmed)_
+
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway
