@@ -51,6 +51,8 @@ jobs:
             const allLinks = [...links, ...created];
             const checkLinkErrors = await checkAllLinks(allLinks);
 
+            core.setOutput('static_links_total', String(links.length));
+
             if (summaryTable) {
               core.setOutput('summary', summaryTable);
             }
@@ -112,7 +114,7 @@ jobs:
             ### New Links
             ${{ steps.link-check.outputs.created }}
 
-            _(static link list trimmed)_
+            _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
@@ -144,7 +146,7 @@ jobs:
             ### New Links
             ${{ steps.link-check.outputs.created }}
 
-            _(static link list trimmed)_
+            _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway
