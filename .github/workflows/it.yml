@@ -51,6 +51,8 @@ jobs:
             const allLinks = [...links, ...created];
             const checkLinkErrors = await checkAllLinks(allLinks);
 
+            core.setOutput('static_links_total', String(links.length));
+
             if (summaryTable) {
               core.setOutput('summary', summaryTable);
             }
@@ -63,11 +65,14 @@ jobs:
             if (checkLinkErrors.size > 0) {
               errors.push(...Array.from(checkLinkErrors, ([k,v]) => `${k} -> ${v}`));
             }
-            if (errors.length === 0) {
-              core.setOutput('created', created.join('\n'));
-            } else {
-              core.setOutput('failures', errors.join('\n'));
-              throw new Error(errors.join('\n'));
+            if (created.length) {
+              const createdList = created.map(link => `- ${link}`).join('\n');
+              core.setOutput('created', createdList);
+            }
+            if (errors.length) {
+              const failureList = errors.map(err => `- ${err}`).join('\n');
+              core.setOutput('failures', failureList);
+              throw new Error(failureList);
             }
           }
 
@@ -106,6 +111,11 @@ jobs:
             ### Cost Summary
             ${{ steps.link-check.outputs.summary }}
 
+            ### New Links
+            ${{ steps.link-check.outputs.created }}
+
+            _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
+
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
@@ -136,7 +146,7 @@ jobs:
             ### New Links
             ${{ steps.link-check.outputs.created }}
 
-            _(static link list trimmed)_
+            _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway

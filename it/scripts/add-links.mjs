@@ -7,6 +7,15 @@ const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
 const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 Gwei
 const L1_RPC_MAINNET = process.env.L1_RPC_MAINNET;
 const L1_RPC_SEP = process.env.L1_RPC_SEP || "http://65.108.230.142:8545";
+const DEPLOY_GAS_PRICE_CAP_GWEI = 1;
+const FIXED_DECIMALS = 9;
+const PREDEPLOYED_CONTRACTS = {
+    3333: "0x2f3D6e07213168D0DA0A74AFA824C4075E79a678",
+    110011: "0x024d62c3E57692e366310ee50e5D9d845Ec09f3F",
+    11155420: "0xF756F3153Ac23Ebd0bec22b8637E83E28B059b33",
+    84532: "0x06F85a74A01Af29EacdCD5ef4f64CB3c5703323c",
+    100011: "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94",
+};
 
 
 
@@ -86,13 +95,22 @@ export async function addLinks() {
                 const errMsg = formatAddLinkErr(result.reason);
                 console.error(`${errMsg} on chain ${configs[index].chainId}, status: ${result.status}`);
                 errors.push(`${errMsg} on chain ${configs[index].chainId}`);
-                summaries.push({
+                const fallbackSummary = result.reason?.summary ?? {
                     chainId: configs[index].chainId,
                     shortName: configs[index].shortName,
-                    gasPrice: '--',
-                    cost: `(tx failed)`,
+                    type: configs[index].type,
+                    gasPrice: result.reason?.gasPrice ?? '--',
+                    deployCost: '--',
+                    uploadCost: '--',
+                    cost: '(tx failed)',
                     after: '--',
-                });
+                };
+                fallbackSummary.cost = fallbackSummary.cost || '(tx failed)';
+                fallbackSummary.deployCost = fallbackSummary.deployCost ?? '--';
+                fallbackSummary.uploadCost = fallbackSummary.uploadCost ?? '--';
+                fallbackSummary.gasPrice = fallbackSummary.gasPrice ?? '--';
+                fallbackSummary.after = fallbackSummary.after ?? '--';
+                summaries.push(fallbackSummary);
             }
         });
     }
@@ -112,8 +130,18 @@ export async function addLinks() {
 export async function addLink(rpc, type, chainId, shortName) {
     console.log("Adding link for", rpc, chainId);
     const pk = process.env.PRIVATE_KEY;
-    // Balance before
     const linkProvider = new ethers.JsonRpcProvider(rpc);
+    const summary = {
+        chainId,
+        shortName,
+        type,
+        gasPrice: '--',
+        deployCost: '--',
+        uploadCost: '--',
+        cost: '--',
+        after: '--',
+    };
+
     try {
         const wallet = new ethers.Wallet(pk, linkProvider);
         const address = await wallet.getAddress();
@@ -121,22 +149,142 @@ export async function addLink(rpc, type, chainId, shortName) {
 
         const feeData = await linkProvider.getFeeData();
         const gasPriceWei = feeData.maxFeePerGas ?? feeData.gasPrice ?? 0n;
-        const gasPriceGwei = gasPriceWei ? `${ethers.formatUnits(gasPriceWei, 'gwei')} Gwei` : 'n/a';
+        const gasPriceGwei = gasPriceWei ? `${formatGweiFixed(gasPriceWei)} Gwei` : 'n/a';
+        const gasPriceGweiValue = gasPriceWei ? Number(ethers.formatUnits(gasPriceWei, 'gwei')) : 0;
+        summary.gasPrice = gasPriceGwei;
 
-        const { contractAddress, dateKey } = await ensureFlatDirectoryAndUpload({
-            rpc,
-            pk,
-            type,
-            chainId,
+        let contractAddress;
+        let balanceBeforeUpload = startBalance;
+        let deployCostWei = 0n;
+        let skippedDeployment = false;
+
+        const predeployed = PREDEPLOYED_CONTRACTS[chainId];
+        const shouldSkipDeploy = gasPriceGweiValue > DEPLOY_GAS_PRICE_CAP_GWEI;
+
+        const usePredeployed = (reason, deployCostOverride) => {
+            if (!predeployed) {
+                throw new Error(`${reason} but no predeployed FlatDirectory is configured for chain ${chainId}.`);
+            }
+            skippedDeployment = true;
+            contractAddress = predeployed;
+            if (deployCostOverride) {
+                summary.deployCost = deployCostOverride;
+            } else if (summary.deployCost === '--') {
+                summary.deployCost = '0.0 (predeployed)';
+            }
+            console.log(`${reason} Using predeployed contract ${contractAddress} on chain ${chainId}.`);
+        };
+
+        if (shouldSkipDeploy) {
+            usePredeployed(`Gas price ${gasPriceGweiValue} gwei exceeds cap ${DEPLOY_GAS_PRICE_CAP_GWEI} gwei.`);
+        } else {
+            let deployDirectory;
+            try {
+                deployDirectory = await withTimeout(
+                    FlatDirectory.create({
+                        rpc,
+                        privateKey: pk,
+                    }),
+                    TIMEOUT,
+                    "FlatDirectory.create"
+                );
+                contractAddress = await withTimeout(
+                    deployDirectory.deploy(),
+                    TIMEOUT,
+                    "flatDirectory.deploy"
+                );
+            } catch (err) {
+                console.error(`FlatDirectory deployment failed on chain ${chainId}:`, err?.message || err);
+                const postFailureBalance = await linkProvider.getBalance(address);
+                deployCostWei = startBalance > postFailureBalance ? startBalance - postFailureBalance : deployCostWei;
+                balanceBeforeUpload = postFailureBalance;
+                const overrideCost = deployCostWei > 0n
+                    ? `${formatEtherFixed(deployCostWei)} (failed deploy)`
+                    : '0.0 (predeployed)';
+                usePredeployed('Deployment failed.', overrideCost);
+            } finally {
+                await deployDirectory?.close?.();
+            }
+
+            if (!skippedDeployment) {
+                const postDeployBalance = await linkProvider.getBalance(address);
+                deployCostWei = startBalance > postDeployBalance ? startBalance - postDeployBalance : 0n;
+                balanceBeforeUpload = postDeployBalance;
+                summary.deployCost = formatEtherFixed(deployCostWei);
+            }
+        }
+
+        if (!contractAddress) {
+            throw new Error(`No flatDirectory contract available for chain ${chainId}.`);
+        }
+
+        const flatDirectory = await withTimeout(
+            FlatDirectory.create({
+                rpc,
+                privateKey: pk,
+                address: contractAddress,
+            }),
+            TIMEOUT,
+            "FlatDirectory.create"
+        );
+
+        const beijingTime = new Date().toLocaleString('zh-CN', {
+            timeZone: 'Asia/Shanghai',
         });
-        // Balance after and table summary
+
+        const [dateKey, timePart] = beijingTime.split(' ');
+        console.log(dateKey, timePart);
+
+        let uploadError;
+        try {
+            await withTimeout(
+                flatDirectory.upload({
+                    key: dateKey,
+                    content: Buffer.from(`hello link checker - at ${dateKey} ${timePart}`),
+                    type,
+                    callback: {
+                        onProgress: function (progress, count, isChange) {
+                            console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
+                        },
+                        onFail: function (err) {
+                            console.log("Upload failed", "chainId", chainId, "error", err);
+                        },
+                        onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+                            console.log("Upload finished", "totalUploadSize:", totalUploadSize, "totalStorageCost:", totalStorageCost, "chainId:", chainId);
+                        },
+                    },
+                }),
+                TIMEOUT,
+                "flatDirectory.upload"
+            );
+        } catch (err) {
+            uploadError = err;
+        } finally {
+            await flatDirectory.close?.();
+        }
+
         const endBalance = await linkProvider.getBalance(address);
-        const costWei = startBalance - endBalance;
-        const afterEth = ethers.formatEther(endBalance);
-        const baseCostEth = ethers.formatEther(costWei);
-        const displayCost = chainId === 100011
-            ? `${baseCostEth} (upload only)`
+        const uploadCostWei = balanceBeforeUpload > endBalance ? balanceBeforeUpload - endBalance : 0n;
+        const afterEth = formatEtherFixed(endBalance);
+
+        const deployCostEth = skippedDeployment ? '0.0 (predeployed)' : formatEtherFixed(deployCostWei);
+        const uploadCostEth = formatEtherFixed(uploadCostWei);
+        const totalCostWei = deployCostWei + uploadCostWei;
+        const baseCostEth = formatEtherFixed(totalCostWei);
+        const displayCost = skippedDeployment
+            ? `${baseCostEth}`
             : baseCostEth;
+
+        summary.deployCost = summary.deployCost === '--' ? deployCostEth : summary.deployCost;
+        summary.uploadCost = uploadCostEth;
+        summary.cost = displayCost;
+        summary.after = afterEth;
+
+        if (uploadError) {
+            const enriched = new Error(uploadError?.message || String(uploadError));
+            enriched.summary = summary;
+            throw enriched;
+        }
 
         return {
             links: [
@@ -145,99 +293,15 @@ export async function addLink(rpc, type, chainId, shortName) {
                 `https://${contractAddress}.${shortName}.w3link.io/${dateKey}`,
                 `https://${contractAddress}.${shortName}.web3gateway.dev/${dateKey}`,
             ],
-            summary: {
-                chainId,
-                shortName,
-                gasPrice: gasPriceGwei,
-                cost: displayCost,
-                after: afterEth,
-            },
+            summary,
         };
+    } catch (err) {
+        err.summary = err.summary ?? summary;
+        throw err;
     } finally {
         linkProvider.destroy();
     }
 }
-
-async function ensureFlatDirectoryAndUpload({ rpc, pk, type, chainId }) {
-    let contractAddress;
-
-    if (chainId === 100011) {
-        contractAddress = "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94";
-        console.log("Using existing flatDirectory contract:", contractAddress, "on chainId:", chainId);
-    } else {
-        let deployDirectory;
-        try {
-            deployDirectory = await withTimeout(
-                FlatDirectory.create({
-                    rpc,
-                    privateKey: pk,
-                }),
-                TIMEOUT,
-                "FlatDirectory.create"
-            );
-            contractAddress = await withTimeout(
-                deployDirectory.deploy(),
-                TIMEOUT,
-                "flatDirectory.deploy"
-            );
-        } catch (err) {
-            console.error("FlatDirectory deploy failed", "chainId:", chainId, "error:", err?.message || err);
-            throw err;
-        } finally {
-            await deployDirectory?.close?.();
-        }
-
-        if (!contractAddress) {
-            console.error("Error: no contract address found at", rpc, "chainId:", chainId);
-            throw new Error("Failed to deploy flatDirectory.");
-        }
-    }
-
-    const flatDirectory = await withTimeout(
-        FlatDirectory.create({
-            rpc,
-            privateKey: pk,
-            address: contractAddress,
-        }),
-        TIMEOUT,
-        "FlatDirectory.create"
-    );
-
-    const beijingTime = new Date().toLocaleString('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-    });
-
-    const [dateKey, timePart] = beijingTime.split(' ');
-    console.log(dateKey, timePart);
-
-    try {
-        await withTimeout(
-            flatDirectory.upload({
-                key: dateKey,
-                content: Buffer.from(`hello link checker - at ${dateKey} ${timePart}`),
-                type,
-                callback: {
-                    onProgress: function (progress, count, isChange) {
-                        console.log(`Progress: ${progress}%, count: ${count}, isChange: ${isChange}`);
-                    },
-                    onFail: function (err) {
-                        console.log("Upload failed", "chainId", chainId, "error", err);
-                    },
-                    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-                        console.log("Upload finished", "totalUploadSize:", totalUploadSize, "totalStorageCost:", totalStorageCost, "chainId:", chainId);
-                    },
-                },
-            }),
-            TIMEOUT,
-            "flatDirectory.upload"
-        );
-    } finally {
-        await flatDirectory.close?.();
-    }
-
-    return { contractAddress, dateKey };
-}
-
 
 function formatAddLinkErr(reason) {
     const rawMessage = (() => {
@@ -272,11 +336,14 @@ function formatCostSummary(rows) {
     if (!Array.isArray(rows) || rows.length === 0) {
         return '';
     }
-    const headers = ['Chain ID', 'Short', 'Gas Price', 'Cost', 'Balance'];
+    const headers = ['Chain ID', 'Short', 'Type', 'Gas Price', 'Deploy Cost', 'Upload Cost', 'Total Cost', 'Balance'];
     const bodyRows = rows.map(row => [
         row.chainId ?? '',
         row.shortName ?? '',
+        row.type ?? '',
         row.gasPrice ?? '',
+        row.deployCost ?? '',
+        row.uploadCost ?? '',
         row.cost ?? '',
         row.after ?? '',
     ]);
@@ -317,6 +384,43 @@ function escapeHtml(value) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+}
+
+function zeroFixed(fractionDigits = FIXED_DECIMALS) {
+    return `0.${'0'.repeat(fractionDigits)}`;
+}
+
+function formatNumberFixed(value, fractionDigits = FIXED_DECIMALS) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+        if (value === null || value === undefined) {
+            return zeroFixed(fractionDigits);
+        }
+        return String(value);
+    }
+    return num.toFixed(fractionDigits);
+}
+
+function formatEtherFixed(weiValue, fractionDigits = FIXED_DECIMALS) {
+    if (weiValue == null) {
+        return zeroFixed(fractionDigits);
+    }
+    return formatNumberFixed(ethers.formatEther(weiValue), fractionDigits);
+}
+
+function formatGweiFixed(weiValue, fractionDigits = FIXED_DECIMALS) {
+    if (weiValue == null) {
+        return zeroFixed(fractionDigits);
+    }
+    return formatNumberFixed(ethers.formatUnits(weiValue, 'gwei'), fractionDigits);
+}
+
+function formatGweiFromWeiNumber(value, fractionDigits = FIXED_DECIMALS) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return 'n/a';
+    }
+    const gwei = value / 1e9;
+    return `${gwei.toFixed(fractionDigits)} Gwei`;
 }
 
 async function retryAsync(fn, { maxAttempts = 3, delayMs = 1000, label = 'operation' } = {}) {
@@ -369,14 +473,14 @@ async function fetchL1GasInfo(l1RPC, chainName) {
             return { ok: false, chainName, blobBaseFee: Number.POSITIVE_INFINITY, blobBaseFeeGwei: 'n/a' };
         }
         const blobBaseFee = Number.parseInt(blobFeeResponse, 16);
-        const blobBaseFeeGwei = `${blobBaseFee / 1e9} Gwei`;
+        const blobBaseFeeGwei = formatGweiFromWeiNumber(blobBaseFee);
 
         let l1GasPrice = Number.POSITIVE_INFINITY;
         let l1GasPriceGwei = 'n/a';
         if (gasPriceResponse) {
             try {
                 l1GasPrice = Number.parseInt(gasPriceResponse, 16);
-                l1GasPriceGwei = `${l1GasPrice / 1e9} Gwei`;
+                l1GasPriceGwei = formatGweiFromWeiNumber(l1GasPrice);
             } catch (err) {
                 console.warn('Failed to parse L1 gas price for', chainName, err);
             }
