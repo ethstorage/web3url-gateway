@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install node-fetch @actions/core @actions/github
+          npm install node-fetch @actions/core@^3.0.0 @actions/github@^9.0.0
           npm install ethstorage-sdk
 
       - name: Check Links
@@ -39,7 +39,7 @@ jobs:
           L1_RPC_SEP: ${{ secrets.L1_RPC_SEP }}
         run: |
           node << 'EOF'
-          import core from '@actions/core';
+          import * as core from '@actions/core';
           import { checkAllLinks } from './it/scripts/check-links.mjs';
           import { links } from './it/data/links.mjs';
           import { addLinks } from './it/scripts/add-links.mjs';
