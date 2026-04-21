@@ -44,7 +44,7 @@ export async function addLinks() {
                 { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
                 { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
                 { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
-                { rpc: "https://base-sepolia.drpc.org", type: 1, chainId: 84532, shortName: "basesep" },
+                { rpc: "https://sepolia.base.org", type: 1, chainId: 84532, shortName: "basesep" },
             );
         }
     }
