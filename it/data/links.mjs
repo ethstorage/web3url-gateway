@@ -5,6 +5,9 @@ export const links = [
   "https://vitalikblog.w3eth.io/css/misc.css",
   "https://usdc.w3eth.io/name?returns=(string)",
   "https://0xdac17f958d2ee523a2206206994597c13d831ec7.w3eth.io/name?returns=(string)",
+  // call gas > 50000000:
+  "https://nouns-wtf.w3eth.io/render/505",
+  "https://moon-birds-xyz.w3eth.io/render/9880",
 
   // w3link.io
   "https://0x4200000000000000000000000000000000000800.100011.w3link.io/name?returns=(string)",
@@ -28,8 +31,6 @@ export const links = [
   "https://0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.avax.w3link.io/name?returns=(string)",
   "https://0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.43113.w3link.io/name?returns=(string)",
   "https://0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.fuji.w3link.io/name?returns=(string)",
-  "https://0x69c744d3444202d35a2783929a0f930f2fbb05ad.250.w3link.io/name?returns=(string)",
-  "https://0x69c744d3444202d35a2783929a0f930f2fbb05ad.ftm.w3link.io/name?returns=(string)",
   "https://0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.1666600000.w3link.io/name?returns=(string)",
   "https://0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.hmy-s0.w3link.io/name?returns=(string)",
   "https://0xc9c8ba8c7e2eaf43e84330db08915a8106d7bd74.1666700000.w3link.io/name?returns=(string)",
@@ -67,8 +68,6 @@ export const links = [
   "https://0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7.avax.web3gateway.dev/name?returns=(string)",
   "https://0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.43113.web3gateway.dev/name?returns=(string)",
   "https://0x2796BAED33862664c08B8Ee5Fa2D1283C79593b1.fuji.web3gateway.dev/name?returns=(string)",
-  "https://0x69c744d3444202d35a2783929a0f930f2fbb05ad.250.web3gateway.dev/name?returns=(string)",
-  "https://0x69c744d3444202d35a2783929a0f930f2fbb05ad.ftm.web3gateway.dev/name?returns=(string)",
   "https://0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.1666600000.web3gateway.dev/name?returns=(string)",
   "https://0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a.hmy-s0.web3gateway.dev/name?returns=(string)",
   "https://0xc9c8ba8c7e2eaf43e84330db08915a8106d7bd74.1666700000.web3gateway.dev/name?returns=(string)",
