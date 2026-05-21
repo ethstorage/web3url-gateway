@@ -62,15 +62,11 @@ Example 2: `w3link.io` (for general web3 links)
 |10|Optimism|oeth|
 |11155420|Optimism Sepolia|opsep|
 |42161|Arbitrum One|arb1|
-|9001|Evmos|evmos|
-|9000|Evmos Testnet|evmos-testnet|
 |42170|Arbitrum Nova|arb-nova|
 |56|Binance Smart Chain Mainnet|bnb|
 |97|Binance Smart Chain Testnet|bnbt|
 |43114|Avalanche C-Chain|avax|
 |43113|Avalanche Fuji Testnet|fuji|
-|250|Fantom Opera|ftm|
-|4002|Fantom Testnet|tftm|
 |1666600000|Harmony Mainnet Shard 0|hmy-s0|
 |1666700000|Harmony Testnet Shard 0|hmy-b-s0|
 |137|Polygon Mainnet|matic|
