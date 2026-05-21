@@ -5,6 +5,9 @@ export const links = [
   "https://vitalikblog.w3eth.io/css/misc.css",
   "https://usdc.w3eth.io/name?returns=(string)",
   "https://0xdac17f958d2ee523a2206206994597c13d831ec7.w3eth.io/name?returns=(string)",
+  // call gas > 50000000:
+  "https://nouns-wtf.w3eth.io/render/505",
+  "https://moon-birds-xyz.w3eth.io/render/9880",
 
   // w3link.io
   "https://0x4200000000000000000000000000000000000800.100011.w3link.io/name?returns=(string)",
