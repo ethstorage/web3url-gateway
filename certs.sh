@@ -17,9 +17,7 @@
   -d '*.1402.web3gateway.dev' \
   -d '*.1666600000.web3gateway.dev' \
   -d '*.1666700000.web3gateway.dev' \
-  -d '*.250.web3gateway.dev' \
   -d '*.333.web3gateway.dev' \
-  -d '*.4002.web3gateway.dev' \
   -d '*.420.web3gateway.dev' \
   -d '*.42161.web3gateway.dev' \
   -d '*.421613.web3gateway.dev' \
@@ -30,8 +28,6 @@
   -d '*.534354.web3gateway.dev' \
   -d '*.56.web3gateway.dev' \
   -d '*.80001.web3gateway.dev' \
-  -d '*.9000.web3gateway.dev' \
-  -d '*.9001.web3gateway.dev' \
   -d '*.97.web3gateway.dev' \
   -d '*.arb-nova.web3gateway.dev' \
   -d '*.arb1.web3gateway.dev' \
@@ -47,9 +43,6 @@
   -d '*.eth.oeth.web3gateway.dev' \
   -d '*.eth.sep.web3gateway.dev' \
   -d '*.eth.web3gateway.dev' \
-  -d '*.evmos-testnet.web3gateway.dev' \
-  -d '*.evmos.web3gateway.dev' \
-  -d '*.ftm.web3gateway.dev' \
   -d '*.fuji.web3gateway.dev' \
   -d '*.hmy-b-s0.web3gateway.dev' \
   -d '*.hmy-s0.web3gateway.dev' \
@@ -64,8 +57,6 @@
   -d '*.sep.web3gateway.dev' \
   -d '*.opsep.web3gateway.dev' \
   -d '*.11155420.web3gateway.dev' \
-  -d '*.tftm.web3gateway.dev' \
-  -d '*.zkevmtest.web3gateway.dev' \
   -d '*.web3gateway.dev' \
   -d '*.storyprotocoltest.web3gateway.dev' \
   -d '*.1513.web3gateway.dev' \

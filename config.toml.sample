@@ -43,15 +43,11 @@ immutableUrlRegexps = []
 "oeth" = 10
 "opsep"= 11155420
 "arb1" = 42161
-"evmos" = 9001
-"evmos-testnet" = 9000
 "arb-nova" = 42170
 "bnb" = 56
 "bnbt" = 97
 "avax" = 43114
 "fuji" = 43113
-"ftm" = 250
-"tftm" = 4002
 "hmy-s0" = 1666600000
 "hmy-b-s0" = 1666700000
 "matic" = 137
@@ -100,14 +96,6 @@ immutableUrlRegexps = []
     "ChainID" = 42161
     "RPC" = "https://arbitrum.meowrpc.com"
 
-    [chainConfigs.9001]
-    "ChainID" = 9001
-    "RPC" = "https://evmos-evm.publicnode.com"
-
-    [chainConfigs.9000]
-    "ChainID" = 9000
-    "RPC" = "https://eth.bd.evmos.dev:8545"
-
     [chainConfigs.42170]
     "ChainID" = 42170
     "RPC" = "https://nova.arbitrum.io/rpc"
@@ -127,14 +115,6 @@ immutableUrlRegexps = []
     [chainConfigs.43113]
     "ChainID" = 43113
     "RPC" = "https://api.avax-test.network/ext/bc/C/rpc"
-
-    [chainConfigs.250]
-    "ChainID" = 250
-    "RPC" = "https://fantom-pokt.nodies.app"
-
-    [chainConfigs.4002]
-    "ChainID" = 4002
-    "RPC" = "https://rpc.testnet.fantom.network"
 
     [chainConfigs.1666600000]
     "ChainID" = 1666600000
