@@ -121,7 +121,7 @@
       }
       Object.defineProperty(proto, elementWithUrlAttr.attrName, {
         set: function(attrValue) {
-          if(attrValue.startsWith('web3://')) {
+          if(attrValue && typeof attrValue === 'string' && attrValue.startsWith('web3://')) {
             const convertedUrl = convertWeb3UrlToGatewayUrl(attrValue);
             if(convertedUrl == null) {
               console.error("Gateway " + element.name + " " + elementWithUrlAttr.attrName + " setter wrapper: Unable to convert web3:// URL: " + attrValue);
