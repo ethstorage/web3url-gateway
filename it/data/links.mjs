@@ -45,6 +45,7 @@ export const links = [
   "https://0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed.8453.w3link.io/symbol?returns=(string)",
   "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.injective.w3link.io/name?returns=(string)",
   "https://0x0000000088827d2d103ee2d9A6b781773AE03FfB.1776.w3link.io/name?returns=(string)",
+  "https://0x90a5629c3d7ebc48be3012210a1b1c229432884a.3333.w3link.io/",
 
   // web3gateway.dev
   "https://0x4200000000000000000000000000000000000006.qkc-l2.web3gateway.dev/name?returns=(string)",
