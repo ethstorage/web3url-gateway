@@ -8,6 +8,9 @@ export const links = [
   // call gas > 50000000:
   "https://nouns-wtf.w3eth.io/render/505",
   "https://moon-birds-xyz.w3eth.io/render/9880",
+  // home page assets stored on EthStorage Sepolia testnet
+  "https://web3url.w3eth.io/assets/logo-BOgUDNUW.svg",
+  "https://web3url.w3eth.io/assets/video-Cf4tQ2mp.webm",
 
   // w3link.io
   "https://0x4200000000000000000000000000000000000800.100011.w3link.io/name?returns=(string)",
