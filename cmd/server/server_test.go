@@ -130,9 +130,9 @@ var mimeTypeUrls = []struct {
 	{"0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenSVG/1?mime.content=image/svg+xml&mime.type=htm", "text/html; charset=utf-8", http.StatusOK},
 	// returns overrides mime
 	{"0x4e1f41613c9084fdb9e34e11fae9412427480e56.w3eth.io", "/tokenByIndex/1?returns=(uint256)&mime.type=xml", "application/json", http.StatusOK},
-	// use extention of last param if no mime specified
+	// use extension of last param if no mime specified
 	{"0xb3dc8d94a698278814b051df3e78834c7c2e44f5.3337.w3link.io", "/2/0.png", "image/png", http.StatusOK},
-	// // mime overrides extention
+	// // mime overrides extension
 	{"0x0f6a39bd95907b044cc13fd782dcdf7c2515e4ee.3337.w3link.io", "/compose/string!1.svg?mime.type=html", "text/html; charset=utf-8", http.StatusOK},
 	// // mime.type is ignored if cannot find the corresponding content type
 	{"0x0f6a39bd95907b044cc13fd782dcdf7c2515e4ee.3337.w3link.io", "/compose/string!1.svg?mime.type=foo", "image/svg+xml", http.StatusOK},
