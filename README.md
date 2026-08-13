@@ -67,8 +67,6 @@ Example 2: `w3link.io` (for general web3 links)
 |97|Binance Smart Chain Testnet|bnbt|
 |43114|Avalanche C-Chain|avax|
 |43113|Avalanche Fuji Testnet|fuji|
-|1666600000|Harmony Mainnet Shard 0|hmy-s0|
-|1666700000|Harmony Testnet Shard 0|hmy-b-s0|
 |137|Polygon Mainnet|matic|
 |80001|Mumbai|maticmum|
 |1402|Polygon zkEVM Testnet|zkevmtest|

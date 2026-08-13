@@ -15,8 +15,6 @@
   -d '*.11155111.web3gateway.dev' \
   -d '*.137.web3gateway.dev' \
   -d '*.1402.web3gateway.dev' \
-  -d '*.1666600000.web3gateway.dev' \
-  -d '*.1666700000.web3gateway.dev' \
   -d '*.333.web3gateway.dev' \
   -d '*.420.web3gateway.dev' \
   -d '*.42161.web3gateway.dev' \
@@ -44,8 +42,6 @@
   -d '*.eth.sep.web3gateway.dev' \
   -d '*.eth.web3gateway.dev' \
   -d '*.fuji.web3gateway.dev' \
-  -d '*.hmy-b-s0.web3gateway.dev' \
-  -d '*.hmy-s0.web3gateway.dev' \
   -d '*.matic.web3gateway.dev' \
   -d '*.maticmum.web3gateway.dev' \
   -d '*.metis-andromeda.web3gateway.dev' \
