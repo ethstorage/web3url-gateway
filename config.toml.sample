@@ -48,8 +48,6 @@ immutableUrlRegexps = []
 "bnbt" = 97
 "avax" = 43114
 "fuji" = 43113
-"hmy-s0" = 1666600000
-"hmy-b-s0" = 1666700000
 "matic" = 137
 "maticmum" = 80001
 "zkevmtest" = 1402
@@ -115,14 +113,6 @@ immutableUrlRegexps = []
     [chainConfigs.43113]
     "ChainID" = 43113
     "RPC" = "https://api.avax-test.network/ext/bc/C/rpc"
-
-    [chainConfigs.1666600000]
-    "ChainID" = 1666600000
-    "RPC" = "https://a.api.s0.t.hmny.io"
-
-    [chainConfigs.1666700000]
-    "ChainID" = 1666700000
-    "RPC" = "https://endpoints.omniatech.io/v1/harmony/testnet-0/public"
 
     [chainConfigs.137]
     "ChainID" = 137
