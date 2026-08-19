@@ -7,6 +7,7 @@ const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
 const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 Gwei
 const L1_RPC_MAINNET = process.env.L1_RPC_MAINNET;
 const L1_RPC_SEP = process.env.L1_RPC_SEP || "http://65.108.230.142:8545";
+const L2_RPC_BASE_SEP = process.env.L2_RPC_BASE_SEP || "https://base-testnet.api.pocket.network";
 const DEPLOY_GAS_PRICE_CAP_GWEI = 1;
 const FIXED_DECIMALS = 9;
 const PREDEPLOYED_CONTRACTS = {
@@ -44,7 +45,7 @@ export async function addLinks() {
                 { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
                 { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
                 // { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
-                { rpc: "https://sepolia.base.org", type: 1, chainId: 84532, shortName: "basesep" },
+                { rpc: L2_RPC_BASE_SEP, type: 1, chainId: 84532, shortName: "basesep" },
             );
         }
     }
