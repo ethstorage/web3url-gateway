@@ -37,6 +37,7 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           L1_RPC_MAINNET: ${{ secrets.L1_RPC_MAINNET }}
           L1_RPC_SEP: ${{ secrets.L1_RPC_SEP }}
+          L2_RPC_BASE_SEP: ${{ secrets.L2_RPC_BASE_SEP }}
         run: |
           node << 'EOF'
           import * as core from '@actions/core';
