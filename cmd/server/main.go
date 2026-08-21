@@ -142,7 +142,7 @@ func initConfig() {
 			return
 		}
 		if _, ok := config.ChainConfigs[chainId]; !ok {
-			log.Fatalf("Unsupport chainID %v\n", ss[0])
+			log.Fatalf("Unsupported chainID %v\n", ss[0])
 			return
 		}
 		config.ChainConfigs[chainId].NSConfig[ss[1]] = NameServiceInfo{
@@ -271,7 +271,7 @@ func main() {
 	limitedHandler := requestLimiter(http.DefaultServeMux)
 	if config.RunAsHttp {
 		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
-		log.Info("Running server in unsecure mode...")
+		log.Info("Running server in insecure mode...")
 		err := http.ListenAndServe(":"+config.ServerPort, limitedHandler)
 		if err != nil {
 			log.Fatalf("Cannot start server: %v\n", err)

@@ -125,7 +125,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Add a extra header indicating that it was served from cache
 		w.Header().Set("Web3urlgateway-Cache-Status", "hit")
 		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
-		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+		// Golang HTTP server has a weird default : if we don't explicitly add a content-type header,
 		// it will add its own Content-Type: text/xml; charset=utf-8
 		if w.Header().Get("Content-Type") == "" {
 			// Best thing would be to remove the content-type header, but looks like we can
@@ -175,7 +175,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// Add a extra header indicating that it was served from cache
 		w.Header().Set("Web3urlgateway-Cache-Status", "hit")
 		w.Header().Set("Age", fmt.Sprintf("%d", int(time.Since(cacheEntry.CreationTime).Seconds())))
-		// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+		// Golang HTTP server has a weird default : if we don't explicitly add a content-type header,
 		// it will add its own Content-Type: text/xml; charset=utf-8
 		if w.Header().Get("Content-Type") == "" {
 			// Best thing would be to remove the content-type header, but looks like we can
@@ -206,7 +206,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	}
 	// Add a extra header indicating that it was not served from cache
 	w.Header().Set("Web3urlgateway-Cache-Status", "miss")
-	// Golang HTTP server has a weird default : if we don't explicitely add a content-type header,
+	// Golang HTTP server has a weird default : if we don't explicitly add a content-type header,
 	// it will add its own Content-Type: text/xml; charset=utf-8
 	if w.Header().Get("Content-Type") == "" {
 		// Best thing would be to remove the content-type header, but looks like we can
@@ -575,7 +575,7 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 	}
 
 	// Convert the buffer to a string
-	// We should theorically look for the charset, located in a <meta charset="xxx" /> tag,
+	// We should theoretically look for the charset, located in a <meta charset="xxx" /> tag,
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
 	textContent := string(alteredBuf)
 
