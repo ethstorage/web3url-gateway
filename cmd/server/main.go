@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ var (
 	versionCheck                  = flag.Bool("version", false, "print version of web3url server")
 	dbToken                       = flag.String("dbToken", "", "influxDB auth token")
 	cacheDurationMinutes          = flag.Int("cacheDurationMinutes", 60, "cache duration in minutes; default to 60")
+	pprofAddr                     = flag.String("pprofAddr", "", "address for the pprof debug server, e.g. 127.0.0.1:6060; empty disables it")
 	writeAPI                      api.WriteAPIBlocking
 	certificateFile               = stringFlags{}
 	keyFile                       = stringFlags{}
@@ -248,19 +250,45 @@ func initStats() {
 	}
 }
 
+// startPprof serves the runtime profiling endpoints on their own listener,
+// bound to whatever addr says -- use a loopback address, these endpoints are
+// unauthenticated. Disabled when addr is empty.
+func startPprof(addr string) {
+	if addr == "" {
+		return
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	go func() {
+		log.Infof("pprof listening on http://%s/debug/pprof/\n", addr)
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Errorf("pprof server stopped: %v\n", err)
+		}
+	}()
+}
+
 func main() {
 	if *versionCheck {
 		fmt.Println("web3url server version", versionInfo())
 		return
 	}
 	initConfig()
+	startPprof(*pprofAddr)
 	initWeb3protocolClient()
 	initStats()
 	log.SetLevel(log.Level(config.Verbosity))
 	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
 	log.Infof("config: %+v\n", config)
-	http.HandleFunc("/", handle)
-	http.HandleFunc("/_version", func(w http.ResponseWriter, req *http.Request) {
+	// Serve on a mux of our own, never http.DefaultServeMux: importing
+	// net/http/pprof registers its handlers on the default mux from init(), so
+	// serving that mux would publish heap dumps and CPU profiling to the internet.
+	gatewayMux := http.NewServeMux()
+	gatewayMux.HandleFunc("/", handle)
+	gatewayMux.HandleFunc("/_version", func(w http.ResponseWriter, req *http.Request) {
 		_, err := fmt.Fprintf(w, "web3url server version %s", versionInfo())
 		if err != nil {
 			log.Errorf("Cannot write version info: %v\n", err)
@@ -268,7 +296,7 @@ func main() {
 		}
 	})
 
-	limitedHandler := requestLimiter(http.DefaultServeMux)
+	limitedHandler := requestLimiter(gatewayMux)
 	if config.RunAsHttp {
 		log.Infof("Serving on http://localhost:%v\n", config.ServerPort)
 		log.Info("Running server in unsecure mode...")
