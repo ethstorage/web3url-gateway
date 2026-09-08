@@ -302,15 +302,16 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// - Inject a javascript patch to the HTML page, which :
 		//   - Patch the fetch() JS function so that it works with web3:// URLs
 		//   - Patch the setter method of various attributes of HTML tags (e.g. <a>, <img>, etc.)
+		chunk := buf[:n]
 		if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") || strings.HasPrefix(w.Header().Get("Content-Type"), "text/css") || strings.HasPrefix(w.Header().Get("Content-Type"), "image/svg+xml") {
-			n = patchTextFile(buf, n, w.Header().Get("Content-Type"), w.Header().Get("Content-Encoding"), rootGatewayHost)
+			chunk = patchTextFile(chunk, w.Header().Get("Content-Type"), w.Header().Get("Content-Encoding"), rootGatewayHost)
 		}
 
 		// Update the total output data length
-		outputDataLength += n
+		outputDataLength += len(chunk)
 
 		// Feed the data to the HTTP client
-		_, err = w.Write(buf[:n])
+		_, err = w.Write(chunk)
 		if err != nil {
 			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 			return
@@ -322,7 +323,7 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			willCacheResponseAsType = ""
 		}
 		if willCacheResponseAsType != "" {
-			_, err = cacheResponseWriter.Write(buf[:n])
+			_, err = cacheResponseWriter.Write(chunk)
 			if err != nil {
 				respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
 				return
@@ -555,29 +556,30 @@ func handleSubdomain(host string, path string) (p string, rootGatewayHost string
 //go:embed html.patch
 var htmlPatch []byte
 
-func patchTextFile(buf []byte, n int, contentType string, contentEncoding string, rootGatewayHost string) int {
-	// Create a new buffer of length n, and copy the data into it
-	alteredBuf := make([]byte, n)
-	copy(alteredBuf, buf[:n])
+// patchTextFile returns the patched content. The result can be longer than the
+// input (the injected html.patch alone adds ~8 KB), so it must not be written
+// back into the caller's buffer.
+func patchTextFile(data []byte, contentType string, contentEncoding string, rootGatewayHost string) []byte {
+	content := data
 
 	// If contentEncoding is "gzip", then first decompress the data
 	if contentEncoding == "gzip" {
-		gzipReader, err := gzip.NewReader(bytes.NewReader(alteredBuf))
+		gzipReader, err := gzip.NewReader(bytes.NewReader(data))
 		if err != nil {
 			log.Infof("patchTextFile: Cannot initiate gzip decompression: %v\n", err)
-			return n
+			return data
 		}
-		alteredBuf, err = io.ReadAll(gzipReader)
+		content, err = io.ReadAll(gzipReader)
 		if err != nil {
 			log.Infof("patchTextFile: Cannot decompress gzip data (likely spread over several chunks): %v\n", err)
-			return n
+			return data
 		}
 	}
 
 	// Convert the buffer to a string
 	// We should theorically look for the charset, located in a <meta charset="xxx" /> tag,
 	// but nowadays everything is mostly UTF-8, so we just assume it is UTF-8
-	textContent := string(alteredBuf)
+	textContent := string(content)
 
 	// In the text itself, convert web3:// URLs to gateway URLs
 	// Map of XML tags to their attributes that could contain web3:// URLs
@@ -663,12 +665,12 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 	if strings.HasPrefix(contentType, "text/html") {
 		bodyTagIndex := strings.Index(strings.ToLower(textContent), "<body")
 		if bodyTagIndex == -1 {
-			return n
+			return data
 		}
 		// Find the closing '>' of the body tag
 		closingTagIndex := strings.Index(textContent[bodyTagIndex:], ">")
 		if closingTagIndex == -1 {
-			return n
+			return data
 		}
 		// Calculate the actual position of the closing '>' in the full string
 		closingTagIndex += bodyTagIndex + 1
@@ -677,20 +679,16 @@ func patchTextFile(buf []byte, n int, contentType string, contentEncoding string
 	}
 
 	// Convert back to byte array
-	alteredBuf = []byte(textContent)
+	patched := []byte(textContent)
 
 	// If contentEncoding is "gzip", then recompress the data
 	if contentEncoding == "gzip" {
 		var compressedBuf bytes.Buffer
 		gzipWriter := gzip.NewWriter(&compressedBuf)
-		gzipWriter.Write(alteredBuf)
+		gzipWriter.Write(patched)
 		gzipWriter.Close()
-		alteredBuf = compressedBuf.Bytes()
+		patched = compressedBuf.Bytes()
 	}
 
-	// Finally: copy the altered data back into the original buffer and update n
-	copy(buf, alteredBuf)
-	n = len(alteredBuf)
-
-	return n
+	return patched
 }
