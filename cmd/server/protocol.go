@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -57,6 +58,26 @@ type PageCacheEntry struct {
 
 	// The time at which the cache entry was created
 	CreationTime time.Time
+}
+
+const (
+	// Buffer used to move a response body from web3protocol-go to the client. It was
+	// 8 MiB, allocated per request before the body size was known, and
+	// web3protocol-go's SharedOutputReader mirrors whatever size we pass it -- so an
+	// empty response cost 16 MiB of zeroed pages. Going bigger buys nothing: the body
+	// is already in memory upstream, so it only saves loop iterations.
+	responseBufferSize = 64 * 1024
+	// Upper bound on a body we accumulate to patch as one document -- the ceiling the
+	// old 8 MiB read buffer already imposed, now reached by growing with the body
+	// instead of being reserved up front.
+	maxPatchableBodySize = 8 * 1024 * 1024
+)
+
+var responseBufferPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, responseBufferSize)
+		return &buf
+	},
 }
 
 func handle(w http.ResponseWriter, req *http.Request) {
@@ -282,39 +303,16 @@ func handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Send the output
-	// We receive it chunk by chunk from web3protocol-go. Usually there is only a single chunk.
+	// We receive it chunk by chunk from web3protocol-go.
 	outputDataLength := 0
-	buf := make([]byte, 8*1024*1024)
-	for {
-		// Fetch data from web3protocol-go
-		n, err := fetchedWeb3Url.Output.Read(buf)
-		if err != nil && err != io.EOF {
-			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
-			return
-		}
-		if n == 0 {
-			break
-		}
-
-		// If the content type is some specific text types,
-		// we do some processing on the data
-		// - Rewrite the web3:// URLs of the HTML tags (e.g. <a>, <img>, etc.)
-		// - Inject a javascript patch to the HTML page, which :
-		//   - Patch the fetch() JS function so that it works with web3:// URLs
-		//   - Patch the setter method of various attributes of HTML tags (e.g. <a>, <img>, etc.)
-		chunk := buf[:n]
-		if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") || strings.HasPrefix(w.Header().Get("Content-Type"), "text/css") || strings.HasPrefix(w.Header().Get("Content-Type"), "image/svg+xml") {
-			chunk = patchTextFile(chunk, w.Header().Get("Content-Type"), w.Header().Get("Content-Encoding"), rootGatewayHost)
-		}
-
-		// Update the total output data length
+	// sendChunk feeds one piece of the body to the client and, while the response is
+	// still eligible, to the cache. It returns false once the error page has been sent.
+	sendChunk := func(chunk []byte) bool {
 		outputDataLength += len(chunk)
 
-		// Feed the data to the HTTP client
-		_, err = w.Write(chunk)
-		if err != nil {
+		if _, err := w.Write(chunk); err != nil {
 			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
-			return
+			return false
 		}
 
 		// Feed the data to the cache, if enabled
@@ -323,10 +321,9 @@ func handle(w http.ResponseWriter, req *http.Request) {
 			willCacheResponseAsType = ""
 		}
 		if willCacheResponseAsType != "" {
-			_, err = cacheResponseWriter.Write(chunk)
-			if err != nil {
+			if _, err := cacheResponseWriter.Write(chunk); err != nil {
 				respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
-				return
+				return false
 			}
 		}
 
@@ -334,6 +331,57 @@ func handle(w http.ResponseWriter, req *http.Request) {
 		// (This is still an HTTP 1.1 server, so it's using Transfer-encoding: chunked)
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
+		}
+		return true
+	}
+
+	// For some specific text types we do some processing on the data
+	// - Rewrite the web3:// URLs of the HTML tags (e.g. <a>, <img>, etc.)
+	// - Inject a javascript patch to the HTML page, which :
+	//   - Patch the fetch() JS function so that it works with web3:// URLs
+	//   - Patch the setter method of various attributes of HTML tags (e.g. <a>, <img>, etc.)
+	// Both need the whole document at once -- a tag straddling two reads would be
+	// missed, and the patch would land in whichever chunk holds the <body> tag -- so
+	// those bodies are accumulated first.
+	contentType := w.Header().Get("Content-Type")
+	patchBody := strings.HasPrefix(contentType, "text/html") || strings.HasPrefix(contentType, "text/css") || strings.HasPrefix(contentType, "image/svg+xml")
+	var patchableBody []byte
+
+	buf := responseBufferPool.Get().(*[]byte)
+	defer responseBufferPool.Put(buf)
+	for {
+		// Fetch data from web3protocol-go
+		n, err := fetchedWeb3Url.Output.Read(*buf)
+		if err != nil && err != io.EOF {
+			respondWithErrorPage(w, &web3protocol.Web3ProtocolError{HttpCode: http.StatusServiceUnavailable, Err: err})
+			return
+		}
+		if n == 0 {
+			break
+		}
+		chunk := (*buf)[:n]
+
+		if patchBody {
+			if len(patchableBody)+n <= maxPatchableBodySize {
+				patchableBody = append(patchableBody, chunk...)
+				continue
+			}
+			// Bigger than we are willing to hold: patch what we have, as the old
+			// fixed-size buffer did with its first chunk, then stream the rest raw.
+			log.Warnf("Body of %s exceeds %d bytes, serving the remainder unpatched\n", web3Url, maxPatchableBodySize)
+			if !sendChunk(patchTextFile(patchableBody, contentType, w.Header().Get("Content-Encoding"), rootGatewayHost)) {
+				return
+			}
+			patchBody, patchableBody = false, nil
+		}
+
+		if !sendChunk(chunk) {
+			return
+		}
+	}
+	if len(patchableBody) > 0 {
+		if !sendChunk(patchTextFile(patchableBody, contentType, w.Header().Get("Content-Encoding"), rootGatewayHost)) {
+			return
 		}
 	}
 
