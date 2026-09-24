@@ -1,7 +1,9 @@
 import dotenv from "dotenv";
 import { ethers } from "ethers";
 import { FlatDirectory } from "ethstorage-sdk";
+import { installLatestBlockSubscriber } from "./block-subscriber-guard.mjs";
 dotenv.config();
+installLatestBlockSubscriber();
 
 const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
 const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 Gwei
