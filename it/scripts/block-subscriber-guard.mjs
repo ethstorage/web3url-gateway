@@ -8,6 +8,7 @@ export class LatestBlockSubscriber {
     #provider;
     #poller = null;
     #interval = 4000;
+    // Valid block numbers are non-negative; -2 matches ethers' sentinel for an uninitialized height.
     #blockNumber = -2;
 
     constructor(provider) {
