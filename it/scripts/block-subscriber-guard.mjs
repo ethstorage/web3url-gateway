@@ -28,10 +28,15 @@ export class LatestBlockSubscriber {
             if (this.#blockNumber === -2) {
                 this.#blockNumber = blockNumber;
             } else if (blockNumber > this.#blockNumber) {
+                const previousBlock = this.#blockNumber;
+                const skippedEvents = blockNumber - previousBlock - 1;
                 await this.#provider.emit('block', blockNumber);
                 this.#blockNumber = blockNumber;
+                if (skippedEvents > 0) {
+                    console.info(`[block-subscriber-guard] Coalesced block gap: last=${previousBlock}, current=${blockNumber}, emitted=${blockNumber}, skipped=${skippedEvents} intermediate block events.`);
+                }
             } else if (blockNumber < this.#blockNumber) {
-                console.warn(`Ignoring RPC block number regression from ${this.#blockNumber} to ${blockNumber}.`);
+                console.warn(`[block-subscriber-guard] Ignoring RPC block height regression: last=${this.#blockNumber}, received=${blockNumber}; keeping last height.`);
             }
         } catch {
             // Match ethers' polling subscriber: retry on the next interval.
