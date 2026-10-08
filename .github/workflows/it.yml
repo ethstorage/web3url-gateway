@@ -34,7 +34,6 @@ jobs:
         id: link-check
         timeout-minutes: 30
         env:
-          NODE_OPTIONS: --max-old-space-size=6144
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           L1_RPC_MAINNET: ${{ secrets.L1_RPC_MAINNET }}
           L1_RPC_SEP: ${{ secrets.L1_RPC_SEP }}
