@@ -1,6 +1,12 @@
 import dotenv from "dotenv";
 import { ethers } from "ethers";
-import { FlatDirectory } from "ethstorage-sdk";
+import {
+    ETHSTORAGE_MAPPING,
+    FlatDirectory,
+    FlatDirectoryAbi,
+    FlatDirectoryBytecode,
+    OP_BLOB_DATA_SIZE,
+} from "ethstorage-sdk";
 import { installLatestBlockSubscriber } from "./block-subscriber-guard.mjs";
 dotenv.config();
 installLatestBlockSubscriber();
@@ -45,9 +51,9 @@ export async function addLinks() {
         if (sepoliaFeeInfo.ok && sepoliaFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
             configs.push(
                 { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
-                { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
-                // { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
-                { rpc: L2_RPC_BASE_SEP, type: 1, chainId: 84532, shortName: "basesep" },
+                // { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
+                // // { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
+                // { rpc: L2_RPC_BASE_SEP, type: 1, chainId: 84532, shortName: "basesep" },
             );
         }
     }
@@ -60,9 +66,9 @@ export async function addLinks() {
             gasPrice: mainnetFeeInfo.l1GasPriceGwei,
         });
         if (mainnetFeeInfo.ok && mainnetFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
-            configs.push(
-                { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
-            );
+            // configs.push(
+            //     { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
+            // );
         }
     }
 
@@ -181,18 +187,9 @@ export async function addLink(rpc, type, chainId, shortName) {
         if (shouldSkipDeploy) {
             usePredeployed(`Gas price ${gasPriceGweiValue} gwei exceeds cap ${DEPLOY_GAS_PRICE_CAP_GWEI} gwei.`);
         } else {
-            let deployDirectory;
             try {
-                deployDirectory = await withTimeout(
-                    FlatDirectory.create({
-                        rpc,
-                        privateKey: pk,
-                    }),
-                    TIMEOUT,
-                    "FlatDirectory.create"
-                );
                 contractAddress = await withTimeout(
-                    deployDirectory.deploy(),
+                    deployFlatDirectory(linkProvider, wallet),
                     TIMEOUT,
                     "flatDirectory.deploy"
                 );
@@ -205,8 +202,6 @@ export async function addLink(rpc, type, chainId, shortName) {
                     ? `${formatEtherFixed(deployCostWei)} (failed deploy)`
                     : '0.0 (predeployed)';
                 usePredeployed('Deployment failed.', overrideCost);
-            } finally {
-                await deployDirectory?.close?.();
             }
 
             if (!skippedDeployment) {
@@ -304,6 +299,191 @@ export async function addLink(rpc, type, chainId, shortName) {
     } finally {
         linkProvider.destroy();
     }
+}
+
+async function deployFlatDirectory(provider, wallet) {
+    const network = await provider.getNetwork();
+    const rpcChainId = Number(network.chainId);
+    const storageAddress = ETHSTORAGE_MAPPING[rpcChainId] ?? ethers.ZeroAddress;
+    const factory = new ethers.ContractFactory(FlatDirectoryAbi, FlatDirectoryBytecode, wallet);
+    const deploymentRequest = await factory.getDeployTransaction(
+        0,
+        OP_BLOB_DATA_SIZE,
+        storageAddress
+    );
+    const simulationRequest = {
+        ...deploymentRequest,
+        from: await wallet.getAddress(),
+    };
+    const balance = await provider.getBalance(simulationRequest.from);
+
+    let estimatedGas;
+    try {
+        estimatedGas = await provider.estimateGas(simulationRequest);
+        console.log(`FlatDirectory deployment estimated gas: ${estimatedGas}.`);
+    } catch (err) {
+        await logFlatDirectoryDeploymentDiagnostic(provider, err, simulationRequest, rpcChainId, storageAddress);
+        throw err;
+    }
+
+    const gasLimit = Math.ceil(Number(estimatedGas) * 12 / 10); // 20% buffer over estimate
+    console.log(`FlatDirectory deployment gas limit (with 20% buffer): ${gasLimit}.`);
+
+    const feeData = await provider.getFeeData();
+    const maxFeePerGas = feeData.maxFeePerGas ?? feeData.gasPrice;
+    const maxDeploymentCost = maxFeePerGas ? BigInt(gasLimit) * maxFeePerGas : undefined;
+
+    console.log(`FlatDirectory deployment preflight: rpc chain ${rpcChainId}, storage ${storageAddress}.`);
+    if (maxDeploymentCost) {
+        console.log("FlatDirectory deployment funding estimate:", stringifyDiagnostic({
+            balanceEth: ethers.formatEther(balance),
+            gasLimit,
+            maxFeePerGasWei: maxFeePerGas,
+            requiredEth: ethers.formatEther(maxDeploymentCost),
+        }));
+        if (balance < maxDeploymentCost) {
+            throw new Error(
+                `Insufficient funds for FlatDirectory deployment: balance ${ethers.formatEther(balance)} ETH, ` +
+                `requires up to ${ethers.formatEther(maxDeploymentCost)} ETH.`
+            );
+        }
+    }
+
+    let deploymentTx;
+    try {
+        const contract = await factory.deploy(
+            0,
+            OP_BLOB_DATA_SIZE,
+            storageAddress,
+            { gasLimit }
+        );
+        deploymentTx = contract.deploymentTransaction();
+        console.log(`FlatDirectory deployment transaction: ${deploymentTx?.hash}.`);
+        await contract.waitForDeployment();
+        return await contract.getAddress();
+    } catch (err) {
+        await logFlatDirectoryDeploymentDiagnostic(
+            provider,
+            err,
+            simulationRequest,
+            rpcChainId,
+            storageAddress,
+            deploymentTx?.hash
+        );
+        throw err;
+    }
+}
+
+async function logFlatDirectoryDeploymentDiagnostic(
+    provider,
+    err,
+    simulationRequest,
+    rpcChainId,
+    storageAddress,
+    transactionHash
+) {
+    const receipt = err?.receipt;
+    const hash = transactionHash ?? receipt?.hash ?? err?.transactionHash;
+    const blockTag = receipt ? ethers.toQuantity(receipt.blockNumber - 1) : "latest";
+    console.error("FlatDirectory deployment diagnostic:", stringifyDiagnostic({
+        rpcChainId,
+        storageAddress,
+        transactionHash: hash,
+        error: describeEthersError(err),
+    }));
+
+    try {
+        await provider.call(simulationRequest, blockTag);
+        console.error("FlatDirectory deployment replay unexpectedly succeeded.");
+    } catch (replayError) {
+        console.error("FlatDirectory deployment replay diagnostic:", stringifyDiagnostic({
+            error: describeEthersError(replayError),
+        }));
+    }
+
+    try {
+        const trace = await provider.send("debug_traceCall", [
+            toTraceRequest(simulationRequest),
+            blockTag,
+            { tracer: "callTracer" },
+        ]);
+        console.error("FlatDirectory deployment replay trace:", stringifyDiagnostic({
+            error: trace?.error,
+            revertReason: trace?.revertReason,
+            output: trace?.output,
+        }));
+    } catch (traceError) {
+        console.error("FlatDirectory deployment replay trace unavailable:", describeEthersError(traceError).message);
+    }
+
+    if (!hash) {
+        return;
+    }
+
+    try {
+        const trace = await provider.send("debug_traceTransaction", [hash, { tracer: "callTracer" }]);
+        console.error("FlatDirectory deployment trace:", stringifyDiagnostic({
+            error: trace?.error,
+            revertReason: trace?.revertReason,
+            output: trace?.output,
+        }));
+    } catch (traceError) {
+        console.error("FlatDirectory deployment trace unavailable:", describeEthersError(traceError).message);
+    }
+}
+
+function toTraceRequest(request) {
+    return {
+        from: request.from,
+        data: request.data,
+        gas: request.gasLimit && ethers.toQuantity(request.gasLimit),
+        value: request.value && ethers.toQuantity(request.value),
+    };
+}
+
+function describeEthersError(err) {
+    const data = extractRevertData(err);
+    return {
+        code: err?.code,
+        message: err?.message || String(err),
+        shortMessage: err?.shortMessage,
+        reason: err?.reason,
+        revertData: data,
+        decodedRevert: decodeRevertData(data),
+        receipt: err?.receipt && {
+            blockNumber: err.receipt.blockNumber,
+            gasUsed: err.receipt.gasUsed,
+            status: err.receipt.status,
+        },
+    };
+}
+
+function extractRevertData(err) {
+    const candidates = [
+        err?.data,
+        err?.info?.error?.data,
+        err?.error?.data,
+    ];
+    return candidates.find(value => typeof value === "string" && value.startsWith("0x"));
+}
+
+function decodeRevertData(data) {
+    if (!data || data === "0x") {
+        return undefined;
+    }
+    try {
+        const parsed = new ethers.Interface([
+            "error Error(string)",
+            "error Panic(uint256)",
+        ]).parseError(data);
+        return `${parsed.name}(${parsed.args.map(String).join(", ")})`;
+    } catch {
+        return undefined;
+    }
+}
+
+function stringifyDiagnostic(value) {
+    return JSON.stringify(value, (_, item) => typeof item === "bigint" ? item.toString() : item);
 }
 
 function formatAddLinkErr(reason) {
