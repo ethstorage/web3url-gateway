@@ -1,12 +1,5 @@
 import dotenv from "dotenv";
 import { ethers } from "ethers";
-import {
-    ETHSTORAGE_MAPPING,
-    FlatDirectory,
-    FlatDirectoryAbi,
-    FlatDirectoryBytecode,
-    OP_BLOB_DATA_SIZE,
-} from "ethstorage-sdk";
 import { FlatDirectory } from "ethstorage-sdk";
 import { installLatestBlockSubscriber } from "./block-subscriber-guard.mjs";
 dotenv.config();
@@ -188,8 +181,24 @@ export async function addLink(rpc, type, chainId, shortName) {
         if (shouldSkipDeploy) {
             usePredeployed(`Gas price ${gasPriceGweiValue} gwei exceeds cap ${DEPLOY_GAS_PRICE_CAP_GWEI} gwei.`);
         } else {
+            let deployDirectory;
             try {
-                contractAddress = await deployFlatDirectory(linkProvider, wallet, address, chainId);
+                deployDirectory = await withTimeout(
+                    FlatDirectory.create({
+                        rpc,
+                        privateKey: pk,
+                    }),
+                    TIMEOUT,
+                    "FlatDirectory.create"
+                );
+                contractAddress = await withTimeout(
+                    deployDirectory.deploy(),
+                    TIMEOUT,
+                    "flatDirectory.deploy"
+                );
+                if (!contractAddress) {
+                    throw new Error(`FlatDirectory.deploy returned no contract address for chain ${chainId}.`);
+                }
             } catch (err) {
                 console.error(`FlatDirectory deployment failed on chain ${chainId}:`, err?.message || err);
                 const postFailureBalance = await linkProvider.getBalance(address);
@@ -199,6 +208,8 @@ export async function addLink(rpc, type, chainId, shortName) {
                     ? `${formatEtherFixed(deployCostWei)} (failed deploy)`
                     : '0.0 (predeployed)';
                 usePredeployed('Deployment failed.', overrideCost);
+            } finally {
+                await deployDirectory?.close?.();
             }
 
             if (!skippedDeployment) {
@@ -296,41 +307,6 @@ export async function addLink(rpc, type, chainId, shortName) {
     } finally {
         linkProvider.destroy();
     }
-}
-
-/**
- * Deploy a FlatDirectory contract using an estimated gas limit.
- *
- * `FlatDirectory.deploy()` from the SDK hardcodes a 3.8M gas limit, so the
- * deployment gas is estimated here first and the estimate is used for the
- * actual deployment. A reverting deployment throws during estimation, i.e.
- * before any gas is spent on the reverted transaction.
- */
-async function deployFlatDirectory(provider, wallet, fromAddress, chainId) {
-    // Same ethStorage address lookup as the SDK: based on the chain the RPC
-    // reports, not on the configured chainId.
-    const rpcChainId = Number((await provider.getNetwork()).chainId);
-    const ethStorage = ETHSTORAGE_MAPPING[rpcChainId] ?? ethers.ZeroAddress;
-    const factory = new ethers.ContractFactory(FlatDirectoryAbi, FlatDirectoryBytecode, wallet);
-
-    const deployTx = await factory.getDeployTransaction(0, OP_BLOB_DATA_SIZE, ethStorage);
-    const gasLimit = await withTimeout(
-        provider.estimateGas({ ...deployTx, from: fromAddress }),
-        TIMEOUT,
-        "flatDirectory.estimateDeployGas"
-    );
-    console.log(`Estimated deploy gas limit for chain ${chainId}: ${gasLimit}`);
-
-    const contract = await withTimeout(
-        factory.deploy(0, OP_BLOB_DATA_SIZE, ethStorage, { gasLimit }),
-        TIMEOUT,
-        "flatDirectory.deploy"
-    );
-    await withTimeout(contract.waitForDeployment(), TIMEOUT, "flatDirectory.waitForDeployment");
-
-    const contractAddress = await contract.getAddress();
-    console.log(`FlatDirectory deployed for chain ${chainId} at ${contractAddress}`);
-    return contractAddress;
 }
 
 function formatAddLinkErr(reason) {
