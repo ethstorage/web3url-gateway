@@ -196,6 +196,9 @@ export async function addLink(rpc, type, chainId, shortName) {
                     TIMEOUT,
                     "flatDirectory.deploy"
                 );
+                if (!contractAddress) {
+                    throw new Error(`FlatDirectory.deploy returned no contract address for chain ${chainId}.`);
+                }
             } catch (err) {
                 console.error(`FlatDirectory deployment failed on chain ${chainId}:`, err?.message || err);
                 const postFailureBalance = await linkProvider.getBalance(address);
