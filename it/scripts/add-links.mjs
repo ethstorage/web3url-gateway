@@ -6,17 +6,15 @@ dotenv.config();
 installLatestBlockSubscriber();
 
 const TIMEOUT = process.env.TIMEOUT || 180000; // 3 minutes
-const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 10 Gwei
+const BLOB_BASE_FEE_CAP = process.env.BLOB_BASE_FEE_CAP || 100000000000; // 100 Gwei
 const L1_RPC_MAINNET = process.env.L1_RPC_MAINNET;
 const L1_RPC_SEP = process.env.L1_RPC_SEP || "http://65.108.230.142:8545";
-const L2_RPC_BASE_SEP = process.env.L2_RPC_BASE_SEP || "https://base-testnet.api.pocket.network";
 const DEPLOY_GAS_PRICE_CAP_GWEI = 1;
 const FIXED_DECIMALS = 9;
 const PREDEPLOYED_CONTRACTS = {
     3333: "0x2f3D6e07213168D0DA0A74AFA824C4075E79a678",
     110011: "0x024d62c3E57692e366310ee50e5D9d845Ec09f3F",
     11155420: "0xF756F3153Ac23Ebd0bec22b8637E83E28B059b33",
-    84532: "0x06F85a74A01Af29EacdCD5ef4f64CB3c5703323c",
     100011: "0x9132bE118aD6cEBd9ce4B0FfFb682E84cE889B94",
 };
 
@@ -47,7 +45,6 @@ export async function addLinks() {
                 { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
                 { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
                 // { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
-                { rpc: L2_RPC_BASE_SEP, type: 1, chainId: 84532, shortName: "basesep" },
             );
         }
     }
