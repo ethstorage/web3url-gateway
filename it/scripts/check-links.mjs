@@ -1,10 +1,8 @@
-import https from 'https';
 import fetch from 'node-fetch';
 
 async function checkLink(url) {
   try {
     const response = await fetch(url, {
-      agent: new https.Agent({ rejectUnauthorized: false }),
       signal: AbortSignal.timeout(100000),
     });
     console.log(url, ":", response.statusText);

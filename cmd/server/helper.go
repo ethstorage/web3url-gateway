@@ -101,7 +101,7 @@ func loadConfig(file string, cfg *Web3Config) error {
 
 	err = toml.NewDecoder(bufio.NewReader(f)).Decode(cfg)
 	if _, ok := err.(*toml.LineError); ok {
-		err = fmt.Errorf(file + ", " + err.Error())
+		err = fmt.Errorf("%s, %v", file, err)
 	}
 	return err
 }

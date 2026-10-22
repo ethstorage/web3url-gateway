@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -46,6 +47,15 @@ var (
 )
 
 func getCertFromPath(domain, path string) (*tls.Certificate, error) {
+	// Prefer Certbot's full chain, including for cached cert.pem paths.
+	if filepath.Base(path) == "cert.pem" {
+		fullchainPath := filepath.Join(filepath.Dir(path), "fullchain.pem")
+		if _, err := os.Stat(fullchainPath); err == nil {
+			path = fullchainPath
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
 
 	var (
 		err       error
@@ -77,8 +87,9 @@ func getCertFromPath(domain, path string) (*tls.Certificate, error) {
 
 	}
 
-	if cert.Leaf.NotAfter.Before(cert.Leaf.NotBefore) {
-		return nil, fmt.Errorf("certificate expired %s", domain)
+	now := time.Now()
+	if now.Before(cert.Leaf.NotBefore) || now.After(cert.Leaf.NotAfter) {
+		return nil, fmt.Errorf("certificate not currently valid for %s", domain)
 	}
 
 	return &cert, nil

@@ -13,7 +13,7 @@ jobs:
   check-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Capture Start Time
         id: capture-time
@@ -21,9 +21,9 @@ jobs:
           echo "started_at=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S %Z')" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20.x"
+          node-version: "24.22.1"
 
       - name: Install dependencies
         run: |
@@ -86,7 +86,7 @@ jobs:
 
       - name: Send Failure Email
         if: ${{ always() && steps.link-check.outcome != 'cancelled' && steps.link-check.outcome != 'success' }}
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v23
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -117,11 +117,11 @@ jobs:
             _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: Web3Gateway
+          from: "Web3Gateway <${{ secrets.SMTP_USERNAME }}>"
 
       - name: Send Daily Success Email
         if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v23
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -149,4 +149,4 @@ jobs:
             _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Web3Gateway
+          from: "Web3Gateway <${{ secrets.SMTP_USERNAME }}>"
