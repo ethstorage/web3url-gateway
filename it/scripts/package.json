@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js",
-    "test:unit": "node --test *.test.mjs"
+    "test": "node index.js"
   },
   "engines": {
     "node": "^24.22.1 || ^26.12.1"
