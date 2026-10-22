@@ -117,7 +117,7 @@ jobs:
             _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: Web3Gateway
+          from: "Web3Gateway <${{ secrets.SMTP_USERNAME }}>"
 
       - name: Send Daily Success Email
         if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
@@ -149,4 +149,4 @@ jobs:
             _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
 
           to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Web3Gateway
+          from: "Web3Gateway <${{ secrets.SMTP_USERNAME }}>"
