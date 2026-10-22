@@ -9,83 +9,117 @@ on:
 
   workflow_dispatch: # Manual trigger
 
+permissions:
+  contents: read
+
 jobs:
-  check-links:
+  add-links:
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.add-links.outputs.result }}
+      started_at: ${{ steps.capture-time.outputs.started_at }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Capture Start Time
         id: capture-time
         run: |
           echo "started_at=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M:%S %Z')" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20.x"
+          node-version-file: .nvmrc
+          package-manager-cache: false
 
       - name: Install dependencies
-        run: |
-          npm install node-fetch @actions/core@^3.0.0 @actions/github@^9.0.0
-          npm install ethstorage-sdk
+        run: npm ci --prefix it/scripts
 
-      - name: Check Links
-        id: link-check
+      - name: Add Links
+        id: add-links
         timeout-minutes: 30
+        working-directory: it/scripts
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           L1_RPC_MAINNET: ${{ secrets.L1_RPC_MAINNET }}
           L1_RPC_SEP: ${{ secrets.L1_RPC_SEP }}
         run: |
-          node << 'EOF'
-          import * as core from '@actions/core';
-          import { checkAllLinks } from './it/scripts/check-links.mjs';
-          import { links } from './it/data/links.mjs';
-          import { addLinks } from './it/scripts/add-links.mjs';
+          node --input-type=module << 'EOF'
+          import { appendFileSync } from 'node:fs';
+          import { addLinks } from './add-links.mjs';
 
-          async function run() {
-            
-            let errors = [];
-            const { links: created, errors: addLinkErrors, summaryTable, l1InfoTable } = await addLinks();
-            const allLinks = [...links, ...created];
-            const checkLinkErrors = await checkAllLinks(allLinks);
-
-            core.setOutput('static_links_total', String(links.length));
-
-            if (summaryTable) {
-              core.setOutput('summary', summaryTable);
-            }
-            if (l1InfoTable) {
-              core.setOutput('l1_summary', l1InfoTable);
-            }
-            if (addLinkErrors.length) {
-              errors.push(...addLinkErrors);
-            }
-            if (checkLinkErrors.size > 0) {
-              errors.push(...Array.from(checkLinkErrors, ([k,v]) => `${k} -> ${v}`));
-            }
-            if (created.length) {
-              const createdList = created.map(link => `- ${link}`).join('\n');
-              core.setOutput('created', createdList);
-            }
-            if (errors.length) {
-              const failureList = errors.map(err => `- ${err}`).join('\n');
-              core.setOutput('failures', failureList);
-              throw new Error(failureList);
-            }
+          let result;
+          try {
+            result = await addLinks();
+          } catch (err) {
+            result = { links: [], errors: [err.message || String(err)] };
           }
-
-          await run().catch(err => {
-            const errMsg = err?.stack || err?.message || String(err);
-            console.error('Error happened:', errMsg);
-            core.setFailed(errMsg);
-            process.exit(1);
-          });
+          appendFileSync(process.env.GITHUB_OUTPUT, `result=${JSON.stringify(result)}\n`);
+          if (result.errors.length) {
+            process.exitCode = 1;
+          }
           EOF
 
+  check-links:
+    needs: add-links
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.link-check.outputs.result }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm ci --prefix it/scripts
+
+      - name: Check Links
+        id: link-check
+        timeout-minutes: 30
+        working-directory: it/scripts
+        env:
+          ADD_LINK_RESULT: ${{ needs.add-links.outputs.result || '{}' }}
+          ADD_LINK_STATUS: ${{ needs.add-links.result }}
+        run: |
+          node --input-type=module << 'EOF'
+          import { appendFileSync } from 'node:fs';
+          import { checkAllLinks } from './check-links.mjs';
+          import { links } from '../data/links.mjs';
+
+          const generated = JSON.parse(process.env.ADD_LINK_RESULT);
+          const created = generated.links || [];
+          const errors = generated.errors || [];
+          if (process.env.ADD_LINK_STATUS !== 'success' && !errors.length) {
+            errors.push('Link generation did not complete; see the add-links job.');
+          }
+          const failures = await checkAllLinks([...links, ...created]);
+          errors.push(...Array.from(failures, ([url, error]) => `${url} -> ${error}`));
+          const result = {
+            static_links_total: links.length,
+            summary: generated.summaryTable || '',
+            l1_summary: generated.l1InfoTable || '',
+            created: created.map(link => `- ${link}`).join('\n'),
+            failures: errors.join('\n'),
+          };
+          appendFileSync(process.env.GITHUB_OUTPUT, `result=${JSON.stringify(result)}\n`);
+          if (errors.length) {
+            console.error(result.failures);
+            process.exitCode = 1;
+          }
+          EOF
+
+  notify:
+    needs: [add-links, check-links]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Send Failure Email
-        if: ${{ always() && steps.link-check.outcome != 'cancelled' && steps.link-check.outcome != 'success' }}
+        if: ${{ needs.add-links.result != 'success' || needs.check-links.result != 'success' }}
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
@@ -97,30 +131,30 @@ jobs:
           html_body: |
             ## 🚨 Link Check Failed
 
-            - **Outcome:** `${{ steps.link-check.outcome }}`
-            - **Triggered By:** `${{ github.event_name }}` at `${{ steps.capture-time.outputs.started_at }}`
+            - **Outcome:** `${{ needs.check-links.result }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ needs.add-links.outputs.started_at }}`
 
             ---
 
             ### Link Failures
-            ${{ steps.link-check.outputs.failures }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').failures || 'Link generation or checking did not complete; see the workflow logs.' }}
 
             ### L1 Gas Prices
-            ${{ steps.link-check.outputs.l1_summary }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').l1_summary }}
 
             ### Cost Summary
-            ${{ steps.link-check.outputs.summary }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').summary }}
 
             ### New Links
-            ${{ steps.link-check.outputs.created }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').created }}
 
-            _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
+            _(static link list trimmed · total `${{ fromJSON(needs.check-links.outputs.result || '{}').static_links_total }}` entries)_
 
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Web3Gateway
 
       - name: Send Daily Success Email
-        if: ${{ steps.link-check.outcome == 'success' && steps.link-check.outputs.failures == '' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
+        if: ${{ needs.add-links.result == 'success' && needs.check-links.result == 'success' && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
@@ -132,21 +166,21 @@ jobs:
           html_body: |
             ## ✅ All Links Healthy
 
-            - **Outcome:** `${{ steps.link-check.outcome }}`
-            - **Triggered By:** `${{ github.event_name }}` at `${{ steps.capture-time.outputs.started_at }}`
+            - **Outcome:** `${{ needs.check-links.result }}`
+            - **Triggered By:** `${{ github.event_name }}` at `${{ needs.add-links.outputs.started_at }}`
 
             ---
 
             ### L1 Gas Prices
-            ${{ steps.link-check.outputs.l1_summary }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').l1_summary }}
             
             ### Cost Summary
-            ${{ steps.link-check.outputs.summary }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').summary }}
 
             ### New Links
-            ${{ steps.link-check.outputs.created }}
+            ${{ fromJSON(needs.check-links.outputs.result || '{}').created }}
 
-            _(static link list trimmed · total `${{ steps.link-check.outputs.static_links_total }}` entries)_
+            _(static link list trimmed · total `${{ fromJSON(needs.check-links.outputs.result || '{}').static_links_total }}` entries)_
 
           to: ${{secrets.NOTIFICATION_EMAIL}}
           from: Web3Gateway

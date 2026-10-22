@@ -12,9 +12,20 @@ A gateway implementation of the web3 access protocol (web3://) that can serve HT
 
 ## Build the source
 
+Use Go 1.27.3 or newer. After a Go security update, rebuild and restart deployed
+gateways; installing the new toolchain does not update existing binaries. Keep
+the deployment host's CA trust store up to date as well.
+
 ```
 make
 ```
+
+The integration scripts use Node.js 24.22.1 (see `.nvmrc`) and verify HTTPS
+certificates, including automatically issued Let's Encrypt certificates. Run
+their offline tests with `npm ci --prefix it/scripts` followed by
+`npm run test:unit --prefix it/scripts`. The regular `npm test` performs live
+integration checks and can submit transactions using `PRIVATE_KEY`.
+
 ## Configurations
 
 Before running any test or a product server, you need a copy of `config.toml` based on `config.toml.template`, 

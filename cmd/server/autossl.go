@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -77,8 +78,9 @@ func getCertFromPath(domain, path string) (*tls.Certificate, error) {
 
 	}
 
-	if cert.Leaf.NotAfter.Before(cert.Leaf.NotBefore) {
-		return nil, fmt.Errorf("certificate expired %s", domain)
+	now := time.Now()
+	if now.Before(cert.Leaf.NotBefore) || now.After(cert.Leaf.NotAfter) {
+		return nil, fmt.Errorf("certificate not currently valid for %s", domain)
 	}
 
 	return &cert, nil
