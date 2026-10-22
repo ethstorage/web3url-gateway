@@ -47,6 +47,15 @@ var (
 )
 
 func getCertFromPath(domain, path string) (*tls.Certificate, error) {
+	// Prefer Certbot's full chain, including for cached cert.pem paths.
+	if filepath.Base(path) == "cert.pem" {
+		fullchainPath := filepath.Join(filepath.Dir(path), "fullchain.pem")
+		if _, err := os.Stat(fullchainPath); err == nil {
+			path = fullchainPath
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
 
 	var (
 		err       error
