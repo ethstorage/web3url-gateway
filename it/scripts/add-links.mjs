@@ -43,7 +43,7 @@ export async function addLinks() {
         if (sepoliaFeeInfo.ok && sepoliaFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
             configs.push(
                 { rpc: L1_RPC_SEP, type: 2, chainId: 3333, shortName: "es-t" },
-                { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
+                // { rpc: "https://rpc.delta.testnet.l2.quarkchain.io:8545", type: 1, chainId: 110011, shortName: "qkc-l2-t" },
                 // { rpc: "https://optimism-sepolia-public.nodies.app", type: 1, chainId: 11155420, shortName: "opsep" },
             );
         }
