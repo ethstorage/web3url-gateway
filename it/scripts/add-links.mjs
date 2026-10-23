@@ -56,11 +56,11 @@ export async function addLinks() {
             blobFee: mainnetFeeInfo.blobBaseFeeGwei,
             gasPrice: mainnetFeeInfo.l1GasPriceGwei,
         });
-        if (mainnetFeeInfo.ok && mainnetFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
-            configs.push(
-                { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
-            );
-        }
+        // if (mainnetFeeInfo.ok && mainnetFeeInfo.blobBaseFee <= BLOB_BASE_FEE_CAP) {
+        //     configs.push(
+        //         { rpc: "https://rpc.mainnet.l2.quarkchain.io:8545", type: 1, chainId: 100011, shortName: "qkc-l2" },
+        //     );
+        // }
     }
 
     const l1InfoTable = formatL1GasInfo(l1FeeRows);
